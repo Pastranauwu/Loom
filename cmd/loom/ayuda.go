@@ -60,6 +60,7 @@ var ayudaEn = map[string]textoAyuda{
 		Long:  "Reads a stack trace or failure log (--from file, --from - or a pipe), finds\nwhich rule or edge case the spec was missing, adds it to the spec together\nwith an acceptance criterion whose command reproduces the failure, and runs\nthe corrective task in its room until its done_when passes. With --ship it\ndelivers it.",
 		Flags: map[string]string{"dry-run": "show the diagnosis without touching the spec or creating the task", "executor": "diagnosis CLI (defaults to config.yml)", "file": "spec to fix (defaults to the repo's)", "from": "file with the stack trace or log (- or a pipe = stdin)", "model": "diagnosis model (defaults to the planner's)", "ship": "deliver the corrective task once it is green"}},
 	"loom tutorial": {Short: "a guided tour of loom for new developers"},
+	"loom redteam":  {Short: "a saboteur tries to break what a task exposes before it ships"},
 	"loom language": {Short: "set the language loom talks to you in"},
 	"loom init": {Short: "detect the repo and create .loom/",
 		Flags: map[string]string{"cli": "agent CLI: opencode, claude or codex (asks if more than one is found)", "no-skills": "do not fetch the default skills (do it later with loom skills sync)", "tests": "the project's test command, instead of the detected one", "tests-template": "test stack: go, node or python"}},

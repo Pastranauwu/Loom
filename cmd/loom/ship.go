@@ -43,6 +43,9 @@ requests que se pisan entre sí.`,
   loom ship --all --dry-run`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if redteamFlag != "" && redteamFlag != "warn" && redteamFlag != "block" {
+				return errors.New(idioma.T("--redteam acepta warn o block"))
+			}
 			if todas {
 				if len(args) > 0 {
 					return errors.New(idioma.T("--all entrega todas las tareas listas · no lleva id"))
@@ -60,6 +63,8 @@ requests que se pisan entre sí.`,
 	cmd.Flags().StringVar(&titulo, "title", "", "título del PR conjunto (por defecto, el de la primera tarea)")
 	cmd.Flags().BoolVar(&revisar, "review", false, "un modelo revisa el diff y deja el informe en el PR; apruebas tú")
 	cmd.Flags().BoolVar(&integrar, "merge", false, "revisa y, si no pide cambios, mergea el PR por rebase sin esperarte")
+	cmd.Flags().StringVar(&redteamFlag, "redteam", "", "a saboteur attacks the task before it ships: warn or block")
+	cmd.Flags().Lookup("redteam").NoOptDefVal = "warn"
 	cmd.Flags().BoolVar(&local, "local", false, "deja el PR en el repo (rama y descripción) aunque haya remoto; igual que entrega: local en config.yml")
 	return cmd
 }
@@ -345,6 +350,9 @@ func runShip(id string, dryRun, local bool) error {
 	}
 	if cfg.TimeoutPruebas > 0 {
 		opciones.Timeout = time.Duration(cfg.TimeoutPruebas) * time.Second
+	}
+	if modo := modoRedteam(cfg); modo != "off" && (!dryRun || redteamFlag != "") {
+		opciones.RedTeam = pasoRedteam(root, cfg, t, modo)
 	}
 
 	var res ship.Resultado

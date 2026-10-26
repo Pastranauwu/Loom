@@ -108,7 +108,7 @@ func runInit(cwd, pruebasFlag, plantilla, cli string, in io.Reader, sinSkills bo
 	// lo que se versiona es el plan (tasks, config, feature, intención);
 	// cuartos, logs de corridas y capturas son de la máquina
 	gitignore := filepath.Join(config.Dir(root), ".gitignore")
-	if err := os.WriteFile(gitignore, []byte("rooms/\nruns/\ncorridas/\npuntas.json\n"), 0o644); err != nil {
+	if err := os.WriteFile(gitignore, []byte("rooms/\nruns/\ncorridas/\nredteam/\npuntas.json\n"), 0o644); err != nil {
 		return err
 	}
 	cfg := config.Config{

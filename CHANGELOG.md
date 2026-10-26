@@ -2,6 +2,9 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.1.0 (26 oct 2026)
+`loom redteam`: un saboteur escribe pruebas hostiles contra lo que una tarea expone, en un worktree efímero que siempre se borra, con una sola llamada al modelo por tarea. Solo ataca invariantes reales (ids del spec, reglas, aceptación, ADN activo o clases de robustez) y el código decide qué prueba: un crash o carrera dentro del código de la tarea que se reproduce dos veces es *confirmado*, una aserción inventada es solo una *afirmación* y un test que no compila se descarta. `--reopen` mete el test reproductor en el contrato de la tarea dueña de la firma y la reabre; `--keep-tests` lo conserva en `.loom/redteam/`. `redteam: off|warn|block` en `config.yml` (o `loom ship --redteam`) lo suma a la esclusa de salida como paso `redteam`; con `block` solo frena un crash confirmado. Mensajes de los paquetes internos (esclusa, bucle, spec, contratos) también en inglés o español según el idioma elegido.
+
 ## v2.0.1 (26 oct 2026)
 `config.yml` se escribe con llaves en inglés (`tests`, `models: light|medium|heavy`, `agent_timeout`...) y las españolas se siguen leyendo; `resume_below_pct: 0` ya no apaga `--resume` (0 es el default, `off` lo apaga). Los comandos `limpiar`, `modelos` y `reparar` pasan a `clean`, `models` y `repair`, con los nombres viejos como alias. El idioma se elige en `loom init`, con `loom language [en|es]` o en el instalador; la ayuda, los mensajes, el mapa y el tutorial lo siguen y los prompts siguen en inglés. `loom tutorial`: recorrido paginado para quien llega nuevo.
 

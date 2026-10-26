@@ -60,6 +60,9 @@ type Opciones struct {
 	// La entrega conjunta no lo usa: necesita el commit aplanado.
 	Conservar bool
 	Progreso  func(Paso) // llamado tras cada paso, para el TUI; nil = silencio
+	// RedTeam attacks the task before it ships; nil skips the step. It returns
+	// the detail and whether the gate may go on.
+	RedTeam func(context.Context) (string, bool)
 	// SuiteAlIntegrar es la entrega conjunta: la suite completa la corre
 	// el paso integradas sobre todo junto y la base actual. En la rama de
 	// la tarea, que arrancó de una base vieja, un rojo puede ser algo que
@@ -199,6 +202,15 @@ func Run(ctx context.Context, o Opciones) Resultado {
 		return res
 	}
 	apuntar(Paso{"bisectable", true, detalle})
+
+	// 7.5 redteam — a saboteur tries to break what the task exposes
+	if o.RedTeam != nil {
+		detalle, ok := o.RedTeam(ctx)
+		apuntar(Paso{"redteam", ok, detalle})
+		if !ok {
+			return res
+		}
+	}
 
 	// 8. suite_oculta — hidden test gate; skipped if no sealed suite
 	pruebas := o.Config.Pruebas

@@ -720,3 +720,22 @@ func TestLanguageSeEscribeExplicito(t *testing.T) {
 		t.Error("sin idioma elegido no se escribe la clave")
 	}
 }
+
+func TestRedteamEnConfig(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(Dir(root), 0o755)
+	for _, m := range []string{"warn", "block"} {
+		if err := (Config{Base: "main", Redteam: m}).Save(root); err != nil {
+			t.Fatal(err)
+		}
+		if g, err := Load(root); err != nil || g.Redteam != m {
+			t.Errorf("redteam %s: %v %+v", m, err, g)
+		}
+	}
+	if _, err := Parse([]byte("redteam: siempre\n")); err == nil {
+		t.Error("un modo desconocido debe fallar")
+	}
+	if g, _ := Parse([]byte("base: main\n")); g.Redteam != "" {
+		t.Error("por defecto no hay redteam")
+	}
+}

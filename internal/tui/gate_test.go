@@ -43,7 +43,7 @@ func TestRenderGate(t *testing.T) {
 	}
 	vista := renderGate("T-003", pasos, false, 0, 0, 0)
 
-	for _, want := range []string{"ESCLUSA DE SALIDA · T-003", "base", "hist", "ruido", "secr", "presu", "iface", "bisec", "hand", "pr", "✓", "·", "2/12"} {
+	for _, want := range []string{"ESCLUSA DE SALIDA · T-003", "base", "hist", "ruido", "secr", "presu", "iface", "bisec", "hand", "pr", "✓", "·", "2/13"} {
 		if !strings.Contains(vista, want) {
 			t.Errorf("la vista no contiene %q:\n%s", want, vista)
 		}
@@ -102,10 +102,10 @@ func TestContadorNuncaPasaDelTotal(t *testing.T) {
 	pasos = append(pasos, ship.Paso{Nombre: "integradas", OK: true})
 
 	vista := renderGate("T-001", pasos, true, 0, 100, 0)
-	if !strings.Contains(vista, "12/12") {
-		t.Errorf("contador fuera de rango, quiero 12/12:\n%s", vista)
+	if !strings.Contains(vista, "13/13") {
+		t.Errorf("contador fuera de rango, quiero 13/13:\n%s", vista)
 	}
-	for _, malo := range []string{"13/12", "14/12", "/8"} {
+	for _, malo := range []string{"14/13", "15/13", "/8"} {
 		if strings.Contains(vista, malo) {
 			t.Errorf("el contador dice %q:\n%s", malo, vista)
 		}
@@ -117,7 +117,7 @@ func TestContadorNuncaPasaDelTotal(t *testing.T) {
 func TestPasoQueNoAplicaNoDejaLaBarraCorta(t *testing.T) {
 	var pasos []ship.Paso
 	for _, n := range NombresPasos {
-		if n == "suite_oculta" || n == "dependencias" || n == "dna" {
+		if n == "suite_oculta" || n == "dependencias" || n == "dna" || n == "redteam" {
 			continue // esta corrida no los ejecutó
 		}
 		pasos = append(pasos, ship.Paso{Nombre: n, OK: true})

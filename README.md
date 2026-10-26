@@ -367,6 +367,7 @@ Planning, diagnosis and operation:
 | `loom map` (alias `view`) | Draws the system without opening code: modules, the contracts each exposes and who consumes them, imports, active DNA and gate state. `--mermaid` exports a diagram for Markdown or a PR, `--json` the full structure. |
 | `loom tutorial` | A paged guided tour of loom for new developers, in your language. |
 | `loom language [en\|es]` | Sets the language of messages, help, the map and the tutorial. Prompts, spec and config keys always stay English. |
+| `loom redteam [T-00N\|--all]` | A saboteur writes hostile tests against what a task exposes, in a throwaway worktree. Only a crash or race in the task's own code that reproduces twice is *confirmed*; invented assertions are just claims and broken tests are discarded. `--reopen` turns a confirmed crash into a failing test inside the task and reopens it. `redteam: warn\|block` in `config.yml` (or `loom ship --redteam`) runs it in the exit gate; `block` stops the PR only on a confirmed crash. |
 | `loom sketch ["idea"]` | Interviews you with four edge-case questions and writes the spec. |
 | `loom heal --from crash.log` | Reads a failure log, adds the missing rule and a reproducing acceptance criterion to the spec, and runs the corrective task. |
 | `loom dna [add\|rm\|list]` | Picks design archetypes (`hexagonal`, `zero-deps`, `crash-early`, `functional-core`) injected into every prompt; `zero-deps` and `hexagonal` are also enforced by the exit gate. |
@@ -490,6 +491,7 @@ agents:
 import_rules: ["api → domain → data"]
 max_recursion: 0
 dna: ["hexagonal", "zero-deps"]
+redteam: off           # off | warn | block (a saboteur attacks each task before it ships)
 ```
 
 Model selection, retries, budgets, timeouts, import rules and archetypes live here. The normal flow does not require you to manage them. The built-in archetypes are `ejecutor`, `backend`, `frontend`, `architect`, `tester` and `refactor`.

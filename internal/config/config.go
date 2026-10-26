@@ -86,6 +86,9 @@ type Config struct {
 	// context window, the next attempt continues it with a short prompt.
 	// 0 = the default (70), negative = never resume (`off` in the file).
 	ResumeBelowPct int `json:"resume_below_pct"`
+	// Redteam is off (default), warn or block: whether a saboteur attacks a task
+	// before it ships, and whether a confirmed crash stops the PR.
+	Redteam string `json:"redteam,omitempty"`
 	// Language is the language of prose written for people: "en" (default) or "es".
 	Language string `json:"language,omitempty"`
 	// PresupuestoVentanas es el bloque `presupuesto:`: por proveedor, por
@@ -312,6 +315,9 @@ func (c Config) Save(root string) error {
 	}
 	if c.PresupuestoTokens > 0 {
 		fmt.Fprintf(&b, "presupuesto_tokens: %d\n", c.PresupuestoTokens)
+	}
+	if c.Redteam == "warn" || c.Redteam == "block" {
+		fmt.Fprintf(&b, "redteam: %s\n", c.Redteam)
 	}
 	if c.Language == "en" || c.Language == "es" {
 		fmt.Fprintf(&b, "language: %s\n", c.Language)
@@ -636,6 +642,12 @@ func Parse(data []byte) (Config, error) {
 				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · presupuesto_tokens inválido: %s · entero, mínimo 0 (0 = sin tope)"), p.Line, p.Value)
 			}
 			cfg.PresupuestoTokens = n
+		case "redteam":
+			v := kv.Unquote(p.Value)
+			if v != "off" && v != "warn" && v != "block" {
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · redteam inválido: %s · usa off, warn o block"), p.Line, p.Value)
+			}
+			cfg.Redteam = v
 		case "language":
 			l := kv.Unquote(p.Value)
 			if l != "en" && l != "es" {
