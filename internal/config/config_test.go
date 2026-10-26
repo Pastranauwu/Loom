@@ -622,10 +622,10 @@ func TestArquitectoEconomicoVaYVuelve(t *testing.T) {
 
 func TestLanguageYResumeBelowPct(t *testing.T) {
 	c, err := Parse([]byte("base: main\nlanguage: es\nresume_below_pct: 50\n"))
-	if err != nil || c.Language != "es" || c.ResumeBelowPct != 50 {
+	if err != nil || c.Language != "es" || c.ResumeBelow() != 50 {
 		t.Fatalf("cfg = %+v, err = %v", c, err)
 	}
-	if d, _ := Parse([]byte("base: main\n")); d.ResumeBelowPct != DefaultResumeBelowPct || d.Language != "" {
+	if d, _ := Parse([]byte("base: main\n")); d.ResumeBelow() != DefaultResumeBelowPct || d.Language != "" {
 		t.Errorf("defaults = %+v", d)
 	}
 	if _, err := Parse([]byte("language: fr\n")); err == nil {
@@ -655,5 +655,68 @@ func TestMigrarLegadoMueveDevcleanALoom(t *testing.T) {
 	MigrarLegado(root)
 	if _, err := os.Stat(filepath.Join(root, ".devclean")); err != nil {
 		t.Error("no debe pisar un .loom existente")
+	}
+}
+
+func TestResumeBelowCeroEsElDefaultYOffApaga(t *testing.T) {
+	if c, _ := Parse([]byte("base: main\nresume_below_pct: 0\n")); c.ResumeBelow() != DefaultResumeBelowPct {
+		t.Error("0 es el default: un config.yml viejo con 0 no debe apagar --resume")
+	}
+	if c, err := Parse([]byte("base: main\nresume_below_pct: off\n")); err != nil || c.ResumeBelow() != 0 {
+		t.Errorf("off apaga: %v %d", err, c.ResumeBelow())
+	}
+}
+
+func TestConfigSeEscribeEnInglesYSeLeenAmbosNombres(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(Dir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := Config{Base: "main", Pruebas: "go test ./...", Cli: "claude", TimeoutAgente: 600,
+		Modelos:             map[string]string{"liviana": "haiku", "media": "sonnet", "pesada": "opus"},
+		PresupuestoVentanas: map[string]map[string]int{"claude": {"5h": 100, "semanal": 500}},
+		Proveedores:         map[string]Proveedor{"planificador": {Modelo: "x", KeyEnv: "K"}}}
+	if err := c.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(Path(root))
+	txt := string(b)
+	for _, quiero := range []string{"tests: go test", "agent_timeout: 600", "models:", "  light:", "  heavy:", "budget:", "weekly:", "providers:", "  planner:", "model:"} {
+		if !strings.Contains(txt, quiero) {
+			t.Errorf("config sin %q:\n%s", quiero, txt)
+		}
+	}
+	for _, viejo := range []string{"pruebas:", "timeout_agente", "modelos:", "liviana", "semanal", "proveedores:"} {
+		if strings.Contains(txt, viejo) {
+			t.Errorf("el config todavía trae %q:\n%s", viejo, txt)
+		}
+	}
+	got, err := Load(root)
+	if err != nil || got.Pruebas != "go test ./..." || got.Modelos["liviana"] != "haiku" || got.PresupuestoVentanas["claude"]["semanal"] != 500 || got.Proveedores["planificador"].Modelo != "x" {
+		t.Fatalf("round trip: %v %+v", err, got)
+	}
+	// un config escrito con los nombres en español sigue leyéndose
+	viejo := "base: main\npruebas: make test\nmodelos:\n  media: sonnet\n"
+	if g, err := Parse([]byte(viejo)); err != nil || g.Pruebas != "make test" || g.Modelos["media"] != "sonnet" {
+		t.Errorf("español: %v %+v", err, g)
+	}
+}
+
+func TestLanguageSeEscribeExplicito(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(Dir(root), 0o755)
+	for _, l := range []string{"en", "es"} {
+		if err := (Config{Base: "main", Language: l}).Save(root); err != nil {
+			t.Fatal(err)
+		}
+		if g, err := Load(root); err != nil || g.Language != l {
+			t.Errorf("language %s: %v %+v", l, err, g)
+		}
+	}
+	if err := (Config{Base: "main"}).Save(root); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(Path(root)); strings.Contains(string(b), "language") {
+		t.Error("sin idioma elegido no se escribe la clave")
 	}
 }

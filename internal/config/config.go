@@ -83,8 +83,8 @@ type Config struct {
 	// queda.
 	PresupuestoTokens int `json:"presupuesto_tokens,omitempty"`
 	// ResumeBelowPct: while a claude session uses less than this % of its
-	// context window, the next attempt continues it with a short prompt
-	// (default 70, 0 = never resume).
+	// context window, the next attempt continues it with a short prompt.
+	// 0 = the default (70), negative = never resume (`off` in the file).
 	ResumeBelowPct int `json:"resume_below_pct"`
 	// Language is the language of prose written for people: "en" (default) or "es".
 	Language string `json:"language,omitempty"`
@@ -313,10 +313,12 @@ func (c Config) Save(root string) error {
 	if c.PresupuestoTokens > 0 {
 		fmt.Fprintf(&b, "presupuesto_tokens: %d\n", c.PresupuestoTokens)
 	}
-	if c.Language == "es" {
-		b.WriteString("language: es\n")
+	if c.Language == "en" || c.Language == "es" {
+		fmt.Fprintf(&b, "language: %s\n", c.Language)
 	}
-	if c.ResumeBelowPct != DefaultResumeBelowPct {
+	if c.ResumeBelowPct < 0 {
+		b.WriteString("resume_below_pct: off\n")
+	} else if c.ResumeBelowPct > 0 && c.ResumeBelowPct != DefaultResumeBelowPct {
 		fmt.Fprintf(&b, "resume_below_pct: %d\n", c.ResumeBelowPct)
 	}
 	if len(c.Proveedores) > 0 {
@@ -375,7 +377,7 @@ func (c Config) Save(root string) error {
 			}
 		}
 	}
-	return os.WriteFile(Path(root), []byte(b.String()), 0o644)
+	return os.WriteFile(Path(root), []byte(aIngles(b.String())), 0o644)
 }
 
 // KeyEnvDe devuelve la variable de entorno donde vive la key de un
@@ -530,7 +532,8 @@ func (c Config) ModeloEscalado(peso, actual string) string {
 
 // Parse reads the config yaml subset. Unknown keys are ignored.
 func Parse(data []byte) (Config, error) {
-	cfg := Config{ResumeBelowPct: DefaultResumeBelowPct}
+	data = []byte(aEspanol(string(data)))
+	cfg := Config{}
 	pares, err := kv.Pairs(strings.Split(string(data), "\n"), 1)
 	if err != nil {
 		return cfg, fmt.Errorf("config.yml: %s", err)
@@ -640,9 +643,13 @@ func Parse(data []byte) (Config, error) {
 			}
 			cfg.Language = l
 		case "resume_below_pct":
+			if v := kv.Unquote(p.Value); v == "off" || v == "never" {
+				cfg.ResumeBelowPct = -1
+				continue
+			}
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 0 || n > 100 {
-				return cfg, fmt.Errorf("config.yml: línea %d · resume_below_pct inválido: %s · entero de 0 a 100 (0 = nunca reanudar)", p.Line, p.Value)
+				return cfg, fmt.Errorf("config.yml: línea %d · resume_below_pct inválido: %s · entero de 1 a 100, o off para no reanudar", p.Line, p.Value)
 			}
 			cfg.ResumeBelowPct = n
 		case "estrategia":
@@ -1043,4 +1050,16 @@ func listaFlexible(v string) []string {
 		}
 	}
 	return out
+}
+
+// ResumeBelow is the effective resume threshold: the default when unset,
+// 0 (never) when switched off.
+func (c Config) ResumeBelow() int {
+	switch {
+	case c.ResumeBelowPct < 0:
+		return 0
+	case c.ResumeBelowPct == 0:
+		return DefaultResumeBelowPct
+	}
+	return c.ResumeBelowPct
 }
