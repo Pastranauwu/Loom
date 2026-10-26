@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 )
@@ -73,11 +74,11 @@ func Read(root, id string) (SuiteOculta, error) {
 	}
 	var s SuiteOculta
 	if err := json.Unmarshal(data, &s); err != nil {
-		return SuiteOculta{}, fmt.Errorf("suite sellada corrupta · %s", err)
+		return SuiteOculta{}, fmt.Errorf(idioma.T("suite sellada corrupta · %s"), err)
 	}
 	got := fmt.Sprintf("%x", sha256.Sum256([]byte(s.Content)))
 	if got != s.Hash {
-		return SuiteOculta{}, fmt.Errorf("suite sellada corrupta · hash no coincide")
+		return SuiteOculta{}, fmt.Errorf(idioma.T("suite sellada corrupta · hash no coincide"))
 	}
 	return s, nil
 }

@@ -8,6 +8,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"sort"
@@ -92,7 +93,7 @@ func Find(root string) (string, error) {
 			return p, nil
 		}
 	}
-	return "", fmt.Errorf("no se encontró archivo de especificación (probó: %s)", strings.Join(DefaultSpecNames, ", "))
+	return "", fmt.Errorf(idioma.T("no se encontró archivo de especificación (probó: %s)"), strings.Join(DefaultSpecNames, ", "))
 }
 
 // Load lee y parsea una especificación desde el disco.
@@ -244,7 +245,7 @@ func Apply(tasksDir string, s Spec, dryRun bool) ([]task.Task, error) {
 			}
 		}
 		if len(fatal) > 0 {
-			return nil, fmt.Errorf("plan inválido: %s", strings.Join(fatal, " · "))
+			return nil, fmt.Errorf(idioma.T("plan inválido: %s"), strings.Join(fatal, " · "))
 		}
 	}
 
@@ -255,7 +256,7 @@ func Apply(tasksDir string, s Spec, dryRun bool) ([]task.Task, error) {
 			for _, e := range errs {
 				msgs = append(msgs, e.Error())
 			}
-			return nil, fmt.Errorf("tarea %s inválida: %s", t.ID, strings.Join(msgs, " · "))
+			return nil, fmt.Errorf(idioma.T("tarea %s inválida: %s"), t.ID, strings.Join(msgs, " · "))
 		}
 	}
 

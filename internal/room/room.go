@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"net"
 	"os"
 	"os/exec"
@@ -95,9 +96,9 @@ func VerificarBase(ctx context.Context, root, base string) error {
 		return nil
 	}
 	if _, err := git(ctx, root, "rev-parse", "--verify", "--quiet", "HEAD"); err == nil {
-		return fmt.Errorf("la rama base %s no existe en este repo · corrige `base:` en .loom/config.yml", base)
+		return fmt.Errorf(idioma.T("la rama base %s no existe en este repo · corrige `base:` en .loom/config.yml"), base)
 	}
-	return fmt.Errorf("no hay commits en %s · haz un commit inicial y reintenta", base)
+	return fmt.Errorf(idioma.T("no hay commits en %s · haz un commit inicial y reintenta"), base)
 }
 
 // IntegrationBranch es la rama temporal donde se encadenan las oleadas:
@@ -120,7 +121,7 @@ func ResetIntegration(ctx context.Context, root, base string) error {
 	}
 	path := filepath.Join(Dir(root), "_integra")
 	if out, err := git(ctx, root, "worktree", "add", path, "-b", IntegrationBranch, base); err != nil {
-		return fmt.Errorf("no se pudo crear la rama de integración · %s", strings.TrimSpace(out))
+		return fmt.Errorf(idioma.T("no se pudo crear la rama de integración · %s"), strings.TrimSpace(out))
 	}
 	return nil
 }
@@ -131,7 +132,7 @@ func ResetIntegration(ctx context.Context, root, base string) error {
 func Integrar(ctx context.Context, root, id string) (string, error) {
 	path := filepath.Join(Dir(root), "_integra")
 	if _, err := os.Stat(path); err != nil {
-		return "", errors.New("no hay rama de integración · vuelve a correr loom run")
+		return "", errors.New(idioma.T("no hay rama de integración · vuelve a correr loom run"))
 	}
 	msg := "loom: integra " + id
 	cmd := exec.CommandContext(ctx, "git", "-c", "user.name=loom", "-c", "user.email=loom@local", "merge", "--no-ff", "-m", msg, Branch(id))
@@ -151,7 +152,7 @@ func Create(ctx context.Context, root, id, base string) (Room, error) {
 	r := Room{ID: id, Path: filepath.Join(Dir(root), id), Rama: Branch(id)}
 
 	if _, err := os.Stat(r.Path); err == nil {
-		return Room{}, fmt.Errorf("ya existe el cuarto %s · destrúyelo antes de reintentar", id)
+		return Room{}, fmt.Errorf(idioma.T("ya existe el cuarto %s · destrúyelo antes de reintentar"), id)
 	}
 	// la carpeta del cuarto no está: limpia cualquier worktree o rama
 	// que dejó una corrida anterior con rooms/ borrado, para que el
@@ -171,7 +172,7 @@ func Create(ctx context.Context, root, id, base string) (Room, error) {
 		return Room{}, err
 	}
 	if out, err := git(ctx, root, "worktree", "add", r.Path, "-b", r.Rama, base); err != nil {
-		return Room{}, fmt.Errorf("no se pudo crear el cuarto %s · %s", id, strings.TrimSpace(out))
+		return Room{}, fmt.Errorf(idioma.T("no se pudo crear el cuarto %s · %s"), id, strings.TrimSpace(out))
 	}
 	if hash, err := git(ctx, root, "rev-parse", base+"^{commit}"); err == nil {
 		r.Commit = strings.TrimSpace(hash)
@@ -309,7 +310,7 @@ func Destroy(ctx context.Context, root, id string) error {
 		return nil
 	}
 	if out, err := git(ctx, root, "branch", "-D", Branch(id)); err != nil {
-		return fmt.Errorf("no se pudo borrar la rama %s · %s", Branch(id), strings.TrimSpace(out))
+		return fmt.Errorf(idioma.T("no se pudo borrar la rama %s · %s"), Branch(id), strings.TrimSpace(out))
 	}
 	return nil
 }
@@ -370,7 +371,7 @@ func InstalarDependencias(ctx context.Context, path string, heredarDe ...string)
 			err := venv(ctx, dir, heredarDe...)
 			pipEnFila.Unlock()
 			if err != nil {
-				return fmt.Errorf("dependencias de python fallaron en %s · %s", rel, err)
+				return fmt.Errorf(idioma.T("dependencias de python fallaron en %s · %s"), rel, err)
 			}
 		}
 	}
@@ -461,11 +462,11 @@ func gestorNode(dir string) string {
 
 func instalar(ctx context.Context, dir, rel, prog string, args ...string) error {
 	if _, err := exec.LookPath(prog); err != nil {
-		return fmt.Errorf("%s no está instalado y %s lo necesita · instálalo o borra el manifiesto", prog, valorRel(rel))
+		return fmt.Errorf(idioma.T("%s no está instalado y %s lo necesita · instálalo o borra el manifiesto"), prog, valorRel(rel))
 	}
 	avisar(prog, rel)
 	if out, err := run(ctx, dir, prog, args...); err != nil {
-		return fmt.Errorf("%s %s falló en %s · %s", prog, strings.Join(args, " "), valorRel(rel), tail(out))
+		return fmt.Errorf(idioma.T("%s %s falló en %s · %s"), prog, strings.Join(args, " "), valorRel(rel), tail(out))
 	}
 	return nil
 }
@@ -477,7 +478,7 @@ var Aviso func(string)
 
 func avisar(prog, rel string) {
 	if Aviso != nil {
-		Aviso(fmt.Sprintf("instalando dependencias de %s en %s", prog, valorRel(rel)))
+		Aviso(fmt.Sprintf(idioma.T("instalando dependencias de %s en %s"), prog, valorRel(rel)))
 	}
 }
 
@@ -782,7 +783,7 @@ func Artefacto(name string) bool {
 func ExcluirArtefactos(ctx context.Context, root string) error {
 	dir, err := git(ctx, root, "rev-parse", "--git-common-dir")
 	if err != nil {
-		return fmt.Errorf("no se pudo ubicar el repo git · %s", strings.TrimSpace(dir))
+		return fmt.Errorf(idioma.T("no se pudo ubicar el repo git · %s"), strings.TrimSpace(dir))
 	}
 	dir = strings.TrimSpace(dir)
 	if !filepath.IsAbs(dir) {

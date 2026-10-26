@@ -3,6 +3,7 @@ package spec
 import (
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 
 	"github.com/Pastranauwu/loom/internal/task"
@@ -16,7 +17,7 @@ func Parse(data []byte) (Spec, error) {
 	// `loom archive` deja el spec en 0 bytes; sin esto el decoder
 	// respondía "EOF" y nada más
 	if strings.TrimSpace(string(data)) == "" {
-		return Spec{}, errors.New("el spec está vacío · escribe el siguiente feature (el anterior quedó en .loom/historial)")
+		return Spec{}, errors.New(idioma.T("el spec está vacío · escribe el siguiente feature (el anterior quedó en .loom/historial)"))
 	}
 	var root yaml.Node
 	dec := yaml.NewDecoder(strings.NewReader(string(data)))
@@ -28,7 +29,7 @@ func Parse(data []byte) (Spec, error) {
 	}
 	n := root.Content[0]
 	if n.Kind != yaml.MappingNode {
-		return Spec{}, fmt.Errorf("la especificación debe ser un mapa YAML")
+		return Spec{}, fmt.Errorf(idioma.T("la especificación debe ser un mapa YAML"))
 	}
 	s := Spec{Version: 1}
 	for i := 0; i < len(n.Content); i += 2 {
@@ -46,7 +47,7 @@ func Parse(data []byte) (Spec, error) {
 		case "agents", "agentes":
 			err = val.Decode(&s.Agentes)
 			if err == nil && s.Agentes < 1 {
-				err = fmt.Errorf("agentes inválido: %d · mínimo 1", s.Agentes)
+				err = fmt.Errorf(idioma.T("agentes inválido: %d · mínimo 1"), s.Agentes)
 			}
 		case "ship":
 			err = val.Decode(&s.Ship)
@@ -80,7 +81,7 @@ func Parse(data []byte) (Spec, error) {
 			s.Tasks, err = decodeTasks(val)
 		case "architecture", "delivery": // reservados para evolución; YAML anidado ya se conserva sintácticamente
 		default:
-			err = fmt.Errorf("campo desconocido en especificación: %s", key)
+			err = fmt.Errorf(idioma.T("campo desconocido en especificación: %s"), key)
 		}
 		if err != nil {
 			return s, fmt.Errorf("%s: %w", key, err)
@@ -168,7 +169,7 @@ func flattenConIDs(n *yaml.Node) ([]string, []string, error) {
 				}
 			}
 		default:
-			return fmt.Errorf("se esperaba texto, lista o categorías")
+			return fmt.Errorf(idioma.T("se esperaba texto, lista o categorías"))
 		}
 		return nil
 	}
@@ -226,7 +227,7 @@ func decodeAcceptance(n *yaml.Node) ([]Acceptance, error) {
 			raw.Command = raw.Comando
 		}
 		if raw.Criterion == "" {
-			return nil, fmt.Errorf("criterio de aceptación vacío")
+			return nil, fmt.Errorf(idioma.T("criterio de aceptación vacío"))
 		}
 		out = append(out, Acceptance{Criterion: raw.Criterion, Command: raw.Command})
 	}
@@ -235,7 +236,7 @@ func decodeAcceptance(n *yaml.Node) ([]Acceptance, error) {
 
 func decodeTasks(n *yaml.Node) ([]task.Task, error) {
 	if n.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("tasks debe ser una lista")
+		return nil, fmt.Errorf(idioma.T("tasks debe ser una lista"))
 	}
 	var out []task.Task
 	for _, item := range n.Content {

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"sort"
@@ -58,7 +59,7 @@ func Get(root, id string) (State, error) {
 	}
 	var s State
 	if err := json.Unmarshal(data, &s); err != nil {
-		return State{}, fmt.Errorf("state/%s.json corrupto · %s · bórralo y reintenta", id, err)
+		return State{}, fmt.Errorf(idioma.T("state/%s.json corrupto · %s · bórralo y reintenta"), id, err)
 	}
 	return s, nil
 }

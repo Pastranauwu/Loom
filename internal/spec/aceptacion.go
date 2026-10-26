@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os/exec"
 	"path"
 	"regexp"
@@ -53,10 +54,10 @@ func AceptacionSinPrueba(root string, s Spec, tareas []task.Task) []Issue {
 			if nombrada == "" || slicesAny(candidatas, existe) {
 				continue
 			}
-			msg := fmt.Sprintf("la aceptación `%s` nombra %s, que no existe y ninguna tarea escribe", cmd, tkn)
+			msg := fmt.Sprintf(idioma.T("la aceptación `%s` nombra %s, que no existe y ninguna tarea escribe"), cmd, tkn)
 			for _, r := range rutas {
 				if strings.HasSuffix(r, "/"+nombrada) {
-					msg = fmt.Sprintf("la aceptación `%s` nombra %s, que no existe: la prueba está en %s · corrige la ruta en la aceptación", cmd, tkn, r)
+					msg = fmt.Sprintf(idioma.T("la aceptación `%s` nombra %s, que no existe: la prueba está en %s · corrige la ruta en la aceptación"), cmd, tkn, r)
 					break
 				}
 			}

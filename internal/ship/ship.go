@@ -8,6 +8,7 @@ package ship
 
 import (
 	"context"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 	"time"
 
@@ -98,13 +99,13 @@ func Run(ctx context.Context, o Opciones) Resultado {
 	if err != nil {
 		if len(conflictos) > 0 {
 			res.Conflicto = true
-			apuntar(Paso{"base", false, "rebase en conflicto · archivos: " + unir(conflictos) + " · resuélvelo a mano"})
+			apuntar(Paso{"base", false, idioma.T("rebase en conflicto · archivos: ") + unir(conflictos) + " · resuélvelo a mano"})
 		} else {
-			apuntar(Paso{"base", false, "no se pudo rebasear · " + err.Error()})
+			apuntar(Paso{"base", false, idioma.T("no se pudo rebasear · ") + err.Error()})
 		}
 		return res
 	}
-	apuntar(Paso{"base", true, "rebaseado sobre " + target})
+	apuntar(Paso{"base", true, idioma.T("rebaseado sobre ") + target})
 
 	// 2. historial — aplanar los wip en un commit limpio
 	tocados, _ := diffArchivos(o.Room.Path, target)
@@ -142,9 +143,9 @@ func Run(ctx context.Context, o Opciones) Resultado {
 		return res
 	}
 	if len(avisa) > 0 {
-		apuntar(Paso{"ruido", true, "revísalo a ojo: " + resumenHallazgos(avisa)})
+		apuntar(Paso{"ruido", true, idioma.T("revísalo a ojo: ") + resumenHallazgos(avisa)})
 	} else {
-		apuntar(Paso{"ruido", true, "sin ruido"})
+		apuntar(Paso{"ruido", true, idioma.T("sin ruido")})
 	}
 
 	// 4. secretos — en el diff y en el commit
@@ -152,7 +153,7 @@ func Run(ctx context.Context, o Opciones) Resultado {
 		apuntar(Paso{"secretos", false, resumenHallazgos(h)})
 		return res
 	}
-	apuntar(Paso{"secretos", true, "sin secretos"})
+	apuntar(Paso{"secretos", true, idioma.T("sin secretos")})
 
 	// 5. presupuesto — limite_lineas y archivos tocados
 	if detalle, ok := verificarPresupuesto(mas, menos, masPrueba, len(archivos), o.Task); !ok {
@@ -165,7 +166,7 @@ func Run(ctx context.Context, o Opciones) Resultado {
 	// 6. interfaces — entregó lo que sus hermanas consumen
 	faltan, sinForma := verificarExpone(o.Task.Expone, diff)
 	if len(faltan) > 0 {
-		apuntar(Paso{"interfaces", false, "no expone lo prometido: " + strings.Join(faltan, "; ")})
+		apuntar(Paso{"interfaces", false, idioma.T("no expone lo prometido: ") + strings.Join(faltan, "; ")})
 		return res
 	}
 	detalleIfaces := "expone lo prometido"
@@ -220,7 +221,7 @@ func Run(ctx context.Context, o Opciones) Resultado {
 
 	// 10. pr — abrir y liberar el cuarto
 	if o.DryRun {
-		apuntar(Paso{"pr", true, "dry-run · sin PR"})
+		apuntar(Paso{"pr", true, idioma.T("dry-run · sin PR")})
 		res.Aprobado = true
 		return res
 	}

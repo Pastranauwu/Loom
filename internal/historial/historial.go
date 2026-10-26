@@ -6,6 +6,7 @@ package historial
 import (
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,27 +77,27 @@ type Entrada struct {
 func Archivar(root, specPath string) (Entrada, error) {
 	crudo, err := os.ReadFile(specPath)
 	if err != nil || strings.TrimSpace(string(crudo)) == "" {
-		return Entrada{}, errors.New("spec vacío · nada que archivar")
+		return Entrada{}, errors.New(idioma.T("spec vacío · nada que archivar"))
 	}
 	s, err := spec.Parse(crudo)
 	if err != nil {
-		return Entrada{}, fmt.Errorf("spec ilegible · %w", err)
+		return Entrada{}, fmt.Errorf(idioma.T("spec ilegible · %w"), err)
 	}
 	a, hay := ship.LeerAceptacion(root)
 	if !hay {
-		return Entrada{}, errors.New("sin entrega conjunta registrada · corre loom ship --todas y archiva cuando pase")
+		return Entrada{}, errors.New(idioma.T("sin entrega conjunta registrada · corre loom ship --todas y archiva cuando pase"))
 	}
 	// la entrega probó un spec concreto: si lo editaron después, lo que
 	// se archivaría no es lo que pasó la aceptación
 	if a.Spec != spec.IntencionDe(s).Hash() {
-		return Entrada{}, errors.New("el spec cambió desde la última entrega · corre loom ship --todas sobre este spec y archiva cuando pase")
+		return Entrada{}, errors.New(idioma.T("el spec cambió desde la última entrega · corre loom ship --todas sobre este spec y archiva cuando pase"))
 	}
 	if !a.Aprobado {
-		return Entrada{}, fmt.Errorf("la última entrega no pasó · %s · arregla y corre loom ship --todas", a.Motivo)
+		return Entrada{}, fmt.Errorf(idioma.T("la última entrega no pasó · %s · arregla y corre loom ship --todas"), a.Motivo)
 	}
 	for _, c := range a.Criterios {
 		if !c.Corrio || !c.Paso {
-			return Entrada{}, fmt.Errorf("criterio de aceptación sin pasar · %s · arregla y corre loom ship --todas", c.Comando)
+			return Entrada{}, fmt.Errorf(idioma.T("criterio de aceptación sin pasar · %s · arregla y corre loom ship --todas"), c.Comando)
 		}
 	}
 
@@ -162,10 +163,10 @@ func Archivar(root, specPath string) (Entrada, error) {
 		}
 	}
 	if err := git(root, append([]string{"add", "-A", "--"}, rutas...)...); err != nil {
-		return Entrada{}, fmt.Errorf("archivado en %s pero git no pudo agregarlo · %w", e.Dir, err)
+		return Entrada{}, fmt.Errorf(idioma.T("archivado en %s pero git no pudo agregarlo · %w"), e.Dir, err)
 	}
 	if err := git(root, append([]string{"commit", "-q", "-m", "loom: archiva " + e.Nombre, "--"}, rutas...)...); err != nil {
-		return Entrada{}, fmt.Errorf("archivado en %s pero el commit falló · %w", e.Dir, err)
+		return Entrada{}, fmt.Errorf(idioma.T("archivado en %s pero el commit falló · %w"), e.Dir, err)
 	}
 	return e, nil
 }
@@ -225,7 +226,7 @@ func abrirGitignore(root string) ([]string, error) {
 	if partes := strings.SplitN(regla, ":", 3); len(partes) == 3 {
 		fuente, patron = partes[0], partes[2]
 	}
-	return nil, fmt.Errorf("git ignora el historial por el patrón %q de %s · quítalo o agrega ahí %s y %s, y vuelve a correr loom archive",
+	return nil, fmt.Errorf(idioma.T("git ignora el historial por el patrón %q de %s · quítalo o agrega ahí %s y %s, y vuelve a correr loom archive"),
 		patron, fuente, excepciones[1], excepciones[2])
 }
 
@@ -277,7 +278,7 @@ func siguiente(root string) (int, error) {
 		}
 	}
 	if max >= 9999 {
-		return 0, errors.New("el historial llegó a 9999 entradas")
+		return 0, errors.New(idioma.T("el historial llegó a 9999 entradas"))
 	}
 	return max + 1, nil
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,7 +18,7 @@ func RepoRoot(dir string) (string, error) {
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
-		return "", errors.New("no hay repositorio git aquí · corre git init y reintenta")
+		return "", errors.New(idioma.T("no hay repositorio git aquí · corre git init y reintenta"))
 	}
 	return strings.TrimSpace(string(out)), nil
 }

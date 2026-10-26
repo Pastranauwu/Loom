@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -213,10 +214,10 @@ type Outcome struct {
 // se agotó: detenerse es un resultado válido, no un fallo).
 func Run(ctx context.Context, o Options) (Outcome, error) {
 	if o.Agent == nil {
-		return Outcome{}, errors.New("bucle sin ejecutor · elige uno con loom doctor")
+		return Outcome{}, errors.New(idioma.T("bucle sin ejecutor · elige uno con loom doctor"))
 	}
 	if o.Room.Path == "" {
-		return Outcome{}, errors.New("bucle sin cuarto · crea el worktree antes de correr")
+		return Outcome{}, errors.New(idioma.T("bucle sin cuarto · crea el worktree antes de correr"))
 	}
 	if o.AgentTimeout <= 0 {
 		o.AgentTimeout = DefaultAgentTimeout
@@ -282,7 +283,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 	arbolBase = strings.TrimSpace(arbolBase)
 	tope := TopeIntentos * limite
 	if usados := intentosPagados(previos, contratoEditado(o.Root, o.Task.ID), arbolBase); usados >= tope {
-		motivo := fmt.Sprintf("tope de %d intentos agotado · edita %s (listo_cuando, tocar_solo o notas) y reintenta", tope, o.Task.ID)
+		motivo := fmt.Sprintf(idioma.T("tope de %d intentos agotado · edita %s (listo_cuando, tocar_solo o notas) y reintenta"), tope, o.Task.ID)
 		return Outcome{Intentos: 0, UltimoError: motivo, Pregunta: motivo, NoEscalar: true}, nil
 	} else if tope-usados < limite {
 		limite = tope - usados
@@ -560,7 +561,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		// y nunca hubo suite. Reintentar no lo arregla —el agente no
 		// puede tocar las pruebas—, así que se detiene con el motivo.
 		if code != nil && *code == 0 && SinPruebas(salida) {
-			motivo := fmt.Sprintf("listo_cuando pasó sin ejecutar ninguna prueba · %s no tiene suite que lo juzgue · sella una con loom task seal %s o apunta listo_cuando a pruebas que existan", o.Task.ID, o.Task.ID)
+			motivo := fmt.Sprintf(idioma.T("listo_cuando pasó sin ejecutar ninguna prueba · %s no tiene suite que lo juzgue · sella una con loom task seal %s o apunta listo_cuando a pruebas que existan"), o.Task.ID, o.Task.ID)
 			if fallaExamen != "" {
 				motivo += " · " + fallaExamen
 			}
@@ -638,7 +639,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		// el agente no llegó al modelo: reintentar no cambia nada, y
 		// gastar los intentos restantes solo retrasa el diagnóstico
 		if falloDeInfra(res, agentErr, archivos) {
-			motivo := fmt.Sprintf("el agente no pudo ejecutarse (%s) · revisa el modelo y la key con loom doctor", a.ErrorAgente)
+			motivo := fmt.Sprintf(idioma.T("el agente no pudo ejecutarse (%s) · revisa el modelo y la key con loom doctor"), a.ErrorAgente)
 			if logRel != "" {
 				motivo += " · detalle en " + logRel
 			}
@@ -651,9 +652,9 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		if intento > 1 && len(archivos) == 0 {
 			motivo := "sin progreso: el intento no dejó cambios dentro del alcance · revisa el contrato"
 			if len(revertidos) > 0 {
-				motivo = fmt.Sprintf("sin progreso: el agente solo tocó archivos fuera de tocar_solo (%s) y se revirtieron · agrégalos a tocar_solo si la tarea los necesita", strings.Join(revertidos, ", "))
+				motivo = fmt.Sprintf(idioma.T("sin progreso: el agente solo tocó archivos fuera de tocar_solo (%s) y se revirtieron · agrégalos a tocar_solo si la tarea los necesita"), strings.Join(revertidos, ", "))
 				if parcheRel != "" {
-					motivo += fmt.Sprintf(" · si arregla algo que ya estaba roto en la base, su cambio quedó en %s: aplícalo en la base con git apply, haz commit y reintenta", parcheRel)
+					motivo += fmt.Sprintf(idioma.T(" · si arregla algo que ya estaba roto en la base, su cambio quedó en %s: aplícalo en la base con git apply, haz commit y reintenta"), parcheRel)
 				}
 			}
 			return Outcome{Intentos: intento, UltimoError: resumenFallo(o.Task.ListoCuando, code, salida), Pregunta: motivo, NoEscalar: len(revertidos) > 0 || PruebaNoCorrio(o.Task.ListoCuando, code, salida)}, nil
@@ -665,7 +666,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		}
 	}
 
-	pregunta := fmt.Sprintf("agotó %d intentos · falla: %s", limite, prevErr)
+	pregunta := fmt.Sprintf(idioma.T("agotó %d intentos · falla: %s"), limite, prevErr)
 	return Outcome{
 		Verde:       false,
 		Intentos:    limite,
@@ -740,7 +741,7 @@ func commitWip(roomPath, id string, intento int) error {
 	}
 	msg := fmt.Sprintf("wip: %s intento %d", id, intento)
 	if _, err := gitRun(roomPath, "-c", "user.name=loom", "-c", "user.email=loom@local", "commit", "-m", msg); err != nil {
-		return fmt.Errorf("no se pudo guardar el punto de restauración · %s", err)
+		return fmt.Errorf(idioma.T("no se pudo guardar el punto de restauración · %s"), err)
 	}
 	return nil
 }
@@ -993,7 +994,7 @@ func resumenFallo(listoCuando string, code *int, salida string) string {
 	if code != nil {
 		estado = fmt.Sprintf("exited with code %d", *code)
 	}
-	msg := fmt.Sprintf("done_when %s printing nothing · command: %s", estado, strings.TrimSpace(listoCuando))
+	msg := fmt.Sprintf(idioma.T("done_when %s printing nothing · command: %s"), estado, strings.TrimSpace(listoCuando))
 	if silencioso(listoCuando) {
 		msg += " · the command silences its output, so there is no hint of the failure: run it by hand without -q to see what is missing"
 	}

@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path"
@@ -146,12 +147,12 @@ func checkEjecutable(root string, t task.Task) Check {
 			}
 			info, err := os.Stat(abs)
 			if err != nil || info.IsDir() || info.Mode()&0o111 == 0 {
-				return Check{"ejecutable", false, fmt.Sprintf("comando no encontrado: %s · instálalo o corrige listo_cuando", bin)}
+				return Check{"ejecutable", false, fmt.Sprintf(idioma.T("comando no encontrado: %s · instálalo o corrige listo_cuando"), bin)}
 			}
 			continue
 		}
 		if _, err := exec.LookPath(bin); err != nil {
-			return Check{"ejecutable", false, fmt.Sprintf("comando no encontrado: %s · instálalo o corrige listo_cuando", bin)}
+			return Check{"ejecutable", false, fmt.Sprintf(idioma.T("comando no encontrado: %s · instálalo o corrige listo_cuando"), bin)}
 		}
 	}
 	return Check{"ejecutable", true, ""}
@@ -226,7 +227,7 @@ func checkFallaHoy(ctx context.Context, root, listoCuando string, timeout time.D
 
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return Check{"falla hoy", false, fmt.Sprintf("listo_cuando tardó más de %s · acota el comando", timeout)}
+		return Check{"falla hoy", false, fmt.Sprintf(idioma.T("listo_cuando tardó más de %s · acota el comando"), timeout)}
 	}
 	if err == nil {
 		// vitest y jest ignoran un archivo que no existe si otro de la
@@ -243,7 +244,7 @@ func checkFallaHoy(ctx context.Context, root, listoCuando string, timeout time.D
 	if errors.As(err, &exitErr) {
 		return Check{"falla hoy", true, ""}
 	}
-	return Check{"falla hoy", false, fmt.Sprintf("no se pudo ejecutar listo_cuando: %v", err)}
+	return Check{"falla hoy", false, fmt.Sprintf(idioma.T("no se pudo ejecutar listo_cuando: %v"), err)}
 }
 
 // checkSinCruce: tocar_solo must not overlap with any other active
@@ -266,7 +267,7 @@ func checkSinCruce(t task.Task, otras []task.Task) Check {
 		for _, a := range t.TocarSolo {
 			for _, b := range o.TocarSolo {
 				if globsOverlap(a, b) {
-					return Check{"sin cruce", false, fmt.Sprintf("tocar_solo se cruza con %s en %s · ajusta los alcances", o.ID, a)}
+					return Check{"sin cruce", false, fmt.Sprintf(idioma.T("tocar_solo se cruza con %s en %s · ajusta los alcances"), o.ID, a)}
 				}
 			}
 		}
@@ -308,7 +309,7 @@ func checkZonasProhibidas(t task.Task, zonas []string) Check {
 	for _, z := range zonas {
 		for _, p := range t.TocarSolo {
 			if globsOverlap(p, z) {
-				return Check{"zonas prohibidas", false, fmt.Sprintf("tocar_solo incluye la zona prohibida %s · quita %s o ajusta el alcance", z, p)}
+				return Check{"zonas prohibidas", false, fmt.Sprintf(idioma.T("tocar_solo incluye la zona prohibida %s · quita %s o ajusta el alcance"), z, p)}
 			}
 		}
 	}
@@ -327,7 +328,7 @@ func checkRutasDePrueba(t task.Task, patrones []string) Check {
 	for _, patron := range patrones {
 		for _, p := range t.TocarSolo {
 			if esRutaDePrueba(p, patron) {
-				return Check{"sin rutas de prueba", false, fmt.Sprintf("tocar_solo incluye rutas de prueba (%s casa con %s) · las pruebas no las escribe quien implementa", p, patron)}
+				return Check{"sin rutas de prueba", false, fmt.Sprintf(idioma.T("tocar_solo incluye rutas de prueba (%s casa con %s) · las pruebas no las escribe quien implementa"), p, patron)}
 			}
 		}
 	}
@@ -419,7 +420,7 @@ func checkAgente(t task.Task, cfg config.Config) Check {
 	return Check{
 		Nombre: "agente conocido",
 		OK:     false,
-		Motivo: fmt.Sprintf("agente desconocido: %s · decláralo en config.yml o usa uno existente (backend, frontend, architect, tester, refactor, ejecutor)", t.Agente),
+		Motivo: fmt.Sprintf(idioma.T("agente desconocido: %s · decláralo en config.yml o usa uno existente (backend, frontend, architect, tester, refactor, ejecutor)"), t.Agente),
 	}
 }
 

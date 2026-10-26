@@ -142,17 +142,17 @@ func (a Agent) Run(ctx context.Context, req loop.Request) (loop.Result, error) {
 
 	borradores, err := a.descomponer(ctx)
 	if err != nil {
-		return loop.Result{}, fmt.Errorf("descomposición de %s falló · %s", a.Task.ID, err)
+		return loop.Result{}, fmt.Errorf(idioma.T("descomposición de %s falló · %s"), a.Task.ID, err)
 	}
 	if len(borradores) > limite {
-		return loop.Result{}, fmt.Errorf("descomposición de %s propuso %d subtareas, el límite es %d · baja el alcance o sube limite_subtareas", a.Task.ID, len(borradores), limite)
+		return loop.Result{}, fmt.Errorf(idioma.T("descomposición de %s propuso %d subtareas, el límite es %d · baja el alcance o sube limite_subtareas"), a.Task.ID, len(borradores), limite)
 	}
 
 	var subs []task.Task
 	for i, b := range borradores {
 		sub, err := a.tareaDesdeBorrador(b, i+1)
 		if err != nil {
-			return loop.Result{}, fmt.Errorf("subtarea %d de %s inválida · %s", i+1, a.Task.ID, err)
+			return loop.Result{}, fmt.Errorf(idioma.T("subtarea %d de %s inválida · %s"), i+1, a.Task.ID, err)
 		}
 		subs = append(subs, sub)
 	}
@@ -599,7 +599,7 @@ func parseDictamen(texto string) (dictamen, error) {
 		d.Decision = es
 	}
 	if d.Decision == "" {
-		return d, errors.New("el orquestador no devolvió una decisión")
+		return d, errors.New(idioma.T("el orquestador no devolvió una decisión"))
 	}
 	return d, nil
 }
@@ -610,7 +610,7 @@ func parseDictamen(texto string) (dictamen, error) {
 // restringido al del padre, nunca puede inventarse rutas afuera.
 func (a Agent) replanDesdeContrato(sub task.Task, b plan.Borrador) (task.Task, error) {
 	if strings.TrimSpace(b.Titulo) == "" || strings.TrimSpace(b.ListoCuando) == "" {
-		return task.Task{}, errors.New("el orquestador devolvió un contrato sin titulo ni listo_cuando")
+		return task.Task{}, errors.New(idioma.T("el orquestador devolvió un contrato sin titulo ni listo_cuando"))
 	}
 	if len(b.TocarSolo) == 0 {
 		b.TocarSolo = sub.TocarSolo
@@ -716,7 +716,7 @@ func (a Agent) descomponer(ctx context.Context) ([]plan.Borrador, error) {
 	restringirAlcance(borradores, a.Task.TocarSolo)
 	for i, b := range borradores {
 		if len(b.TocarSolo) == 0 {
-			return nil, fmt.Errorf("subtarea %d (%q) quedó sin tocar_solo dentro del alcance de %s", i+1, b.Titulo, a.Task.ID)
+			return nil, fmt.Errorf(idioma.T("subtarea %d (%q) quedó sin tocar_solo dentro del alcance de %s"), i+1, b.Titulo, a.Task.ID)
 		}
 	}
 	return borradores, nil

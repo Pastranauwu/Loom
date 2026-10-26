@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"path"
 	"strings"
 
@@ -56,7 +57,7 @@ func ValidatePlan(s Spec, tasks []task.Task, previas ...task.Task) []Issue {
 	for _, t := range tasks {
 		for _, d := range t.DependeDe {
 			if _, ok := byID[d]; !ok && !previa[d] {
-				out = append(out, Issue{"error", "missing_dependency", fmt.Sprintf("%s depende de %s, que no existe", t.ID, d)})
+				out = append(out, Issue{"error", "missing_dependency", fmt.Sprintf(idioma.T("%s depende de %s, que no existe"), t.ID, d)})
 			}
 		}
 		for _, u := range t.Usa {
@@ -70,9 +71,9 @@ func ValidatePlan(s Spec, tasks []task.Task, previas ...task.Task) []Issue {
 					}
 				}
 				if similar != "" {
-					out = append(out, Issue{"error", "incompatible_interface", fmt.Sprintf("%s usa %q pero el plan expone %q", t.ID, u, similar)})
+					out = append(out, Issue{"error", "incompatible_interface", fmt.Sprintf(idioma.T("%s usa %q pero el plan expone %q"), t.ID, u, similar)})
 				} else {
-					out = append(out, Issue{"error", "orphan_interface", fmt.Sprintf("%s usa %q y ninguna tarea lo expone", t.ID, u)})
+					out = append(out, Issue{"error", "orphan_interface", fmt.Sprintf(idioma.T("%s usa %q y ninguna tarea lo expone"), t.ID, u)})
 				}
 			}
 		}
@@ -129,7 +130,7 @@ func ValidatePlan(s Spec, tasks []task.Task, previas ...task.Task) []Issue {
 			for _, a := range tasks[i].TocarSolo {
 				for _, b := range tasks[j].TocarSolo {
 					if globsOverlap(a, b) {
-						out = append(out, Issue{"error", "write_overlap", fmt.Sprintf("%s y %s pueden escribir la misma zona (%s / %s)", tasks[i].ID, tasks[j].ID, a, b)})
+						out = append(out, Issue{"error", "write_overlap", fmt.Sprintf(idioma.T("%s y %s pueden escribir la misma zona (%s / %s)"), tasks[i].ID, tasks[j].ID, a, b)})
 					}
 				}
 			}

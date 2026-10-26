@@ -3,6 +3,7 @@ package examiner
 import (
 	"context"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"go/parser"
 	"go/token"
 	"os"
@@ -194,10 +195,10 @@ func validarSintaxisEnProyecto(roomPath, lenguaje, nombre, contenido string) err
 	cmd.Stdin = strings.NewReader(contenido)
 	salida, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
-		return fmt.Errorf("el parser tardó más de %s", timeoutSintaxis)
+		return fmt.Errorf(idioma.T("el parser tardó más de %s"), timeoutSintaxis)
 	}
 	if err != nil {
-		return fmt.Errorf("la suite no parsea con el toolchain del proyecto · %s", ultimaLinea(string(salida)))
+		return fmt.Errorf(idioma.T("la suite no parsea con el toolchain del proyecto · %s"), ultimaLinea(string(salida)))
 	}
 	return nil
 }
@@ -246,7 +247,7 @@ func validarPython(contenido string) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("la suite no parsea · %s", ultimaLinea(string(salida)))
+		return fmt.Errorf(idioma.T("la suite no parsea · %s"), ultimaLinea(string(salida)))
 	}
 	return nil
 }

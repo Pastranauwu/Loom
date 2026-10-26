@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"time"
@@ -150,7 +151,7 @@ func ReadAttempts(root, id string) ([]Attempt, error) {
 		}
 		var a Attempt
 		if err := json.Unmarshal([]byte(line), &a); err != nil {
-			return nil, fmt.Errorf("attempts.jsonl corrupto · %s", err)
+			return nil, fmt.Errorf(idioma.T("attempts.jsonl corrupto · %s"), err)
 		}
 		out = append(out, a)
 	}

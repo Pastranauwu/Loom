@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"io"
 	"os"
 	"os/exec"
@@ -99,7 +100,7 @@ type Result struct {
 
 // ErrTope es una invocación cortada por Request.TopeUSD: no se arregla
 // reintentando con el mismo tope.
-var ErrTope = errors.New("tope de gasto alcanzado")
+var ErrTope = errors.New(idioma.T("tope de gasto alcanzado"))
 
 // Usage is the token spend of one invocation, best-effort per adapter.
 //
@@ -226,7 +227,7 @@ func modelosDeCLI(ctx context.Context, name string, args ...string) ([]string, e
 	}
 	out, err := exec.CommandContext(ctx, bin, args...).Output()
 	if err != nil {
-		return nil, fmt.Errorf("%s no pudo listar modelos · %s", name, err)
+		return nil, fmt.Errorf(idioma.T("%s no pudo listar modelos · %s"), name, err)
 	}
 	var ids []string
 	for _, l := range strings.Split(string(out), "\n") {

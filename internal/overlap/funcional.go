@@ -3,6 +3,7 @@ package overlap
 import (
 	"context"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"strings"
@@ -45,12 +46,12 @@ func (r ResultadoFuncional) Alerta() string {
 		if r.Motivo == "" {
 			return ""
 		}
-		return fmt.Sprintf("%s ↔ %s · no se pudo comprobar la fusión: %s", r.TareaA, r.TareaB, r.Motivo)
+		return fmt.Sprintf(idioma.T("%s ↔ %s · no se pudo comprobar la fusión: %s"), r.TareaA, r.TareaB, r.Motivo)
 	}
 	if len(r.Rompen) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%s ↔ %s · verdes por separado, pero al fusionarlas falla %s",
+	return fmt.Sprintf(idioma.T("%s ↔ %s · verdes por separado, pero al fusionarlas falla %s"),
 		r.TareaA, r.TareaB, strings.Join(r.Rompen, " y "))
 }
 
@@ -146,13 +147,13 @@ func commitDeArbol(ctx context.Context, root, arbol, ramaA, ramaB string) (strin
 	for _, rama := range []string{ramaA, ramaB} {
 		sha, err := git(ctx, root, "rev-parse", "--verify", "--quiet", rama+"^{commit}")
 		if err != nil {
-			return "", fmt.Errorf("la rama %s no existe", rama)
+			return "", fmt.Errorf(idioma.T("la rama %s no existe"), rama)
 		}
 		args = append(args, "-p", strings.TrimSpace(sha))
 	}
 	out, err := git(ctx, root, args...)
 	if err != nil {
-		return "", fmt.Errorf("no se pudo escribir el commit de la fusión · %s", tail(out))
+		return "", fmt.Errorf(idioma.T("no se pudo escribir el commit de la fusión · %s"), tail(out))
 	}
 	return strings.TrimSpace(out), nil
 }

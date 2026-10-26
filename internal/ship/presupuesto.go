@@ -2,6 +2,7 @@ package ship
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/task"
@@ -24,21 +25,21 @@ const ToleranciaPresupuesto = 1.5
 func verificarPresupuesto(mas, menos, masPrueba, archivos int, t task.Task) (string, bool) {
 	limite := t.LimiteLineas
 	if limite == 0 {
-		return fmt.Sprintf("%d líneas de código · %d líneas de prueba · %d archivos · sin límite de líneas", mas-masPrueba, masPrueba, archivos), true
+		return fmt.Sprintf(idioma.T("%d líneas de código · %d líneas de prueba · %d archivos · sin límite de líneas"), mas-masPrueba, masPrueba, archivos), true
 	}
 	// el límite es sobre el código de la solución: las pruebas se
 	// reportan aparte porque en go y python no las escribe el agente
 	codigo := mas - masPrueba
-	detalle := fmt.Sprintf("%d líneas de %d · %d archivos", codigo, limite, archivos)
+	detalle := fmt.Sprintf(idioma.T("%d líneas de %d · %d archivos"), codigo, limite, archivos)
 	if masPrueba > 0 {
-		detalle += fmt.Sprintf(" · %d líneas de prueba aparte", masPrueba)
+		detalle += fmt.Sprintf(idioma.T(" · %d líneas de prueba aparte"), masPrueba)
 	}
 	techo := int(float64(limite) * ToleranciaPresupuesto)
 	switch {
 	case codigo > techo:
 		// decir el número exacto ahorra el ida y vuelta: es el que hay
 		// que escribir si el cambio es correcto y el límite era corto
-		return fmt.Sprintf("presupuesto excedido · %s · reduce el cambio, o sube limite_lineas a %d en .loom/tasks/%s.md",
+		return fmt.Sprintf(idioma.T("presupuesto excedido · %s · reduce el cambio, o sube limite_lineas a %d en .loom/tasks/%s.md"),
 			detalle, codigo, t.ID), false
 	case codigo > limite:
 		return detalle + " · sobre lo estimado, dentro de la tolerancia", true

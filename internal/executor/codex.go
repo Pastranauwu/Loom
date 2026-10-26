@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +24,7 @@ func (Codex) Available() error {
 		return err
 	}
 	if out, err := exec.Command(bin, "--version").Output(); err != nil || len(strings.TrimSpace(string(out))) == 0 {
-		return errors.New("codex no responde a --version · verifica la instalación")
+		return errors.New(idioma.T("codex no responde a --version · verifica la instalación"))
 	}
 	return nil
 }
@@ -44,7 +45,7 @@ func (Codex) Models(context.Context) ([]string, error) {
 	}
 	b, err := os.ReadFile(filepath.Join(home, "models_cache.json"))
 	if err != nil {
-		return nil, fmt.Errorf("codex no tiene catálogo de modelos todavía · corre codex una vez · %s", err)
+		return nil, fmt.Errorf(idioma.T("codex no tiene catálogo de modelos todavía · corre codex una vez · %s"), err)
 	}
 	var cache struct {
 		Models []struct {
@@ -53,7 +54,7 @@ func (Codex) Models(context.Context) ([]string, error) {
 		} `json:"models"`
 	}
 	if err := json.Unmarshal(b, &cache); err != nil {
-		return nil, fmt.Errorf("codex: models_cache.json ilegible · %s", err)
+		return nil, fmt.Errorf(idioma.T("codex: models_cache.json ilegible · %s"), err)
 	}
 	var ids []string
 	for _, m := range cache.Models {
@@ -108,7 +109,7 @@ func (e Codex) Run(ctx context.Context, req Request) (Result, error) {
 	if fallo != "" {
 		res.Stderr += fallo + "\n"
 		if err != nil {
-			err = fmt.Errorf("codex: %s", fallo)
+			err = fmt.Errorf(idioma.T("codex: %s"), fallo)
 		}
 	}
 	return res, err

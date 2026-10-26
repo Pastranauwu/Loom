@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"go/parser"
 	"go/token"
 	"os"
@@ -87,14 +88,14 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		var err error
 		contrato, err = contratoDelEsqueleto(roomPath, o.Task)
 		if err != nil {
-			return false, fmt.Errorf("no se pudo leer el contrato ciego del esqueleto · %w", err)
+			return false, fmt.Errorf(idioma.T("no se pudo leer el contrato ciego del esqueleto · %w"), err)
 		}
 		if contrato == "" {
-			return false, fmt.Errorf("el esqueleto no tiene firmas y Casos: para esta tarea")
+			return false, fmt.Errorf(idioma.T("el esqueleto no tiene firmas y Casos: para esta tarea"))
 		}
 		v := o.Task.ExamenVisible
 		if v == "" || filepath.IsAbs(v) || strings.HasPrefix(filepath.Clean(v), "..") {
-			return false, fmt.Errorf("ruta de prueba visible inválida: %q", v)
+			return false, fmt.Errorf(idioma.T("ruta de prueba visible inválida: %q"), v)
 		}
 		// al retomar o escalar la prueba ya está: no se paga otro examen
 		// para descartarlo. Si la escribió el examinador sigue vedada; si
@@ -175,7 +176,7 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		var err error
 		cuartoExamen, err = os.MkdirTemp("", "loom-examen-")
 		if err != nil {
-			return false, fmt.Errorf("no se pudo aislar al examinador · %w", err)
+			return false, fmt.Errorf(idioma.T("no se pudo aislar al examinador · %w"), err)
 		}
 		defer os.RemoveAll(cuartoExamen)
 	}
@@ -192,11 +193,11 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 	}
 	if o.Root != "" {
 		if recordErr := guardarUso(o.Root, o.Task.ID, res.Tokens); recordErr != nil {
-			return false, fmt.Errorf("no se pudo registrar el gasto del examinador · %w", recordErr)
+			return false, fmt.Errorf(idioma.T("no se pudo registrar el gasto del examinador · %w"), recordErr)
 		}
 	}
 	if err != nil {
-		return false, fmt.Errorf("el examinador no pudo invocar al modelo · %s", err)
+		return false, fmt.Errorf(idioma.T("el examinador no pudo invocar al modelo · %s"), err)
 	}
 
 	text := res.Text
@@ -205,10 +206,10 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 	}
 	visible, hidden, imports, err := parseRespText(text)
 	if err != nil {
-		return false, fmt.Errorf("la respuesta del examinador no se pudo leer · %s", err)
+		return false, fmt.Errorf(idioma.T("la respuesta del examinador no se pudo leer · %s"), err)
 	}
 	if len(visible) == 0 {
-		return false, fmt.Errorf("el examinador no devolvió ninguna prueba visible")
+		return false, fmt.Errorf(idioma.T("el examinador no devolvió ninguna prueba visible"))
 	}
 
 	visibleRelPath, hiddenRelPath := RutasSuite(o.Task.TocarSolo, lenguaje)
@@ -219,27 +220,27 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		// el implementador no puede tocar esta prueba: si importa un
 		// archivo que no existe no pasa nunca y la tarea quema sus intentos
 		if roto := importRelativoRoto(roomPath, visibleRelPath, imports); roto != "" {
-			return false, fmt.Errorf("la suite del examinador importa %s, que no existe desde %s", roto, visibleRelPath)
+			return false, fmt.Errorf(idioma.T("la suite del examinador importa %s, que no existe desde %s"), roto, visibleRelPath)
 		}
 	}
 
 	visibleContent, okVisible := suiteCompleta(lenguaje, roomPath, pkg, importPath, imports, visible)
 	if !okVisible {
-		return false, fmt.Errorf("no se pudieron resolver los imports de la suite visible")
+		return false, fmt.Errorf(idioma.T("no se pudieron resolver los imports de la suite visible"))
 	}
 	// un examinador que emite pruebas que no compilan bloquea al
 	// implementador: no puede tocar el archivo y su impl correcta
 	// igual da "build failed". Si la suite ni siquiera parsea, se
 	// descarta y el implementador corre sin suite ciega.
 	if err := validarSintaxisEnProyecto(roomPath, lenguaje, visibleRelPath, visibleContent); err != nil {
-		return false, fmt.Errorf("la suite visible del examinador no compila · %s", err)
+		return false, fmt.Errorf(idioma.T("la suite visible del examinador no compila · %s"), err)
 	}
 	if err := os.MkdirAll(filepath.Dir(filepath.Join(roomPath, visibleRelPath)), 0o755); err != nil {
-		return false, fmt.Errorf("no se pudo preparar la suite visible · %s", err)
+		return false, fmt.Errorf(idioma.T("no se pudo preparar la suite visible · %s"), err)
 	}
 	visiblePath := filepath.Join(roomPath, filepath.FromSlash(visibleRelPath))
 	if err := os.WriteFile(visiblePath, []byte(visibleContent), 0o644); err != nil {
-		return false, fmt.Errorf("no se pudo escribir la suite visible · %s", err)
+		return false, fmt.Errorf(idioma.T("no se pudo escribir la suite visible · %s"), err)
 	}
 	// commit visible tests so the loop's revertFueraDeAlcance does not
 	// undo them — git status won't list committed files as "changed".
@@ -251,21 +252,21 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 	// dejaba sin suite a toda tarea cuyo examinador no devolvía "hidden",
 	// y con las rutas de prueba vedadas nadie más podía escribirla.)
 	if len(hidden) == 0 {
-		return true, fmt.Errorf("el examinador no devolvió suite oculta · el paso suite_oculta se omite")
+		return true, fmt.Errorf(idioma.T("el examinador no devolvió suite oculta · el paso suite_oculta se omite"))
 	}
 	hiddenContent, okHidden := suiteCompleta(lenguaje, roomPath, pkg, importPath, imports, hidden)
 	if !okHidden {
-		return true, fmt.Errorf("no se pudieron resolver los imports de la suite oculta · solo queda la visible")
+		return true, fmt.Errorf(idioma.T("no se pudieron resolver los imports de la suite oculta · solo queda la visible"))
 	}
 	if err := validarSintaxisEnProyecto(roomPath, lenguaje, hiddenRelPath, hiddenContent); err != nil {
-		return true, fmt.Errorf("la suite oculta del examinador no compila · solo queda la visible · %s", err)
+		return true, fmt.Errorf(idioma.T("la suite oculta del examinador no compila · solo queda la visible · %s"), err)
 	}
 	s := sealed.SuiteOculta{
 		Content: hiddenContent,
 		Archivo: hiddenRelPath,
 	}
 	if err := sealed.Write(o.Root, o.Task.ID, s); err != nil {
-		return true, fmt.Errorf("no se pudo sellar la suite oculta · solo queda la visible · %s", err)
+		return true, fmt.Errorf(idioma.T("no se pudo sellar la suite oculta · solo queda la visible · %s"), err)
 	}
 	return true, nil
 }
@@ -375,7 +376,7 @@ func parseRespText(text string) (visible, hidden, imports []string, err error) {
 	ini := strings.Index(t, "{")
 	fin := strings.LastIndex(t, "}")
 	if ini == -1 || fin <= ini {
-		return nil, nil, nil, fmt.Errorf("no JSON in response")
+		return nil, nil, nil, fmt.Errorf(idioma.T("no JSON in response"))
 	}
 	var s suiteJSON
 	if err := json.Unmarshal([]byte(t[ini:fin+1]), &s); err != nil {

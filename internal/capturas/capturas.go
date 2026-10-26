@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"net/http"
 	"os"
 	"os/exec"
@@ -99,11 +100,11 @@ func Navegador() string {
 // vez por máquina). Sin node no hay forma.
 func Instalar(ctx context.Context) error {
 	if _, err := exec.LookPath("npx"); err != nil {
-		return errors.New("sin navegador para capturas y sin npx para instalar uno · instala chromium o node")
+		return errors.New(idioma.T("sin navegador para capturas y sin npx para instalar uno · instala chromium o node"))
 	}
 	out, err := exec.CommandContext(ctx, "npx", "--yes", "playwright", "install", "chromium-headless-shell").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("no se pudo instalar chrome-headless-shell · %s", ultimas(string(out)))
+		return fmt.Errorf(idioma.T("no se pudo instalar chrome-headless-shell · %s"), ultimas(string(out)))
 	}
 	return nil
 }
@@ -120,7 +121,7 @@ func Tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 
 // ErrNoLevanta distingue la app que no arranca del script de flujos que
 // falla: lo primero puede ser del entorno y no del arquitecto.
-var ErrNoLevanta = errors.New("la app no respondió")
+var ErrNoLevanta = errors.New(idioma.T("la app no respondió"))
 
 // ProbarFlujos levanta la app y corre solo la semilla y el script de
 // flujos: el error del script, con la cola de su salida, es lo que el
@@ -138,11 +139,11 @@ func ProbarFlujos(ctx context.Context, dir string, p Pantallas, puerto int, env 
 
 func tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []string, outDir string, rutas bool) ([]string, error, error) {
 	if p.Vacia() {
-		return nil, nil, errors.New("sin pantallas declaradas")
+		return nil, nil, errors.New(idioma.T("sin pantallas declaradas"))
 	}
 	nav := Navegador()
 	if nav == "" {
-		return nil, nil, errors.New("sin navegador headless · corre npx playwright install chromium-headless-shell")
+		return nil, nil, errors.New(idioma.T("sin navegador headless · corre npx playwright install chromium-headless-shell"))
 	}
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return nil, nil, err
@@ -162,12 +163,12 @@ func tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 	app.Stdout, app.Stderr = registro, registro
 	enGrupo(app)
 	if err := app.Start(); err != nil {
-		return nil, nil, fmt.Errorf("no se pudo levantar la app · %w", err)
+		return nil, nil, fmt.Errorf(idioma.T("no se pudo levantar la app · %w"), err)
 	}
 	defer apagar(app)
 
 	if err := esperar(ctx, base, Espera); err != nil {
-		return nil, nil, fmt.Errorf("%w en %s · %s · detalle en %s", ErrNoLevanta, base, err, registro.Name())
+		return nil, nil, fmt.Errorf(idioma.T("%w en %s · %s · detalle en %s"), ErrNoLevanta, base, err, registro.Name())
 	}
 	envApp := append(append([]string{}, app.Env...), "BASE_URL="+base)
 	// la semilla falla en abierto: sin datos se captura igual, vacío
@@ -182,7 +183,7 @@ func tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 		for _, t := range Tamanios {
 			foto := filepath.Join(outDir, fmt.Sprintf("%02d-%s-%s.png", i+1, nombre(ruta), t.Nombre))
 			if err := capturar(ctx, nav, unir(base, ruta), foto, t.Ancho, t.Alto); err != nil {
-				return fotos, nil, fmt.Errorf("captura de %s · %w", ruta, err)
+				return fotos, nil, fmt.Errorf(idioma.T("captura de %s · %w"), ruta, err)
 			}
 			fotos = append(fotos, foto)
 		}
@@ -201,7 +202,7 @@ func tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 		salida.Close()
 		if err != nil {
 			texto, _ := os.ReadFile(salida.Name())
-			errScript = fmt.Errorf("el script de flujos falló (%v): %s", err, ultimasN(string(texto), 12))
+			errScript = fmt.Errorf(idioma.T("el script de flujos falló (%v): %s"), err, ultimasN(string(texto), 12))
 		} else {
 			extra, _ := filepath.Glob(filepath.Join(flujos, "*.png"))
 			sort.Strings(extra)
@@ -239,7 +240,7 @@ func esperar(ctx context.Context, url string, tope time.Duration) error {
 		case <-time.After(time.Second):
 		}
 	}
-	return errors.New("se acabó la espera")
+	return errors.New(idioma.T("se acabó la espera"))
 }
 
 func capturar(ctx context.Context, nav, url, foto string, ancho, alto int) error {
@@ -268,7 +269,7 @@ func capturar(ctx context.Context, nav, url, foto string, ancho, alto int) error
 		return fmt.Errorf("%v · %s", err, ultimas(string(out)))
 	}
 	if _, err := os.Stat(foto); err != nil {
-		return errors.New("el navegador no escribió la captura")
+		return errors.New(idioma.T("el navegador no escribió la captura"))
 	}
 	return nil
 }

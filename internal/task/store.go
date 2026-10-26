@@ -3,6 +3,7 @@ package task
 import (
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,7 +21,7 @@ func Path(dir, id string) string { return filepath.Join(dir, id+".md") }
 func Load(dir, id string) (Task, error) {
 	data, err := os.ReadFile(Path(dir, id))
 	if errors.Is(err, os.ErrNotExist) {
-		return Task{}, fmt.Errorf("no existe la tarea %s", id)
+		return Task{}, fmt.Errorf(idioma.T("no existe la tarea %s"), id)
 	}
 	if err != nil {
 		return Task{}, err
@@ -41,7 +42,7 @@ func Save(dir string, t Task) error {
 func Remove(dir, id string) error {
 	err := os.Remove(Path(dir, id))
 	if errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("no existe la tarea %s", id)
+		return fmt.Errorf(idioma.T("no existe la tarea %s"), id)
 	}
 	return err
 }

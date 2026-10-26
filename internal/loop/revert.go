@@ -2,6 +2,7 @@ package loop
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path"
 	"path/filepath"
@@ -126,12 +127,12 @@ func revertir(roomPath, antes, s string) error {
 	if _, err := gitRun(roomPath, "cat-file", "-e", fuente+":"+s); err != nil {
 		// no existía en el punto de partida: lo creó el agente
 		if err := os.Remove(filepath.Join(roomPath, s)); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("no se pudo borrar %s · %s", s, err)
+			return fmt.Errorf(idioma.T("no se pudo borrar %s · %s"), s, err)
 		}
 		return nil
 	}
 	if _, err := gitRun(roomPath, "restore", "--source="+fuente, "--", s); err != nil {
-		return fmt.Errorf("no se pudo revertir %s · %s", s, err)
+		return fmt.Errorf(idioma.T("no se pudo revertir %s · %s"), s, err)
 	}
 	return nil
 }

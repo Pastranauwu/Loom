@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os/exec"
 	"strings"
 
@@ -58,7 +59,7 @@ func (r Resultado) Alerta() string {
 	if r.Semantico {
 		partes = append(partes, "símbolo(s) exportado(s) en común: "+strings.Join(r.Comunes, ", "))
 	}
-	return fmt.Sprintf("%s ↔ %s · %s", r.TareaA, r.TareaB, strings.Join(partes, "; "))
+	return fmt.Sprintf(idioma.T("%s ↔ %s · %s"), r.TareaA, r.TareaB, strings.Join(partes, "; "))
 }
 
 // CheckPar runs textual and semantic checks between two tasks.
@@ -123,7 +124,7 @@ func mergeTree(root, ramaA, ramaB string) (string, []string, error) {
 	}
 	var exitErr *exec.ExitError
 	if !isExitError(err, &exitErr) {
-		return "", nil, fmt.Errorf("no se pudo ejecutar git merge-tree · %w", err)
+		return "", nil, fmt.Errorf(idioma.T("no se pudo ejecutar git merge-tree · %w"), err)
 	}
 	if esGitSinWriteTree(exitErr.ExitCode(), stderr.String()) {
 		return "", nil, errGitViejo
@@ -147,7 +148,7 @@ func mergeTree(root, ramaA, ramaB string) (string, []string, error) {
 }
 
 // errGitViejo: el git del sistema no entiende merge-tree --write-tree.
-var errGitViejo = errors.New("git no soporta 'merge-tree --write-tree' · necesita git 2.38 o superior (Ubuntu 22.04 trae 2.34)")
+var errGitViejo = errors.New(idioma.T("git no soporta 'merge-tree --write-tree' · necesita git 2.38 o superior (Ubuntu 22.04 trae 2.34)"))
 
 // esGitSinWriteTree reconoce el fallo por flag desconocido. git sale con
 // 129 en error de uso, pero se comprueba tambien el stderr porque el

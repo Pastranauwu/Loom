@@ -57,7 +57,7 @@ type Borrador struct {
 
 // ErrSinTareas es un plan vacío. Para el planificador es un error; para
 // el arquitecto puede ser la respuesta correcta (el código ya cumple).
-var ErrSinTareas = errors.New("el modelo no propuso ninguna tarea")
+var ErrSinTareas = errors.New(idioma.T("el modelo no propuso ninguna tarea"))
 
 func (b *Borrador) UnmarshalJSON(data []byte) error {
 	type alias Borrador
@@ -309,7 +309,7 @@ func Parse(texto string) ([]Borrador, error) {
 	// Conserva compatibilidad con el array de contratos de versiones anteriores.
 	t := CuerpoJSON(texto)
 	if t == "" {
-		return nil, errors.New("el modelo no devolvió un plan JSON · vuelve a intentarlo")
+		return nil, errors.New(idioma.T("el modelo no devolvió un plan JSON · vuelve a intentarlo"))
 	}
 	ini := 0
 	var bs []Borrador
@@ -322,22 +322,22 @@ func Parse(texto string) ([]Borrador, error) {
 		}
 		var crudo json.RawMessage
 		if err := dec.Decode(&crudo); err != nil {
-			return nil, fmt.Errorf("el modelo devolvió JSON inválido · %s", err)
+			return nil, fmt.Errorf(idioma.T("el modelo devolvió JSON inválido · %s"), err)
 		}
 		if err := json.Unmarshal(idioma.NormalizarClaves(crudo, map[string]string{"architecture": "arquitectura", "tasks": "tareas"}), &documento); err != nil {
-			return nil, fmt.Errorf("el modelo devolvió JSON inválido · %s", err)
+			return nil, fmt.Errorf(idioma.T("el modelo devolvió JSON inválido · %s"), err)
 		}
 		if strings.TrimSpace(documento.Arquitectura) == "" {
-			return nil, errors.New("el plan no define arquitectura · incluye decisiones y árbol de archivos")
+			return nil, errors.New(idioma.T("el plan no define arquitectura · incluye decisiones y árbol de archivos"))
 		}
 		bs, arquitectura = documento.Tareas, documento.Arquitectura
 	} else if err := dec.Decode(&bs); err != nil {
-		return nil, fmt.Errorf("el modelo devolvió JSON inválido · %s", err)
+		return nil, fmt.Errorf(idioma.T("el modelo devolvió JSON inválido · %s"), err)
 	}
 	for i := range bs {
 		if arquitectura != "" {
 			if strings.TrimSpace(bs[i].Como) == "" {
-				return nil, fmt.Errorf("la tarea %d no trae instrucciones de implementación en como", i+1)
+				return nil, fmt.Errorf(idioma.T("la tarea %d no trae instrucciones de implementación en como"), i+1)
 			}
 			bs[i].Como = MarcaArquitectura + arquitectura + "\n\n" + MarcaImplementacion + bs[i].Como
 		}
@@ -348,7 +348,7 @@ func Parse(texto string) ([]Borrador, error) {
 	}
 	for i, b := range bs {
 		if strings.TrimSpace(b.Titulo) == "" || strings.TrimSpace(b.ListoCuando) == "" {
-			return nil, fmt.Errorf("la tarea %d del plan no trae titulo ni listo_cuando · el modelo se desvió", i+1)
+			return nil, fmt.Errorf(idioma.T("la tarea %d del plan no trae titulo ni listo_cuando · el modelo se desvió"), i+1)
 		}
 	}
 	return bs, nil
@@ -437,7 +437,7 @@ func Completar(ctx context.Context, g Generador, c Contexto, feature string, reg
 		return nil, err
 	}
 	if len(bs) != len(tareas) {
-		return nil, fmt.Errorf("el modelo devolvió %d contratos para %d tareas · vuelve a intentarlo", len(bs), len(tareas))
+		return nil, fmt.Errorf(idioma.T("el modelo devolvió %d contratos para %d tareas · vuelve a intentarlo"), len(bs), len(tareas))
 	}
 	return bs, nil
 }

@@ -8,6 +8,7 @@ package kv
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 )
@@ -48,7 +49,7 @@ func ParseList(v string) ([]string, error) {
 		return nil, nil
 	}
 	if !strings.HasPrefix(v, "[") || !strings.HasSuffix(v, "]") {
-		return nil, fmt.Errorf("lista mal formada: %s", v)
+		return nil, fmt.Errorf(idioma.T("lista mal formada: %s"), v)
 	}
 	inner := strings.TrimSpace(v[1 : len(v)-1])
 	if inner == "" {
@@ -59,11 +60,11 @@ func ParseList(v string) ([]string, error) {
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if len(p) < 2 || p[0] != '"' || p[len(p)-1] != '"' {
-			return nil, fmt.Errorf("elemento de lista sin comillas: %s", p)
+			return nil, fmt.Errorf(idioma.T("elemento de lista sin comillas: %s"), p)
 		}
 		s, err := strconv.Unquote(p)
 		if err != nil {
-			return nil, fmt.Errorf("elemento de lista mal formado: %s", p)
+			return nil, fmt.Errorf(idioma.T("elemento de lista mal formado: %s"), p)
 		}
 		out = append(out, s)
 	}
@@ -115,7 +116,7 @@ func MarshalList(values []string) string {
 func ParseInt(v string) (int, error) {
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return 0, fmt.Errorf("entero inválido: %s", v)
+		return 0, fmt.Errorf(idioma.T("entero inválido: %s"), v)
 	}
 	return n, nil
 }
@@ -125,7 +126,7 @@ func ParseInt(v string) (int, error) {
 func ParseInlineMap(v string) (map[string]string, error) {
 	v = strings.TrimSpace(v)
 	if !strings.HasPrefix(v, "{") || !strings.HasSuffix(v, "}") {
-		return nil, fmt.Errorf("mapa mal formado: %s", v)
+		return nil, fmt.Errorf(idioma.T("mapa mal formado: %s"), v)
 	}
 	inner := strings.TrimSpace(v[1 : len(v)-1])
 	if inner == "" {
@@ -139,7 +140,7 @@ func ParseInlineMap(v string) (map[string]string, error) {
 		}
 		k, val, ok := strings.Cut(part, ":")
 		if !ok {
-			return nil, fmt.Errorf("elemento de mapa sin dos puntos: %s", part)
+			return nil, fmt.Errorf(idioma.T("elemento de mapa sin dos puntos: %s"), part)
 		}
 		out[strings.TrimSpace(k)] = Unquote(strings.TrimSpace(val))
 	}
@@ -183,7 +184,7 @@ func Nested(lines []string, key string, offset int) ([]Pair, error) {
 		}
 		k, v, ok := strings.Cut(trimmed, ":")
 		if !ok {
-			return nil, fmt.Errorf("línea %d no es clave: valor", i+offset)
+			return nil, fmt.Errorf(idioma.T("línea %d no es clave: valor"), i+offset)
 		}
 		out = append(out, Pair{
 			Key:   strings.TrimSpace(k),
@@ -206,7 +207,7 @@ func Pairs(lines []string, offset int) ([]Pair, error) {
 		}
 		key, value, ok := strings.Cut(line, ":")
 		if !ok {
-			return nil, fmt.Errorf("línea %d no es clave: valor", i+offset)
+			return nil, fmt.Errorf(idioma.T("línea %d no es clave: valor"), i+offset)
 		}
 		out = append(out, Pair{
 			Key:   strings.TrimSpace(key),

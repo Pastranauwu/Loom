@@ -3,6 +3,7 @@ package spec
 import (
 	"bytes"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"slices"
 
@@ -23,7 +24,7 @@ func AgregarReglaYCriterio(path, regla string, a Acceptance) error {
 		return err
 	}
 	if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
-		return fmt.Errorf("%s no es un mapa YAML", path)
+		return fmt.Errorf(idioma.T("%s no es un mapa YAML"), path)
 	}
 	m := doc.Content[0]
 	agregarItem(m, []string{"rules", "reglas"}, "rules", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: regla})
@@ -46,7 +47,7 @@ func AgregarReglaYCriterio(path, regla string, a Acceptance) error {
 		return err
 	}
 	if _, err := Parse(buf.Bytes()); err != nil {
-		return fmt.Errorf("el spec editado no parsea, no se escribió: %w", err)
+		return fmt.Errorf(idioma.T("el spec editado no parsea, no se escribió: %w"), err)
 	}
 	return os.WriteFile(path, buf.Bytes(), 0o644)
 }

@@ -3,6 +3,7 @@ package ship
 import (
 	"context"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,7 +88,7 @@ func integrarLocal(ctx context.Context, root, path, base string) error {
 		return fmt.Errorf("%s · %s", tail(salida), err)
 	}
 	if salida, err = avanzar(); err != nil {
-		return fmt.Errorf("no se pudo integrar en %s · %s", base, tail(salida))
+		return fmt.Errorf(idioma.T("no se pudo integrar en %s · %s"), base, tail(salida))
 	}
 	return nil
 }

@@ -147,10 +147,10 @@ type Opciones struct {
 // revisar", y quien llama no debe integrar.
 func Revisar(ctx context.Context, o Opciones) (Veredicto, error) {
 	if o.Generador == nil {
-		return Veredicto{}, errors.New("sin revisor · declara el modelo del rol revisor en config.yml")
+		return Veredicto{}, errors.New(idioma.T("sin revisor · declara el modelo del rol revisor en config.yml"))
 	}
 	if strings.TrimSpace(o.Diff) == "" {
-		return Veredicto{}, errors.New("no hay diff que revisar")
+		return Veredicto{}, errors.New(idioma.T("no hay diff que revisar"))
 	}
 	if len(o.Diff) > MaxDiff {
 		return Veredicto{}, fmt.Errorf(
@@ -165,7 +165,7 @@ func Revisar(ctx context.Context, o Opciones) (Veredicto, error) {
 
 	texto, err := o.Generador.Generar(ctx, Prompt(o.Tareas, o.Diff))
 	if err != nil {
-		return Veredicto{}, fmt.Errorf("el revisor no respondió · %s", err)
+		return Veredicto{}, fmt.Errorf(idioma.T("el revisor no respondió · %s"), err)
 	}
 	return Parse(texto, o.Tareas)
 }
@@ -225,14 +225,14 @@ func Parse(texto string, esperadas []task.Task) (Veredicto, error) {
 	ini := strings.Index(t, "{")
 	fin := strings.LastIndex(t, "}")
 	if ini == -1 || fin <= ini {
-		return Veredicto{}, errors.New("el revisor no devolvió un informe legible")
+		return Veredicto{}, errors.New(idioma.T("el revisor no devolvió un informe legible"))
 	}
 	var v Veredicto
 	if err := json.Unmarshal(normalizarInforme([]byte(t[ini:fin+1])), &v); err != nil {
-		return Veredicto{}, fmt.Errorf("el informe del revisor no es JSON válido · %s", err)
+		return Veredicto{}, fmt.Errorf(idioma.T("el informe del revisor no es JSON válido · %s"), err)
 	}
 	if len(v.Tareas) == 0 {
-		return Veredicto{}, errors.New("el revisor no juzgó ninguna tarea")
+		return Veredicto{}, errors.New(idioma.T("el revisor no juzgó ninguna tarea"))
 	}
 
 	vistas := map[string]bool{}
@@ -240,20 +240,20 @@ func Parse(texto string, esperadas []task.Task) (Veredicto, error) {
 		e := &v.Tareas[i]
 		e.ID = strings.TrimSpace(e.ID)
 		if e.ID == "" {
-			return Veredicto{}, errors.New("el revisor devolvió una entrada sin id de tarea")
+			return Veredicto{}, errors.New(idioma.T("el revisor devolvió una entrada sin id de tarea"))
 		}
 		vistas[e.ID] = true
 		if !tipoValido(e.Tipo) {
-			return Veredicto{}, fmt.Errorf("%s: tipo %q no es de Conventional Commits (%s)",
+			return Veredicto{}, fmt.Errorf(idioma.T("%s: tipo %q no es de Conventional Commits (%s)"),
 				e.ID, e.Tipo, strings.Join(TiposCommit, ", "))
 		}
 		if strings.TrimSpace(e.Descripcion) == "" {
-			return Veredicto{}, fmt.Errorf("%s: el revisor no describió qué entrega", e.ID)
+			return Veredicto{}, fmt.Errorf(idioma.T("%s: el revisor no describió qué entrega"), e.ID)
 		}
 		// decir que algo está mal sin decir qué cambiar deja al humano
 		// con un "no" y nada que hacer con él
 		if !e.Funciona && len(e.Cambios) == 0 {
-			return Veredicto{}, fmt.Errorf("%s: el revisor la marca rota pero no dice qué cambiar", e.ID)
+			return Veredicto{}, fmt.Errorf(idioma.T("%s: el revisor la marca rota pero no dice qué cambiar"), e.ID)
 		}
 	}
 
@@ -265,7 +265,7 @@ func Parse(texto string, esperadas []task.Task) (Veredicto, error) {
 		}
 	}
 	if len(faltan) > 0 {
-		return Veredicto{}, fmt.Errorf("el revisor no juzgó %s", strings.Join(faltan, ", "))
+		return Veredicto{}, fmt.Errorf(idioma.T("el revisor no juzgó %s"), strings.Join(faltan, ", "))
 	}
 	return v, nil
 }

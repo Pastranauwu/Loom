@@ -11,6 +11,7 @@ package skills
 import (
 	"context"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -137,17 +138,17 @@ func Fetch(ctx context.Context, root string, src Source) error {
 		return nil
 	}
 	if _, err := exec.LookPath("npx"); err != nil {
-		return fmt.Errorf("npx no está instalado · instala Node.js para traer skills")
+		return fmt.Errorf(idioma.T("npx no está instalado · instala Node.js para traer skills"))
 	}
 	cmd := exec.CommandContext(ctx, "npx", "--yes", "skills", "add", src.Repo,
 		"--skill", src.arg(), "-y", "--agent", "universal")
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("no se pudo traer skill %s · %s", src.Nombre, tail(string(out)))
+		return fmt.Errorf(idioma.T("no se pudo traer skill %s · %s"), src.Nombre, tail(string(out)))
 	}
 	if !Instalado(root, src.Nombre) {
-		return fmt.Errorf("skill %s no apareció en el repo tras el fetch · revisa que el paquete la incluya", src.Nombre)
+		return fmt.Errorf(idioma.T("skill %s no apareció en el repo tras el fetch · revisa que el paquete la incluya"), src.Nombre)
 	}
 	return nil
 }

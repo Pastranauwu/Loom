@@ -82,20 +82,20 @@ Return ONLY this JSON, no text around it:
 func Parse(texto string) (Diagnostico, error) {
 	t := plan.CuerpoJSON(texto)
 	if t == "" {
-		return Diagnostico{}, errors.New("el modelo no devolvió un diagnóstico · vuelve a intentarlo")
+		return Diagnostico{}, errors.New(idioma.T("el modelo no devolvió un diagnóstico · vuelve a intentarlo"))
 	}
 	var d Diagnostico
 	if err := json.NewDecoder(strings.NewReader(plan.EscaparControles(t))).Decode(&d); err != nil {
-		return d, fmt.Errorf("el diagnóstico no es JSON válido · %s", err)
+		return d, fmt.Errorf(idioma.T("el diagnóstico no es JSON válido · %s"), err)
 	}
 	d.Invariante, d.Comando, d.ArchivoPrueba = strings.TrimSpace(d.Invariante), strings.TrimSpace(d.Comando), strings.TrimSpace(d.ArchivoPrueba)
 	switch {
 	case d.Invariante == "":
-		return d, errors.New("el diagnóstico no nombra la regla que faltaba · vuelve a intentarlo")
+		return d, errors.New(idioma.T("el diagnóstico no nombra la regla que faltaba · vuelve a intentarlo"))
 	case d.Comando == "":
-		return d, errors.New("el diagnóstico no trae un comando que reproduzca el fallo · vuelve a intentarlo")
+		return d, errors.New(idioma.T("el diagnóstico no trae un comando que reproduzca el fallo · vuelve a intentarlo"))
 	case len(d.Tocar) == 0 && d.ArchivoPrueba == "":
-		return d, errors.New("el diagnóstico no dice qué archivos tocar · vuelve a intentarlo")
+		return d, errors.New(idioma.T("el diagnóstico no dice qué archivos tocar · vuelve a intentarlo"))
 	}
 	if strings.TrimSpace(d.Criterio) == "" {
 		d.Criterio = d.Invariante

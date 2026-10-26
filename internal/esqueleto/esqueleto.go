@@ -243,14 +243,14 @@ func Parse(texto string) (Resultado, error) {
 	t := plan.CuerpoJSON(texto)
 	var r Resultado
 	if !strings.HasPrefix(t, "{") {
-		return Resultado{}, errors.New("el arquitecto no devolvió un objeto JSON")
+		return Resultado{}, errors.New(idioma.T("el arquitecto no devolvió un objeto JSON"))
 	}
 	var crudo json.RawMessage
 	if err := json.NewDecoder(strings.NewReader(plan.EscaparControles(t))).Decode(&crudo); err != nil {
-		return Resultado{}, fmt.Errorf("el arquitecto devolvió JSON inválido · %s", err)
+		return Resultado{}, fmt.Errorf(idioma.T("el arquitecto devolvió JSON inválido · %s"), err)
 	}
 	if err := json.Unmarshal(normalizarClaves(crudo), &r); err != nil {
-		return Resultado{}, fmt.Errorf("el arquitecto devolvió JSON inválido · %s", err)
+		return Resultado{}, fmt.Errorf(idioma.T("el arquitecto devolvió JSON inválido · %s"), err)
 	}
 	r.Tareas = bs
 	return r, nil
@@ -362,27 +362,27 @@ func contrato(dir, nombre string, t plan.Borrador, archivos []string, previos ma
 			idea = idea || idioma.Tiene(string(b), idioma.Idea)
 		}
 		if !marca {
-			out = append(out, fmt.Sprintf("%s: %s is new and has no stub with \"%s\"; the agent implements what is new, not you", nombre, strings.Join(nuevos, ", "), Marca))
+			out = append(out, fmt.Sprintf(idioma.T("%s: %s is new and has no stub with \"%s\"; the agent implements what is new, not you"), nombre, strings.Join(nuevos, ", "), Marca))
 		}
 		if !casos {
-			out = append(out, fmt.Sprintf("%s: the contract of %s has no \"Cases:\"; without examples the agent does not know what to test", nombre, strings.Join(nuevos, ", ")))
+			out = append(out, fmt.Sprintf(idioma.T("%s: the contract of %s has no \"Cases:\"; without examples the agent does not know what to test"), nombre, strings.Join(nuevos, ", ")))
 		}
 		// lo pensado por el modelo caro viaja en el contrato: sin eso el
 		// barato rediseña, y solo se le podían dar tareas triviales
 		if !idea {
-			out = append(out, fmt.Sprintf("%s: the contract of %s has no \"Idea:\"; write in a few lines how it is solved (algorithm, structures, traps) so the agent only implements it", nombre, strings.Join(nuevos, ", ")))
+			out = append(out, fmt.Sprintf(idioma.T("%s: the contract of %s has no \"Idea:\"; write in a few lines how it is solved (algorithm, structures, traps) so the agent only implements it"), nombre, strings.Join(nuevos, ", ")))
 		}
 	}
 	// una prueba existente en tocar_solo deja de estar congelada: sin
 	// decir qué parte quedó obsoleta, el agente podría reescribirla entera
 	if len(pruebasViejas) > 0 && !idioma.Tiene(t.Como, idioma.Obsoleto) {
-		out = append(out, fmt.Sprintf("%s: lets %s, a test that already exists, be modified, and its \"how\" has no \"Obsolete:\" with the cases that stop being valid; if none becomes false, remove it from only_touch", nombre, strings.Join(pruebasViejas, ", ")))
+		out = append(out, fmt.Sprintf(idioma.T("%s: lets %s, a test that already exists, be modified, and its \"how\" has no \"Obsolete:\" with the cases that stop being valid; if none becomes false, remove it from only_touch"), nombre, strings.Join(pruebasViejas, ", ")))
 	}
 	if len(nuevos) > 0 {
 		return out
 	}
 	if len(existentes) > 0 && !idioma.Tiene(t.Como, idioma.Casos) {
-		out = append(out, fmt.Sprintf("%s: changes %s, which already exists, and its \"how\" has no \"Cases:\" of the new behavior", nombre, strings.Join(existentes, ", ")))
+		out = append(out, fmt.Sprintf(idioma.T("%s: changes %s, which already exists, and its \"how\" has no \"Cases:\" of the new behavior"), nombre, strings.Join(existentes, ", ")))
 	}
 	return out
 }

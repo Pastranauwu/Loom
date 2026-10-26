@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"net"
 	"os"
 	"os/exec"
@@ -277,7 +278,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 	}
 	ordenadas = conCambios
 	if len(ordenadas) == 0 {
-		apuntar(Paso{"integrar", false, "ninguna tarea tiene cambios propios · nada que entregar"})
+		apuntar(Paso{"integrar", false, idioma.T("ninguna tarea tiene cambios propios · nada que entregar")})
 		return e
 	}
 
@@ -337,7 +338,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 			return e
 		}
 	}
-	apuntar(Paso{"integrar", true, fmt.Sprintf("%d commits, uno por tarea", len(ordenadas))})
+	apuntar(Paso{"integrar", true, fmt.Sprintf(idioma.T("%d commits, uno por tarea"), len(ordenadas))})
 
 	// 4. la suite completa sobre el conjunto ya integrado. La rama de
 	// entrega es un worktree nuevo: sin instalar, la suite de un
@@ -355,7 +356,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 	}
 	pruebas := strings.TrimSpace(o.Config.Pruebas)
 	if pruebas == "" {
-		apuntar(Paso{"integradas", true, "sin comando de pruebas en config.yml · no se verificó el conjunto"})
+		apuntar(Paso{"integradas", true, idioma.T("sin comando de pruebas en config.yml · no se verificó el conjunto")})
 	} else if crudo, salida, ok := correrPruebasCrudo(ctx, path, pruebas, o.Timeout); !ok {
 		// una suite que ya estaba roja en la base no dice nada del
 		// conjunto por su código de salida: lo que frena son los fallos
@@ -403,9 +404,9 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 		_ = os.RemoveAll(dir)
 		var err error
 		if fotos, err = capturas.Tomar(ctx, path, o.Config.Pantallas, puertoLibre(), room.Entorno(path), dir); err != nil {
-			apuntar(Paso{"capturas", true, "sin capturas · " + err.Error()})
+			apuntar(Paso{"capturas", true, idioma.T("sin capturas · ") + err.Error()})
 		} else {
-			apuntar(Paso{"capturas", true, fmt.Sprintf("%d pantallas en %s", len(fotos), dir)})
+			apuntar(Paso{"capturas", true, fmt.Sprintf(idioma.T("%d pantallas en %s"), len(fotos), dir)})
 		}
 	}
 
@@ -416,7 +417,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 		titulo = ordenadas[0].Titulo
 	}
 	if o.DryRun {
-		apuntar(Paso{"pr", true, "dry-run · sin PR · rama " + RamaEntrega})
+		apuntar(Paso{"pr", true, idioma.T("dry-run · sin PR · rama ") + RamaEntrega})
 		e.Aprobado = true
 		return e
 	}
@@ -432,7 +433,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 			motivo := err.Error()
 			if url, err = abrirPRLocal(o.Root, RamaEntrega, o.Base, titulo, cuerpo); err == nil {
 				local = true
-				apuntar(Paso{"pr remoto", true, "no se abrió en el remoto · " + motivo + " · queda como PR local"})
+				apuntar(Paso{"pr remoto", true, idioma.T("no se abrió en el remoto · ") + motivo + " · queda como PR local"})
 			}
 		}
 	}
@@ -484,7 +485,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 func revisarEntrega(ctx context.Context, o OpcionesEntrega, path, target, url string, tareas []task.Task, apuntar func(Paso)) (sinCambios, ok bool) {
 	diff, err := gitRun(path, "diff", target+"..HEAD")
 	if err != nil {
-		apuntar(Paso{"revisión", false, "no se pudo leer el diff · " + tail(diff)})
+		apuntar(Paso{"revisión", false, idioma.T("no se pudo leer el diff · ") + tail(diff)})
 		return false, false
 	}
 	sinCambios, informe, resumen, err := o.Revisor.Revisar(ctx, diff, tareas)
@@ -499,7 +500,7 @@ func revisarEntrega(ctx context.Context, o OpcionesEntrega, path, target, url st
 	if err := comentar(); err != nil {
 		// el informe es el producto de la revisión: si no llega al PR,
 		// quien aprueba no lo va a ver
-		apuntar(Paso{"revisión", false, "no se pudo publicar el informe en el PR · " + err.Error()})
+		apuntar(Paso{"revisión", false, idioma.T("no se pudo publicar el informe en el PR · ") + err.Error()})
 		return sinCambios, false
 	}
 	apuntar(Paso{"revisión", true, resumen})
@@ -571,7 +572,7 @@ func limpiarEntrega(root, path string) error {
 		return nil
 	}
 	if out, err := gitRun(root, "branch", "-D", RamaEntrega); err != nil {
-		return fmt.Errorf("no se pudo borrar la rama de entrega · %s", tail(out))
+		return fmt.Errorf(idioma.T("no se pudo borrar la rama de entrega · %s"), tail(out))
 	}
 	return nil
 }
@@ -592,7 +593,7 @@ func correrPruebasCrudo(ctx context.Context, dir, cmdStr string, timeout time.Du
 	cmd.Env = append(os.Environ(), room.Entorno(dir)...)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
-		return string(out), fmt.Sprintf("las pruebas tardaron más de %s", timeout), false
+		return string(out), fmt.Sprintf(idioma.T("las pruebas tardaron más de %s"), timeout), false
 	}
 	if err != nil {
 		return string(out), resumenPruebas(string(out)), false
@@ -651,9 +652,9 @@ func mismosFallosQueLaBase(ctx context.Context, path, base, pruebas string, time
 	}
 	if len(nuevos) > 0 {
 		sort.Strings(nuevos)
-		return fmt.Sprintf("%d fallos que la base no tenía: %s · ", len(nuevos), unir(nuevos)), false
+		return fmt.Sprintf(idioma.T("%d fallos que la base no tenía: %s · "), len(nuevos), unir(nuevos)), false
 	}
-	return fmt.Sprintf("%s · la suite ya fallaba en %s con esos mismos %d fallos y el conjunto no agrega ninguno", pruebas, base, len(conjunto)), true
+	return fmt.Sprintf(idioma.T("%s · la suite ya fallaba en %s con esos mismos %d fallos y el conjunto no agrega ninguno"), pruebas, base, len(conjunto)), true
 }
 
 // ordenTopologico ordena las tareas para que ninguna llegue antes que
@@ -699,7 +700,7 @@ func ordenTopologico(tareas []task.Task) ([]task.Task, error) {
 					faltan = append(faltan, id)
 				}
 			}
-			return nil, fmt.Errorf("ciclo de dependencias entre %s · revisa depende_de", strings.Join(faltan, ", "))
+			return nil, fmt.Errorf(idioma.T("ciclo de dependencias entre %s · revisa depende_de"), strings.Join(faltan, ", "))
 		}
 	}
 	return out, nil
@@ -734,13 +735,13 @@ func cuerpoEntrega(tareas []task.Task, resultados []Resultado) string {
 func abrirPREntrega(ctx context.Context, root, path, base, titulo, cuerpo string) (string, error) {
 	gh, err := exec.LookPath("gh")
 	if err != nil {
-		return "", fmt.Errorf("gh no está instalado · instálalo o usa --dry-run")
+		return "", fmt.Errorf(idioma.T("gh no está instalado · instálalo o usa --dry-run"))
 	}
 	if _, err := gitRun(root, "remote", "get-url", "origin"); err != nil {
-		return "", fmt.Errorf("sin remoto origin · agrégalo con git remote add origin <url> o usa --dry-run")
+		return "", fmt.Errorf(idioma.T("sin remoto origin · agrégalo con git remote add origin <url> o usa --dry-run"))
 	}
 	if out, err := gitRun(path, "push", "--force", "-u", "origin", RamaEntrega); err != nil {
-		return "", fmt.Errorf("no se pudo subir la rama de entrega · %s", tail(out))
+		return "", fmt.Errorf(idioma.T("no se pudo subir la rama de entrega · %s"), tail(out))
 	}
 	if url := prExistente(ctx, root, gh, RamaEntrega); url != "" {
 		return url, nil
@@ -764,7 +765,7 @@ func abrirPREntrega(ctx context.Context, root, path, base, titulo, cuerpo string
 		if url := prExistente(ctx, root, gh, RamaEntrega); url != "" {
 			return url, nil
 		}
-		return "", fmt.Errorf("gh no pudo abrir el PR · %s", tail(string(out)))
+		return "", fmt.Errorf(idioma.T("gh no pudo abrir el PR · %s"), tail(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -779,7 +780,7 @@ func abrirPREntrega(ctx context.Context, root, path, base, titulo, cuerpo string
 func mergearPR(ctx context.Context, root, path, base, url string) error {
 	gh, err := exec.LookPath("gh")
 	if err != nil {
-		return errors.New("gh no está instalado")
+		return errors.New(idioma.T("gh no está instalado"))
 	}
 
 	merge := func() (string, error) {
@@ -799,7 +800,7 @@ func mergearPR(ctx context.Context, root, path, base, url string) error {
 		return fmt.Errorf("%s · %s", tail(salida), err)
 	}
 	if salida, err = merge(); err != nil {
-		return fmt.Errorf("no se pudo integrar ni tras realinear con %s · %s", base, tail(salida))
+		return fmt.Errorf(idioma.T("no se pudo integrar ni tras realinear con %s · %s"), base, tail(salida))
 	}
 	return nil
 }
@@ -820,15 +821,15 @@ func realinearConBase(ctx context.Context, root, path, base string, subir bool) 
 		conflictos := unmerged(path)
 		_, _ = gitRun(path, "rebase", "--abort")
 		if len(conflictos) > 0 {
-			return fmt.Errorf("%s cambió y choca en %s · resuélvelo a mano", target, unir(conflictos))
+			return fmt.Errorf(idioma.T("%s cambió y choca en %s · resuélvelo a mano"), target, unir(conflictos))
 		}
-		return fmt.Errorf("no se pudo rebasear sobre %s · %s", target, tail(salida))
+		return fmt.Errorf(idioma.T("no se pudo rebasear sobre %s · %s"), target, tail(salida))
 	}
 	if !subir || sinRemoto(root) {
 		return nil // PR local: no hay a dónde subirla
 	}
 	if salida, err := gitRun(path, "push", "--force", "origin", RamaEntrega); err != nil {
-		return fmt.Errorf("no se pudo subir la rama realineada · %s", tail(salida))
+		return fmt.Errorf(idioma.T("no se pudo subir la rama realineada · %s"), tail(salida))
 	}
 	return nil
 }

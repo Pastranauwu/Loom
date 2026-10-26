@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,13 +18,13 @@ import (
 func abrirPR(ctx context.Context, root string, r room.Room, base, titulo, cuerpo string) (string, error) {
 	gh, err := exec.LookPath("gh")
 	if err != nil {
-		return "", errors.New("gh no está instalado · instálalo o usa --dry-run")
+		return "", errors.New(idioma.T("gh no está instalado · instálalo o usa --dry-run"))
 	}
 
 	// sin remoto el push falla con un "exit status 128" que no dice nada;
 	// un repo local es un caso normal, no un error del usuario
 	if _, err := gitRun(root, "remote", "get-url", "origin"); err != nil {
-		return "", errors.New("sin remoto origin · agrégalo con git remote add origin <url> o usa --dry-run")
+		return "", errors.New(idioma.T("sin remoto origin · agrégalo con git remote add origin <url> o usa --dry-run"))
 	}
 
 	// --force: la rama loom/<id> es propiedad exclusiva de este cuarto.
@@ -34,7 +35,7 @@ func abrirPR(ctx context.Context, root string, r room.Room, base, titulo, cuerpo
 	// --force ese push se rechaza por non-fast-forward y el reintento
 	// nunca llega a abrir el PR. Nadie más empuja a esta rama.
 	if out, err := gitRun(r.Path, "push", "--force", "-u", "origin", r.Rama); err != nil {
-		return "", fmt.Errorf("no se pudo subir la rama · %s", tail(out))
+		return "", fmt.Errorf(idioma.T("no se pudo subir la rama · %s"), tail(out))
 	}
 
 	// si un intento previo ya empujó y abrió el PR pero loom se cortó
@@ -68,7 +69,7 @@ func abrirPR(ctx context.Context, root string, r room.Room, base, titulo, cuerpo
 			_ = room.Destroy(ctx, root, r.ID)
 			return url, nil
 		}
-		return "", fmt.Errorf("gh no pudo abrir el PR · %s", tail(string(out)))
+		return "", fmt.Errorf(idioma.T("gh no pudo abrir el PR · %s"), tail(string(out)))
 	}
 
 	// liberar el cuarto; si falla, el PR ya está abierto, no se rompe

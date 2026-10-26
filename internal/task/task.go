@@ -6,6 +6,7 @@ package task
 import (
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"regexp"
 	"strconv"
 	"strings"
@@ -197,7 +198,7 @@ func Parse(data []byte) (Task, error) {
 	lines := strings.Split(content, "\n")
 
 	if strings.TrimSpace(lines[0]) != "---" {
-		return t, errors.New("falta el bloque --- inicial")
+		return t, errors.New(idioma.T("falta el bloque --- inicial"))
 	}
 	closing := -1
 	for i := 1; i < len(lines); i++ {
@@ -207,7 +208,7 @@ func Parse(data []byte) (Task, error) {
 		}
 	}
 	if closing == -1 {
-		return t, errors.New("falta el bloque --- de cierre")
+		return t, errors.New(idioma.T("falta el bloque --- de cierre"))
 	}
 
 	pares, err := kv.Pairs(lines[1:closing], 2)
@@ -222,12 +223,12 @@ func Parse(data []byte) (Task, error) {
 		}
 		n, err := kv.ParseInt(p.Value)
 		if err != nil || n < 1 {
-			return t, fmt.Errorf("version inválida: %s · usa version: %d", p.Value, Version)
+			return t, fmt.Errorf(idioma.T("version inválida: %s · usa version: %d"), p.Value, Version)
 		}
 		t.Version = n
 	}
 	if t.Version > Version {
-		t.Aviso = fmt.Sprintf("contrato versión %d, binario soporta %d · actualiza loom", t.Version, Version)
+		t.Aviso = fmt.Sprintf(idioma.T("contrato versión %d, binario soporta %d · actualiza loom"), t.Version, Version)
 	}
 
 	for _, p := range pares {
@@ -271,7 +272,7 @@ func Parse(data []byte) (Task, error) {
 			case "false":
 				t.ExamenEsqueleto = false
 			default:
-				err = fmt.Errorf("examen_esqueleto inválido: %s · usa true o false", p.Value)
+				err = fmt.Errorf(idioma.T("examen_esqueleto inválido: %s · usa true o false"), p.Value)
 			}
 		case "examen_visible":
 			t.ExamenVisible = kv.Unquote(p.Value)
@@ -286,7 +287,7 @@ func Parse(data []byte) (Task, error) {
 			case "false":
 				t.Recursivo = false
 			default:
-				err = fmt.Errorf("recursivo inválido: %s · usa true o false", p.Value)
+				err = fmt.Errorf(idioma.T("recursivo inválido: %s · usa true o false"), p.Value)
 			}
 		case "limite_subtareas":
 			t.LimiteSubtareas, err = kv.ParseInt(p.Value)
@@ -294,7 +295,7 @@ func Parse(data []byte) (Task, error) {
 			// campos desconocidos o del futuro: se toleran con aviso para
 			// que contratos con campos nuevos no rompan binarios existentes ni reportes.
 			if t.Aviso == "" {
-				t.Aviso = fmt.Sprintf("campo desconocido ignorado: %s · si es de una versión más nueva, actualiza loom", p.Key)
+				t.Aviso = fmt.Sprintf(idioma.T("campo desconocido ignorado: %s · si es de una versión más nueva, actualiza loom"), p.Key)
 			}
 			continue
 		}
@@ -312,44 +313,44 @@ func Parse(data []byte) (Task, error) {
 func (t Task) Validate() []error {
 	var errs []error
 	if t.Version < 1 {
-		errs = append(errs, fmt.Errorf("falta version · agrega version: %d al contrato", Version))
+		errs = append(errs, fmt.Errorf(idioma.T("falta version · agrega version: %d al contrato"), Version))
 	}
 	if !ValidID(t.ID) {
-		errs = append(errs, fmt.Errorf("id inválido: %q · usa el formato T-001", t.ID))
+		errs = append(errs, fmt.Errorf(idioma.T("id inválido: %q · usa el formato T-001"), t.ID))
 	}
 	if strings.TrimSpace(t.Titulo) == "" {
-		errs = append(errs, errors.New("falta titulo"))
+		errs = append(errs, errors.New(idioma.T("falta titulo")))
 	}
 	if strings.TrimSpace(t.ListoCuando) == "" {
-		errs = append(errs, errors.New("falta listo_cuando · escribe el comando que dice \"ya está\""))
+		errs = append(errs, errors.New(idioma.T("falta listo_cuando · escribe el comando que dice \"ya está\"")))
 	}
 	if t.LimiteIntentos < 1 {
-		errs = append(errs, fmt.Errorf("limite_intentos inválido: %d · mínimo 1", t.LimiteIntentos))
+		errs = append(errs, fmt.Errorf(idioma.T("limite_intentos inválido: %d · mínimo 1"), t.LimiteIntentos))
 	}
 	if t.LimiteLineas < 0 {
-		errs = append(errs, fmt.Errorf("limite_lineas inválido: %d · usa 0 para no limitar", t.LimiteLineas))
+		errs = append(errs, fmt.Errorf(idioma.T("limite_lineas inválido: %d · usa 0 para no limitar"), t.LimiteLineas))
 	}
 	for _, d := range t.DependeDe {
 		if !ValidID(d) {
-			errs = append(errs, fmt.Errorf("depende_de inválido: %q · usa el formato T-001", d))
+			errs = append(errs, fmt.Errorf(idioma.T("depende_de inválido: %q · usa el formato T-001"), d))
 		}
 		if d == t.ID {
-			errs = append(errs, fmt.Errorf("depende_de se refiere a sí misma: %s · quítala", d))
+			errs = append(errs, fmt.Errorf(idioma.T("depende_de se refiere a sí misma: %s · quítala"), d))
 		}
 	}
 	switch t.Peso {
 	case "", "liviana", "media", "pesada":
 	default:
-		errs = append(errs, fmt.Errorf("peso inválido: %q · usa liviana, media o pesada", t.Peso))
+		errs = append(errs, fmt.Errorf(idioma.T("peso inválido: %q · usa liviana, media o pesada"), t.Peso))
 	}
 	if t.Agente != "" && strings.ContainsAny(t.Agente, " \t\n\r:") {
-		errs = append(errs, fmt.Errorf("agente inválido: %q · usa un nombre sin espacios", t.Agente))
+		errs = append(errs, fmt.Errorf(idioma.T("agente inválido: %q · usa un nombre sin espacios"), t.Agente))
 	}
 	if t.Recursivo && t.LimiteSubtareas < 1 {
-		errs = append(errs, fmt.Errorf("limite_subtareas inválido: %d · mínimo 1 en una tarea recursiva", t.LimiteSubtareas))
+		errs = append(errs, fmt.Errorf(idioma.T("limite_subtareas inválido: %d · mínimo 1 en una tarea recursiva"), t.LimiteSubtareas))
 	}
 	if t.ExamenEsqueleto && (t.ExamenVisible == "" || !EsArchivoDePrueba(t.ExamenVisible) || strings.HasPrefix(t.ExamenVisible, "/") || strings.Contains(t.ExamenVisible, "..")) {
-		errs = append(errs, fmt.Errorf("examen_visible inválido: %q · usa un archivo de prueba relativo", t.ExamenVisible))
+		errs = append(errs, fmt.Errorf(idioma.T("examen_visible inválido: %q · usa un archivo de prueba relativo"), t.ExamenVisible))
 	}
 	return errs
 }

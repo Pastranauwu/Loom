@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os/exec"
 	"strings"
 )
@@ -53,7 +54,7 @@ func (OpenCode) Available() error {
 		return err
 	}
 	if out, err := exec.Command(bin, "--version").Output(); err != nil || len(strings.TrimSpace(string(out))) == 0 {
-		return errors.New("opencode no responde a --version · verifica la instalación")
+		return errors.New(idioma.T("opencode no responde a --version · verifica la instalación"))
 	}
 	return nil
 }
@@ -79,7 +80,7 @@ func (e OpenCode) Run(ctx context.Context, req Request) (Result, error) {
 	if msg := errorDeOpenCode(stdout); msg != "" {
 		res.Stderr += msg + "\n"
 		if err != nil {
-			err = fmt.Errorf("opencode: %s", msg)
+			err = fmt.Errorf(idioma.T("opencode: %s"), msg)
 		}
 	}
 	return res, err

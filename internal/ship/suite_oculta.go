@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +49,7 @@ func verificarSuiteOculta(ctx context.Context, root, roomPath string, t task.Tas
 		_ = sealed.Burn(root, t.ID)
 		detalle = "suite oculta superada"
 		if brechaVal != nil {
-			detalle = fmt.Sprintf("suite oculta superada · brecha=%.1f%%", *brechaVal)
+			detalle = fmt.Sprintf(idioma.T("suite oculta superada · brecha=%.1f%%"), *brechaVal)
 		}
 		return brechaVal, detalle, true
 	}

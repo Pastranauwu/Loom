@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ func (Claude) Available() error {
 		return err
 	}
 	if out, err := exec.Command(bin, "--version").Output(); err != nil || len(strings.TrimSpace(string(out))) == 0 {
-		return errors.New("claude no responde a --version · verifica la instalación")
+		return errors.New(idioma.T("claude no responde a --version · verifica la instalación"))
 	}
 	return nil
 }

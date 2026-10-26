@@ -245,7 +245,7 @@ func MigrarLegado(root string) {
 func Load(root string) (Config, error) {
 	data, err := os.ReadFile(Path(root))
 	if errors.Is(err, os.ErrNotExist) {
-		return Config{}, errors.New("sin configuración · corre loom init primero")
+		return Config{}, errors.New(idioma.T("sin configuración · corre loom init primero"))
 	}
 	if err != nil {
 		return Config{}, err
@@ -536,7 +536,7 @@ func Parse(data []byte) (Config, error) {
 	cfg := Config{}
 	pares, err := kv.Pairs(strings.Split(string(data), "\n"), 1)
 	if err != nil {
-		return cfg, fmt.Errorf("config.yml: %s", err)
+		return cfg, fmt.Errorf(idioma.T("config.yml: %s"), err)
 	}
 	for _, p := range pares {
 		switch p.Key {
@@ -549,14 +549,14 @@ func Parse(data []byte) (Config, error) {
 		case "entrega":
 			cfg.Entrega = kv.Unquote(p.Value)
 			if cfg.Entrega != EntregaLocal && cfg.Entrega != "remoto" {
-				return cfg, fmt.Errorf("config.yml: línea %d · entrega es local o remoto, no %q", p.Line, cfg.Entrega)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · entrega es local o remoto, no %q"), p.Line, cfg.Entrega)
 			}
 		case "dna":
 			cfg.DNA = listaFlexible(p.Value)
 		case "zonas_prohibidas":
 			list, err := kv.ParseList(p.Value)
 			if err != nil {
-				return cfg, fmt.Errorf("config.yml: línea %d · %s", p.Line, err)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), p.Line, err)
 			}
 			cfg.ZonasProhibidas = list
 		case "pantallas_levantar":
@@ -570,19 +570,19 @@ func Parse(data []byte) (Config, error) {
 		case "pantallas_rutas":
 			list, err := kv.ParseList(p.Value)
 			if err != nil {
-				return cfg, fmt.Errorf("config.yml: línea %d · %s", p.Line, err)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), p.Line, err)
 			}
 			cfg.Pantallas.Rutas = list
 		case "patrones_prueba":
 			list, err := kv.ParseList(p.Value)
 			if err != nil {
-				return cfg, fmt.Errorf("config.yml: línea %d · %s", p.Line, err)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), p.Line, err)
 			}
 			cfg.PatronesPrueba = list
 		case "timeout_esclusa":
 			seg, err := kv.ParseInt(p.Value)
 			if err != nil || seg < 1 {
-				return cfg, fmt.Errorf("config.yml: línea %d · timeout_esclusa inválido: %s · segundos, mínimo 1", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · timeout_esclusa inválido: %s · segundos, mínimo 1"), p.Line, p.Value)
 			}
 			cfg.TimeoutEsclusa = seg
 		case "arquitecto_economico":
@@ -592,54 +592,54 @@ func Parse(data []byte) (Config, error) {
 			case "false":
 				cfg.ArquitectoEconomico = false
 			default:
-				return cfg, fmt.Errorf("config.yml: línea %d · arquitecto_economico inválido: %s · usa true o false", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · arquitecto_economico inválido: %s · usa true o false"), p.Line, p.Value)
 			}
 		case "agentes_pagados":
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 1 {
-				return cfg, fmt.Errorf("config.yml: línea %d · agentes_pagados inválido: %s · mínimo 1", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · agentes_pagados inválido: %s · mínimo 1"), p.Line, p.Value)
 			}
 			cfg.AgentesPagados = n
 		case "tope_arquitecto_usd":
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 1 {
-				return cfg, fmt.Errorf("config.yml: línea %d · tope_arquitecto_usd inválido: %s · dólares enteros, mínimo 1", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · tope_arquitecto_usd inválido: %s · dólares enteros, mínimo 1"), p.Line, p.Value)
 			}
 			cfg.TopeArquitectoUSD = n
 		case "timeout_agente":
 			seg, err := kv.ParseInt(p.Value)
 			if err != nil || seg < 1 {
-				return cfg, fmt.Errorf("config.yml: línea %d · timeout_agente inválido: %s · segundos, mínimo 1", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · timeout_agente inválido: %s · segundos, mínimo 1"), p.Line, p.Value)
 			}
 			cfg.TimeoutAgente = seg
 		case "timeout_pruebas":
 			seg, err := kv.ParseInt(p.Value)
 			if err != nil || seg < 1 {
-				return cfg, fmt.Errorf("config.yml: línea %d · timeout_pruebas inválido: %s · segundos, mínimo 1", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · timeout_pruebas inválido: %s · segundos, mínimo 1"), p.Line, p.Value)
 			}
 			cfg.TimeoutPruebas = seg
 		case "recursion_max":
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 0 {
-				return cfg, fmt.Errorf("config.yml: línea %d · recursion_max inválido: %s · entero, mínimo 0", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · recursion_max inválido: %s · entero, mínimo 0"), p.Line, p.Value)
 			}
 			cfg.RecursionMax = n
 		case "subagentes":
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 1 {
-				return cfg, fmt.Errorf("config.yml: línea %d · subagentes inválido: %s · entero, mínimo 1", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · subagentes inválido: %s · entero, mínimo 1"), p.Line, p.Value)
 			}
 			cfg.Subagentes = n
 		case "presupuesto_tokens":
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 0 {
-				return cfg, fmt.Errorf("config.yml: línea %d · presupuesto_tokens inválido: %s · entero, mínimo 0 (0 = sin tope)", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · presupuesto_tokens inválido: %s · entero, mínimo 0 (0 = sin tope)"), p.Line, p.Value)
 			}
 			cfg.PresupuestoTokens = n
 		case "language":
 			l := kv.Unquote(p.Value)
 			if l != "en" && l != "es" {
-				return cfg, fmt.Errorf("config.yml: línea %d · language inválido: %s · usa en o es", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · language inválido: %s · usa en o es"), p.Line, p.Value)
 			}
 			cfg.Language = l
 		case "resume_below_pct":
@@ -649,7 +649,7 @@ func Parse(data []byte) (Config, error) {
 			}
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 0 || n > 100 {
-				return cfg, fmt.Errorf("config.yml: línea %d · resume_below_pct inválido: %s · entero de 1 a 100, o off para no reanudar", p.Line, p.Value)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · resume_below_pct inválido: %s · entero de 1 a 100, o off para no reanudar"), p.Line, p.Value)
 			}
 			cfg.ResumeBelowPct = n
 		case "estrategia":
@@ -657,7 +657,7 @@ func Parse(data []byte) (Config, error) {
 		case "reglas_import":
 			list, err := kv.ParseList(p.Value)
 			if err != nil {
-				return cfg, fmt.Errorf("config.yml: línea %d · %s", p.Line, err)
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), p.Line, err)
 			}
 			cfg.ReglasImport = list
 		}
@@ -694,7 +694,7 @@ func Parse(data []byte) (Config, error) {
 func parsePresupuestoVentanas(data []byte) (map[string]map[string]int, error) {
 	children, err := kv.Nested(strings.Split(string(data), "\n"), "presupuesto", 1)
 	if err != nil {
-		return nil, fmt.Errorf("config.yml: %s", err)
+		return nil, fmt.Errorf(idioma.T("config.yml: %s"), err)
 	}
 	if len(children) == 0 {
 		return nil, nil
@@ -703,13 +703,13 @@ func parsePresupuestoVentanas(data []byte) (map[string]map[string]int, error) {
 	for _, c := range children {
 		fields, err := kv.ParseInlineMap(c.Value)
 		if err != nil {
-			return nil, fmt.Errorf("config.yml: línea %d · %s", c.Line, err)
+			return nil, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), c.Line, err)
 		}
 		limites := make(map[string]int, len(fields))
 		for ventana, raw := range fields {
 			n, err := kv.ParseInt(raw)
 			if err != nil || n < 0 {
-				return nil, fmt.Errorf("config.yml: línea %d · %s %s inválido: %s · entero, mínimo 0", c.Line, c.Key, ventana, raw)
+				return nil, fmt.Errorf(idioma.T("config.yml: línea %d · %s %s inválido: %s · entero, mínimo 0"), c.Line, c.Key, ventana, raw)
 			}
 			if n > 0 {
 				limites[ventana] = n
@@ -725,7 +725,7 @@ func parsePresupuestoVentanas(data []byte) (map[string]map[string]int, error) {
 func parseModelos(data []byte) (map[string]string, error) {
 	children, err := kv.Nested(strings.Split(string(data), "\n"), "modelos", 1)
 	if err != nil {
-		return nil, fmt.Errorf("config.yml: %s", err)
+		return nil, fmt.Errorf(idioma.T("config.yml: %s"), err)
 	}
 	if len(children) == 0 {
 		return nil, nil
@@ -742,7 +742,7 @@ func parseModelos(data []byte) (map[string]string, error) {
 func parseProveedores(data []byte) (map[string]Proveedor, error) {
 	children, err := kv.Nested(strings.Split(string(data), "\n"), "proveedores", 1)
 	if err != nil {
-		return nil, fmt.Errorf("config.yml: %s", err)
+		return nil, fmt.Errorf(idioma.T("config.yml: %s"), err)
 	}
 	if len(children) == 0 {
 		return nil, nil
@@ -751,7 +751,7 @@ func parseProveedores(data []byte) (map[string]Proveedor, error) {
 	for _, c := range children {
 		fields, err := kv.ParseInlineMap(c.Value)
 		if err != nil {
-			return nil, fmt.Errorf("config.yml: línea %d · %s", c.Line, err)
+			return nil, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), c.Line, err)
 		}
 		out[c.Key] = Proveedor{Modelo: fields["modelo"], KeyEnv: fields["key_env"]}
 	}
@@ -763,7 +763,7 @@ func parseProveedores(data []byte) (map[string]Proveedor, error) {
 func parseAgentes(data []byte) (map[string]Agente, error) {
 	children, err := kv.Nested(strings.Split(string(data), "\n"), "agentes", 1)
 	if err != nil {
-		return nil, fmt.Errorf("config.yml: %s", err)
+		return nil, fmt.Errorf(idioma.T("config.yml: %s"), err)
 	}
 	if len(children) == 0 {
 		return nil, nil
@@ -772,14 +772,14 @@ func parseAgentes(data []byte) (map[string]Agente, error) {
 	for _, c := range children {
 		fields, err := kv.ParseInlineMap(c.Value)
 		if err != nil {
-			return nil, fmt.Errorf("config.yml: línea %d · %s", c.Line, err)
+			return nil, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), c.Line, err)
 		}
 		provider := fields["provider"]
 		if provider == "" {
 			provider = fields["proveedor"]
 		}
 		if !slices.Contains(Clis, provider) {
-			return nil, fmt.Errorf("config.yml: línea %d · provider desconocido: %s · usa %s", c.Line, provider, strings.Join(Clis, ", "))
+			return nil, fmt.Errorf(idioma.T("config.yml: línea %d · provider desconocido: %s · usa %s"), c.Line, provider, strings.Join(Clis, ", "))
 		}
 
 		modelo := fields["model"]
@@ -795,14 +795,14 @@ func parseAgentes(data []byte) (map[string]Agente, error) {
 		if rawSkills, ok := fields["skills"]; ok && rawSkills != "" {
 			skills, err := kv.ParseList(rawSkills)
 			if err != nil {
-				return nil, fmt.Errorf("config.yml: línea %d · %s", c.Line, err)
+				return nil, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), c.Line, err)
 			}
 			agente.Skills = skills
 		}
 		if rawPkgs, ok := fields["skill_packages"]; ok && rawPkgs != "" {
 			pkgs, err := kv.ParseList(rawPkgs)
 			if err != nil {
-				return nil, fmt.Errorf("config.yml: línea %d · %s", c.Line, err)
+				return nil, fmt.Errorf(idioma.T("config.yml: línea %d · %s"), c.Line, err)
 			}
 			agente.SkillPackages = pkgs
 		}

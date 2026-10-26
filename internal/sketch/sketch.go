@@ -53,7 +53,7 @@ func ParsePreguntas(texto string) ([]Pregunta, error) {
 		}
 	}
 	if len(out) == 0 {
-		return nil, errors.New("el modelo no hizo ninguna pregunta · vuelve a intentarlo")
+		return nil, errors.New(idioma.T("el modelo no hizo ninguna pregunta · vuelve a intentarlo"))
 	}
 	if len(out) > NumPreguntas {
 		out = out[:NumPreguntas]
@@ -131,7 +131,7 @@ func ParseSpec(texto string) (spec.Spec, error) {
 	}
 	s.Constraints.NoTocar = doc.DontTouch
 	if s.Feature == "" || len(s.Requirements) == 0 {
-		return spec.Spec{}, errors.New("el modelo no devolvió un spec con feature y requirements · vuelve a intentarlo")
+		return spec.Spec{}, errors.New(idioma.T("el modelo no devolvió un spec con feature y requirements · vuelve a intentarlo"))
 	}
 	return s, nil
 }
@@ -139,10 +139,10 @@ func ParseSpec(texto string) (spec.Spec, error) {
 func decodificar(texto string, v any) error {
 	t := plan.CuerpoJSON(texto)
 	if t == "" {
-		return errors.New("el modelo no devolvió JSON · vuelve a intentarlo")
+		return errors.New(idioma.T("el modelo no devolvió JSON · vuelve a intentarlo"))
 	}
 	if err := json.NewDecoder(strings.NewReader(plan.EscaparControles(t))).Decode(v); err != nil {
-		return fmt.Errorf("el modelo devolvió JSON inválido · %s", err)
+		return fmt.Errorf(idioma.T("el modelo devolvió JSON inválido · %s"), err)
 	}
 	return nil
 }
