@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"io"
 	"os"
 	"path/filepath"
@@ -51,8 +52,8 @@ loom.spec.yml con lo que salió de la entrevista.`,
 	}
 	cmd.Flags().StringVarP(&destino, "out", "o", "", "dónde escribir el spec (por defecto loom.spec.yml)")
 	cmd.Flags().BoolVar(&forzar, "force", false, "sobrescribe un spec existente")
-	cmd.Flags().StringVar(&modelo, "modelo", "", "modelo del entrevistador (por defecto el del planificador)")
-	cmd.Flags().StringVar(&ejecutor, "ejecutor", "", "CLI del entrevistador (por defecto el de config.yml)")
+	cmd.Flags().StringVar(&modelo, "model", "", "modelo del entrevistador (por defecto el del planificador)")
+	cmd.Flags().StringVar(&ejecutor, "executor", "", "CLI del entrevistador (por defecto el de config.yml)")
 	return cmd
 }
 
@@ -80,14 +81,14 @@ func runSketch(root string, cfg config.Config, gen plan.Generador, in io.Reader,
 	}
 	if idea == "" {
 		var ok bool
-		if idea, ok = pregunta("¿Qué quieres construir?", "una línea · enter envía · esc cancela"); !ok || idea == "" {
+		if idea, ok = pregunta(idioma.T("¿Qué quieres construir?"), idioma.T("una línea · enter envía · esc cancela")); !ok || idea == "" {
 			return errors.New("sin idea no hay spec · loom sketch \"tu idea\"")
 		}
 	}
 	repo := contextoRepoSketch(root, cfg)
 
 	var preguntas []sketch.Pregunta
-	if err := esperarPlan("sketch · buscando lo que no pensaste", func(avance func(string)) error {
+	if err := esperarPlan(idioma.T("sketch · buscando lo que no pensaste"), func(avance func(string)) error {
 		texto, err := conAvance(gen, avance).Generar(context.Background(), sketch.PromptPreguntas(idea, repo))
 		if err != nil {
 			return err
@@ -101,20 +102,20 @@ func runSketch(root string, cfg config.Config, gen plan.Generador, in io.Reader,
 	var qa []sketch.Respuesta
 	for i, q := range preguntas {
 		titulo := fmt.Sprintf("%d/%d · %s", i+1, len(preguntas), q.Pregunta)
-		ayuda := "enter sin escribir = que decida loom · esc cancela"
+		ayuda := idioma.T("enter sin escribir = que decida loom · esc cancela")
 		if q.Porque != "" {
 			ayuda = "si se responde mal: " + q.Porque + " · " + ayuda
 		}
 		r, ok := pregunta(titulo, ayuda)
 		if !ok {
-			out.Line("cancelado · no se escribió nada")
+			out.Line(idioma.T("cancelado · no se escribió nada"))
 			return nil
 		}
 		qa = append(qa, sketch.Respuesta{Pregunta: q.Pregunta, Respuesta: r})
 	}
 
 	var s spec.Spec
-	if err := esperarPlan("sketch · armando el spec", func(avance func(string)) error {
+	if err := esperarPlan(idioma.T("sketch · armando el spec"), func(avance func(string)) error {
 		texto, err := conAvance(gen, avance).Generar(context.Background(), sketch.PromptSpec(idea, qa, repo))
 		if err != nil {
 			return err
@@ -130,7 +131,7 @@ func runSketch(root string, cfg config.Config, gen plan.Generador, in io.Reader,
 	out.Line("%s", strings.TrimRight(string(contenido), "\n"))
 	out.Line("")
 	if !confirmarSketch(tuiMode, leer, ruta) {
-		out.Line("descartado · no se escribió nada")
+		out.Line(idioma.T("descartado · no se escribió nada"))
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
@@ -140,7 +141,7 @@ func runSketch(root string, cfg config.Config, gen plan.Generador, in io.Reader,
 		return err
 	}
 	rel, _ := filepath.Rel(root, ruta)
-	out.Line("✓ spec escrito en %s · siguiente: loom apply --dry-run · loom up", rel)
+	out.Line(idioma.T("✓ spec escrito en %s · siguiente: loom apply --dry-run · loom up"), rel)
 	return out.Data(map[string]any{"spec": rel, "feature": s.Feature, "requirements": len(s.Requirements)})
 }
 
@@ -168,7 +169,7 @@ func confirmarSketch(tuiMode bool, leer *bufio.Reader, ruta string) bool {
 		})
 		return err == nil && id == "si"
 	}
-	out.Line("¿escribir %s? [s/n]", ruta)
+	out.Line(idioma.T("¿escribir %s? [s/n]"), ruta)
 	linea, _ := leer.ReadString('\n')
 	r := strings.ToLower(strings.TrimSpace(linea))
 	return r == "s" || r == "si" || r == "y" || r == "yes"

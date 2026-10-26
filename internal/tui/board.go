@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,14 +58,14 @@ func Tablero(root string) ([]Fila, error) {
 			f.Detalle = l.Descripcion() + " · " + reloj(l.EnFaseDesde())
 			if l.EnFaseDesde() >= standup.UmbralAtasco {
 				f.Atascada = true
-				f.Detalle = "ATASCO · " + f.Detalle + " sin señal"
+				f.Detalle = idioma.T("ATASCO · ") + f.Detalle + idioma.T(" sin señal")
 			}
 		} else if l, muerta := loop.Interrumpida(root, t.ID); muerta {
 			// la corrida murió encima de la tarea (SIGKILL). Se marca
 			// como atascada para que el tablero la pinte en rojo: es lo
 			// que el humano tiene que ver al volver.
 			f.Atascada = true
-			f.Detalle = "INTERRUMPIDA · sin señal hace " + reloj(l.Silencio()) + " · run --reintentar"
+			f.Detalle = idioma.T("INTERRUMPIDA · sin señal hace ") + reloj(l.Silencio()) + idioma.T(" · run --reintentar")
 		}
 		filas = append(filas, f)
 	}
@@ -122,7 +123,7 @@ func hijosDe(root string, nodos []recurse.NodoArbol, padre string) []Fila {
 			h.Detalle = l.Descripcion() + " · " + reloj(l.EnFaseDesde())
 			if l.EnFaseDesde() >= standup.UmbralAtasco {
 				h.Atascada = true
-				h.Detalle = "ATASCO · " + h.Detalle + " sin señal"
+				h.Detalle = idioma.T("ATASCO · ") + h.Detalle + idioma.T(" sin señal")
 			}
 		}
 		hijos = append(hijos, h)
@@ -225,15 +226,15 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 		c := mezclarRGB([3]int{79, 179, 162}, [3]int{44, 110, 99}, float64(i)/float64(n-1))
 		cab = append(cab, lineaSticker{texto: fila, color: c})
 	}
-	cab = append(cab, lineaSticker{}, lineaSticker{texto: "tú diseñas el patrón · loom teje el código", color: rgbApagado})
+	cab = append(cab, lineaSticker{}, lineaSticker{texto: idioma.T("tú diseñas el patrón · loom teje el código"), color: rgbApagado})
 	var gasto []lineaSticker
 	for _, l := range presupuesto {
-		gasto = append(gasto, lineaSticker{texto: "presupuesto " + l, color: rgbApagado})
+		gasto = append(gasto, lineaSticker{texto: idioma.T("presupuesto ") + l, color: rgbApagado})
 	}
 	cab = append(append(cab, gasto...), lineaSticker{})
 
 	if len(filas) == 0 && filtro == "" {
-		return recortarAncho(append(cab, lineaSticker{texto: "sin tareas · empieza con loom plan \"lo que necesitas\"", color: rgbApagado}), ancho)
+		return recortarAncho(append(cab, lineaSticker{texto: idioma.T("sin tareas · empieza con loom plan \"lo que necesitas\""), color: rgbApagado}), ancho)
 	}
 
 	var cuerpo []lineaSticker
@@ -245,7 +246,7 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 				suyos = append(suyos, f)
 			}
 		}
-		titulo := col.glifo + " " + col.nombre
+		titulo := col.glifo + " " + idioma.T(col.nombre)
 		if len(suyos) > 0 {
 			titulo += " · " + strconv.Itoa(len(suyos))
 		}
@@ -269,11 +270,11 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 	if filtro != "" {
 		pie = append(pie, lineaSticker{texto: filtro, color: rgbEspera})
 	}
-	pie = append(pie, lineaSticker{texto: ayudaTablero, color: rgbApagado})
+	pie = append(pie, lineaSticker{texto: ayudaTablero(), color: rgbApagado})
 
 	libre := alto - 2*margenTablero
 	if alto > 0 && len(cab)+len(cuerpo)+len(pie) > libre {
-		cab = append([]lineaSticker{{texto: "loom · " + strconv.Itoa(len(filas)) + " tareas", color: rgbPresion}}, gasto...)
+		cab = append([]lineaSticker{{texto: "loom · " + strconv.Itoa(len(filas)) + idioma.T(" tareas"), color: rgbPresion}}, gasto...)
 		// dos líneas fijas para "más arriba / más abajo": si aparecieran
 		// y desaparecieran, la lista saltaría al mover el cursor
 		visibles := libre - len(cab) - len(pie) - 2
@@ -283,17 +284,19 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 		desde, hasta := ventana(lineaSel, len(cuerpo), visibles)
 		arriba, abajo := lineaSticker{}, lineaSticker{}
 		if desde > 0 {
-			arriba = lineaSticker{texto: "↑ " + strconv.Itoa(desde) + " líneas más arriba", color: rgbApagado}
+			arriba = lineaSticker{texto: "↑ " + strconv.Itoa(desde) + idioma.T(" líneas más arriba"), color: rgbApagado}
 		}
 		if hasta < len(cuerpo) {
-			abajo = lineaSticker{texto: "↓ " + strconv.Itoa(len(cuerpo)-hasta) + " líneas más abajo", color: rgbApagado}
+			abajo = lineaSticker{texto: "↓ " + strconv.Itoa(len(cuerpo)-hasta) + idioma.T(" líneas más abajo"), color: rgbApagado}
 		}
 		cuerpo = append(append([]lineaSticker{arriba}, cuerpo[desde:hasta]...), abajo)
 	}
 	return recortarAncho(append(append(cab, cuerpo...), pie...), ancho)
 }
 
-const ayudaTablero = "j/k · / filtra · d detalle · s entrega · S todas · r reintenta · q sale"
+func ayudaTablero() string {
+	return idioma.T("j/k · / filtra · d detalle · s entrega · S todas · r reintenta · q sale")
+}
 
 // margenTablero es el borde transparente del sticker sobre el plasma.
 const margenTablero = 2

@@ -2,7 +2,7 @@
 # Demo reproducible de loom, sin gastar tokens: un agente falso que
 # resuelve las tareas. Para grabar el GIF:
 #   vhs docs/demo.tape
-# Para una demo con agentes reales, quita FAKE=1 y usa --ejecutor opencode.
+# Para una demo con agentes reales, quita FAKE=1 y usa --executor opencode.
 set -e
 
 # ruta absoluta del binario: sobrevive al `cd "$repo"` de más abajo
@@ -11,7 +11,7 @@ bin="${LOOM_BIN:-$raiz/loom}"
 # siempre recompila: go build es incremental y un binario viejo grababa
 # una demo que ya no corresponde al código del repo
 if [ -z "$LOOM_BIN" ]; then
-  echo "compilando loom..."
+  echo "building loom..."
   (cd "$raiz" && go build -o loom ./cmd/loom) || exit 1
 fi
 
@@ -49,7 +49,7 @@ dir="."; prev=""
 for a in "$@"; do [ "$prev" = "--dir" ] && dir="$a"; prev="$a"; done
 case "$2" in
   *"loom's planner"*)
-    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"title\":\"exportar clientes a CSV\",\"done_when\":\"test -f src/export.go\",\"only_touch\":[\"src/**\"]},{\"title\":\"documentar la API\",\"done_when\":\"test -f docs/api.md\",\"only_touch\":[\"docs/**\"]}]"}}'
+    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"title\":\"export customers to CSV\",\"done_when\":\"test -f src/export.go\",\"only_touch\":[\"src/**\"]},{\"title\":\"document the API\",\"done_when\":\"test -f docs/api.md\",\"only_touch\":[\"docs/**\"]}]"}}'
     printf '%s\n' '{"type":"step_finish","tokens":{"input":10,"output":5}}'
     ;;
   *)
@@ -71,9 +71,9 @@ git -c user.email=t@t -c user.name=t commit --allow-empty -m init -q
 run() { echo "\$ $*"; "$@"; echo; sleep 1; }
 
 run "$bin" init --pruebas "true" --plain
-run "$bin" plan "necesito exportar clientes y documentar la API" --aprobar --plain
+run "$bin" plan "export customers and document the API" --approve --plain
 run "$bin" board --plain
-run "$bin" run --agents 2 --ejecutor opencode --plain
+run "$bin" run --agents 2 --executor opencode --plain
 run "$bin" board --plain
 run "$bin" logs T-001 --plain
 run "$bin" ship T-001 --dry-run --plain

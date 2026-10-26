@@ -55,10 +55,10 @@ func newPlanCmd() *cobra.Command {
 			return runPlan(strings.Join(args, " "), modelo, ejecutor, exportSpec, aprobar)
 		},
 	}
-	cmd.Flags().StringVar(&modelo, "modelo", "", "modelo del planificador (por defecto, el suyo)")
-	cmd.Flags().StringVar(&ejecutor, "ejecutor", "", "opencode o claude (por defecto, el primero disponible)")
+	cmd.Flags().StringVar(&modelo, "model", "", "modelo del planificador (por defecto, el suyo)")
+	cmd.Flags().StringVar(&ejecutor, "executor", "", "opencode o claude (por defecto, el primero disponible)")
 	cmd.Flags().StringVar(&exportSpec, "export-spec", "", "exporta la propuesta como archivo de especificación declarativa (ej. loom.spec.yml)")
-	cmd.Flags().BoolVar(&aprobar, "aprobar", false, "crea las tareas sin preguntar")
+	cmd.Flags().BoolVar(&aprobar, "approve", false, "crea las tareas sin preguntar")
 	return cmd
 }
 
@@ -207,7 +207,7 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 	}
 	if !aprobar {
 		if !isTerminal(os.Stdin) {
-			out.Line("sin confirmación interactiva · usa --aprobar para crearlas")
+			out.Line("sin confirmación interactiva · usa --approve para crearlas")
 			return nil
 		}
 		if esTUI() {

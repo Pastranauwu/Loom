@@ -98,14 +98,14 @@ pregunta solo cuando no puede resolverlo solo.`,
 
 	cmd.Flags().StringVarP(&file, "file", "f", "", "ruta al archivo de especificación (.yml)")
 	cmd.Flags().IntVar(&agentes, "agents", 0, "número de trabajadores en paralelo (0 = automático, hasta 16 y 3 con modelo de pago)")
-	cmd.Flags().StringVar(&modelo, "modelo", "", "fuerza un modelo para todas las tareas")
-	cmd.Flags().StringVar(&ejecutor, "ejecutor", "", "opencode o claude")
+	cmd.Flags().StringVar(&modelo, "model", "", "fuerza un modelo para todas las tareas")
+	cmd.Flags().StringVar(&ejecutor, "executor", "", "opencode o claude")
 	cmd.Flags().BoolVar(&reintentar, "retry", false, "vuelve a correr también las tareas detenidas")
 	cmd.Flags().BoolVar(&entregar, "ship", false, "al terminar, entrega todas las tareas listas en un solo PR")
 	cmd.Flags().BoolVar(&revisar, "review", false, "además de entregar, un modelo revisa el diff y deja el informe en el PR")
 	cmd.Flags().BoolVar(&integrar, "merge", false, "además de revisar, mergea el PR si el revisor no pide cambios")
 	cmd.Flags().BoolVar(&local, "local", false, "la entrega queda como PR local (rama y descripción en el repo) aunque haya remoto")
-	cmd.Flags().StringVar(&titulo, "titulo", "", "título del PR (por defecto, la petición)")
+	cmd.Flags().StringVar(&titulo, "title", "", "título del PR (por defecto, la petición)")
 	cmd.Flags().BoolVar(&fondo, "background", false, "desprende todo el encadenado de la terminal y devuelve el control; sigue corriendo si la cierras")
 
 	return cmd

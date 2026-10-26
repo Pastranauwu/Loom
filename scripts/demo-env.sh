@@ -9,7 +9,7 @@ bin="${LOOM_BIN:-$raiz/loom}"
 # siempre recompila: go build es incremental y un binario viejo grababa
 # una demo que ya no corresponde al código del repo
 if [ -z "$LOOM_BIN" ]; then
-  echo "compilando loom..."
+  echo "building loom..."
   (cd "$raiz" && go build -o loom ./cmd/loom) || exit 1
 fi
 
@@ -28,7 +28,7 @@ dir="."; prev=""
 for a in "$@"; do [ "$prev" = "--dir" ] && dir="$a"; prev="$a"; done
 case "$2" in
   *"loom's planner"*)
-    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"title\":\"exportador CSV\",\"done_when\":\"test -f src/csv/export.go\",\"only_touch\":[\"src/csv/**\"]},{\"title\":\"exportador JSON\",\"done_when\":\"test -f src/json/export.go\",\"only_touch\":[\"src/json/**\"]}]"}}'
+    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"title\":\"CSV exporter\",\"done_when\":\"test -f src/csv/export.go\",\"only_touch\":[\"src/csv/**\"]},{\"title\":\"JSON exporter\",\"done_when\":\"test -f src/json/export.go\",\"only_touch\":[\"src/json/**\"]}]"}}'
     printf '%s\n' '{"type":"step_finish","tokens":{"input":10,"output":5}}'
     ;;
   *)
@@ -71,7 +71,7 @@ cat > .loom/tasks/T-001.md <<'EOF'
 ---
 version: 1
 id: T-001
-title: crear el módulo de exportación
+title: create the export module
 done_when: test -f src/export.go
 only_touch: ["src/**"]
 max_retries: 3
@@ -82,7 +82,7 @@ cat > .loom/tasks/T-002.md <<'EOF'
 ---
 version: 1
 id: T-002
-title: documentar la API
+title: document the API
 done_when: test -f docs/api.md
 only_touch: ["docs/**"]
 max_retries: 3
@@ -98,7 +98,7 @@ cat > .loom/tasks/T-003.md.pendiente <<'EOF'
 ---
 version: 1
 id: T-003
-title: exportar en CSV y en JSON
+title: export to CSV and JSON
 done_when: test -f src/csv/export.go && test -f src/json/export.go
 only_touch: ["src/**"]
 max_retries: 3
@@ -107,4 +107,4 @@ recursivo: true
 limite_subtareas: 2
 ---
 EOF
-echo "demo lista en /tmp/loom-demo"
+echo "demo ready in /tmp/loom-demo"

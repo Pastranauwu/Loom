@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 	"time"
@@ -85,7 +86,7 @@ func Logo(width int) string {
 		c := mezclar(inicio, final, float64(i)/float64(alto-1))
 		b.WriteString("  " + lipgloss.NewStyle().Foreground(lipgloss.Color(c)).Render(fila) + "\n")
 	}
-	b.WriteString("\n  " + estiloApagado.Render("tú diseñas el patrón · loom teje el código") + "\n")
+	b.WriteString("\n  " + estiloApagado.Render(idioma.T("tú diseñas el patrón · loom teje el código")) + "\n")
 	return b.String()
 }
 

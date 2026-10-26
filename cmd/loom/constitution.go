@@ -27,9 +27,9 @@ func newConstitutionCmd() *cobra.Command {
 			return runConstitution(modelo, ejecutorFlag, forzar)
 		},
 	}
-	cmd.Flags().StringVar(&modelo, "modelo", "", "modelo del planificador")
-	cmd.Flags().StringVar(&ejecutorFlag, "ejecutor", "", "opencode o claude")
-	cmd.Flags().BoolVarP(&forzar, "forzar", "f", false, "regenerar si ya existe")
+	cmd.Flags().StringVar(&modelo, "model", "", "modelo del planificador")
+	cmd.Flags().StringVar(&ejecutorFlag, "executor", "", "opencode o claude")
+	cmd.Flags().BoolVarP(&forzar, "force", "f", false, "regenerar si ya existe")
 	return cmd
 }
 

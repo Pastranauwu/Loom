@@ -4,6 +4,7 @@ package idioma
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 )
 
@@ -45,8 +46,17 @@ func Prefijo(s string, prefijos ...string) (string, bool) {
 
 var lang = "en"
 
+// fromEnv lets LOOM_LANGUAGE (en or es) win over config.yml.
+func fromEnv(def string) string {
+	if e := os.Getenv("LOOM_LANGUAGE"); e == "es" || e == "en" {
+		return e
+	}
+	return def
+}
+
 // Set picks the language of human-facing prose: "es" or anything else for English.
 func Set(l string) {
+	l = fromEnv(l)
 	if l == "es" {
 		lang = "es"
 		return
@@ -86,4 +96,4 @@ func NormalizarClaves(data []byte, tabla map[string]string) []byte {
 }
 
 // Es reports whether human-facing text should be Spanish.
-func Es() bool { return lang == "es" }
+func Es() bool { return fromEnv(lang) == "es" }

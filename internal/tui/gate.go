@@ -6,6 +6,7 @@ package tui
 
 import (
 	"context"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 	"time"
@@ -148,17 +149,17 @@ func renderGate(id string, pasos []ship.Paso, terminado bool, tick, width, alto 
 	const marco = 6 // borde y relleno de la tarjeta
 
 	var cuerpo strings.Builder
-	cuerpo.WriteString(estiloTitulo.Render("ESCLUSA DE SALIDA · "+id) + "\n\n")
+	cuerpo.WriteString(estiloTitulo.Render(idioma.T("ESCLUSA DE SALIDA · ")+id) + "\n\n")
 
 	if width > 0 && width < len(e)*anchoPaso+marco {
 		for i := range e {
-			cuerpo.WriteString(renderGlifo(e[i], tick) + " " + renderNombre(e[i], NombresPasos[i]) + "\n")
+			cuerpo.WriteString(renderGlifo(e[i], tick) + " " + renderNombre(e[i], idioma.T(NombresPasos[i])) + "\n")
 		}
 	} else {
 		var glifos, nombres strings.Builder
 		for i := 0; i < len(e); i++ {
 			glifos.WriteString(acomodar(renderGlifo(e[i], tick), anchoPaso))
-			nombres.WriteString(acomodar(renderNombre(e[i], nombresCortos[i]), anchoPaso))
+			nombres.WriteString(acomodar(renderNombre(e[i], idioma.T(nombresCortos[i])), anchoPaso))
 		}
 		cuerpo.WriteString(strings.TrimRight(glifos.String(), " ") + "\n")
 		cuerpo.WriteString(strings.TrimRight(nombres.String(), " ") + "\n")
@@ -179,7 +180,7 @@ func renderGate(id string, pasos []ship.Paso, terminado bool, tick, width, alto 
 		if r := []rune(detalle); width > marco+1 && len(r) > width-marco {
 			detalle = string(r[:width-marco-1]) + "…"
 		}
-		cuerpo.WriteString("\n" + estiloApagado.Render(detalle) + "\n")
+		cuerpo.WriteString("\n" + estiloApagado.Render(idioma.T(detalle)) + "\n")
 	}
 
 	tarjeta := caja(strings.TrimRight(cuerpo.String(), "\n"))

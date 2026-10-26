@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 	"time"
 
@@ -95,7 +96,7 @@ var errInterrumpido = errInterrumpidoT{}
 
 type errInterrumpidoT struct{}
 
-func (errInterrumpidoT) Error() string { return "interrumpido" }
+func (errInterrumpidoT) Error() string { return idioma.T("interrumpido") }
 
 // Duracion escribe d al segundo: "4m07s".
 func Duracion(d time.Duration) string {

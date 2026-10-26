@@ -36,7 +36,7 @@ Set WaitTimeout 180s
 Hide
 Type "sh scripts/demo-env.sh"
 Enter
-Wait+Screen /demo lista/
+Wait+Screen /demo ready/
 Type "cd /tmp/loom-demo"
 Enter
 Type "export PATH=/tmp/fakebin:$PATH"
@@ -58,9 +58,9 @@ Enter
 Show
 
 # ---------- run: la corrida en vivo, sale sola ----------
-Type "loom run --agents 2 --ejecutor opencode"
+Type "loom run --agents 2 --executor opencode"
 Enter
-Wait+Screen /verde en/
+Wait+Screen /green in/
 Sleep 2s
 
 Hide
@@ -71,7 +71,7 @@ Show
 # ---------- board: el tablero ----------
 Type "loom board"
 Enter
-Wait+Screen /LISTO PARA ENTREGAR/
+Wait+Screen /READY TO SHIP/
 Sleep 4s
 Type "q"
 Sleep 1s
@@ -91,9 +91,9 @@ Type "clear"
 Enter
 Show
 
-Type "loom run --agents 1 --ejecutor opencode"
+Type "loom run --agents 1 --executor opencode"
 Enter
-Wait+Screen /verde en/
+Wait+Screen /green in/
 Sleep 2s
 
 Hide

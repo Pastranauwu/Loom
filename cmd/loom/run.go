@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"sort"
 	"strings"
 	"sync"
@@ -58,8 +59,8 @@ func newRunCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&agentes, "agents", 0, "tareas en paralelo (0 = automático, hasta 16 y 3 con modelo de pago)")
-	cmd.Flags().StringVar(&ejecutor, "ejecutor", "", "opencode o claude (por defecto, el primero disponible)")
-	cmd.Flags().StringVar(&modelo, "modelo", "", "modelo del ejecutor (por defecto, el suyo)")
+	cmd.Flags().StringVar(&ejecutor, "executor", "", "opencode o claude (por defecto, el primero disponible)")
+	cmd.Flags().StringVar(&modelo, "model", "", "modelo del ejecutor (por defecto, el suyo)")
 	cmd.Flags().BoolVar(&reintentar, "retry", false, "vuelve a correr también las tareas detenidas, reusando su cuarto")
 	cmd.Flags().BoolVar(&fondo, "background", false, "desprende la corrida de la terminal y devuelve el control; sigue corriendo si la cierras")
 	return cmd
@@ -1225,11 +1226,11 @@ func emitirResultados(results []runResult) error {
 			if r.Tokens > 0 {
 				extra = " · " + budget.FormatearGasto(r.Tokens) + " tokens"
 			}
-			intentos := "1 intento"
+			intentos := idioma.T("1 intento")
 			if r.Intentos != 1 {
-				intentos = fmt.Sprintf("%d intentos", r.Intentos)
+				intentos = fmt.Sprintf("%d%s", r.Intentos, idioma.T(" intentos"))
 			}
-			out.Line("✓ %s  %s  · verde en %s%s", r.ID, r.Titulo, intentos, extra)
+			out.Line("✓ %s  %s  · %s%s%s", r.ID, r.Titulo, idioma.T("verde en "), intentos, extra)
 		case "detenida":
 			out.Line("⏸ %s  %s  · %s", r.ID, r.Titulo, r.Motivo)
 		case "rechazada":

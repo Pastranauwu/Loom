@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -91,7 +92,7 @@ func runDNA(root string, args []string) error {
 	case "show":
 		b, _ := dna.Bloque(dir, cfg.DNA)
 		if b == "" {
-			out.Line("· sin dna · loom dna add <nombre>")
+			out.Line(idioma.T("· sin dna · loom dna add <nombre>"))
 			return nil
 		}
 		out.Line("%s", b)
@@ -120,7 +121,7 @@ func runDNA(root string, args []string) error {
 		if err := cfg.Save(root); err != nil {
 			return err
 		}
-		out.Line("✓ dna activo: %s", strings.Join(cfg.DNA, ", "))
+		out.Line(idioma.T("✓ dna activo: %s"), strings.Join(cfg.DNA, ", "))
 		return nil
 	}
 	return fmt.Errorf("subcomando desconocido: %s · usa list, add, rm o show", args[0])
@@ -143,7 +144,7 @@ func elegirDNA(root string, cfg config.Config, todos []dna.Arquetipo) error {
 	if err := cfg.Save(root); err != nil {
 		return err
 	}
-	out.Line("✓ dna activo: %s", strings.Join(ids, ", "))
+	out.Line(idioma.T("✓ dna activo: %s"), strings.Join(ids, ", "))
 	return nil
 }
 

@@ -92,10 +92,21 @@ func isTerminal(f *os.File) bool {
 // aliasBanderas son los nombres en español de las banderas, que siguen
 // funcionando aunque la ayuda muestre solo el nombre en inglés.
 var aliasBanderas = map[string]string{
-	"agentes":    "agents",
-	"revisar":    "review",
-	"integrar":   "merge",
-	"fondo":      "background",
-	"reintentar": "retry",
-	"todas":      "all",
+	"agentes":           "agents",
+	"revisar":           "review",
+	"integrar":          "merge",
+	"fondo":             "background",
+	"reintentar":        "retry",
+	"todas":             "all",
+	"ejecutor":          "executor",
+	"modelo":            "model",
+	"aprobar":           "approve",
+	"forzar":            "force",
+	"titulo":            "title",
+	"agente":            "agent",
+	"oculta":            "hidden",
+	"sonda":             "probe",
+	"pruebas":           "tests",
+	"pruebas-plantilla": "tests-template",
+	"sin-skills":        "no-skills",
 }

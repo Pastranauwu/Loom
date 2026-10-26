@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 	"time"
@@ -160,7 +161,7 @@ func (m runModel) View() string {
 	if total == 0 {
 		total = 1
 	}
-	cuerpo.WriteString(estiloTitulo.Render("CORRIDA") + "\n")
+	cuerpo.WriteString(estiloTitulo.Render(idioma.T("CORRIDA")) + "\n")
 	cuerpo.WriteString(barra(hechos, total, 40) + " " +
 		estiloApagado.Render(strconv.Itoa(hechos)+"/"+strconv.Itoa(len(m.filas))) + "\n\n")
 
@@ -199,7 +200,7 @@ func (m runModel) renderFilas(compacto bool) string {
 		}
 	}
 	if compacto {
-		b.WriteString("  " + estiloPresion.Render("✓ "+strconv.Itoa(verdes)+" verdes") + estiloApagado.Render(" · "+strconv.Itoa(pendientes)+" pendientes") + "\n")
+		b.WriteString("  " + estiloPresion.Render("✓ "+strconv.Itoa(verdes)+" "+idioma.T("verdes")) + estiloApagado.Render(" · "+strconv.Itoa(pendientes)+" "+idioma.T("pendientes")) + "\n")
 	}
 	return b.String()
 }
@@ -207,11 +208,11 @@ func (m runModel) renderFilas(compacto bool) string {
 // renderFase pinta la línea de detalle: intento, fase, modelo, tiempo en
 // esa fase y tokens gastados. Es lo que responde "¿sigue viva?".
 func renderFase(f FaseRun) string {
-	txt := fmt.Sprintf("intento %d", f.Intento)
+	txt := fmt.Sprintf(idioma.T("intento %d"), f.Intento)
 	if f.Limite > 0 {
 		txt += fmt.Sprintf("/%d", f.Limite)
 	}
-	txt += " · " + f.Fase
+	txt += " · " + idioma.T(f.Fase)
 	if f.Modelo != "" {
 		txt += " · " + f.Modelo
 	}
@@ -220,7 +221,7 @@ func renderFase(f FaseRun) string {
 		txt += fmt.Sprintf(" · %d↑/%d↓ tokens", f.Entrada, f.Salida)
 	}
 	if f.Atascada {
-		return "      " + estiloAlerta.Render("ATASCO · "+txt+" sin señal") + "\n"
+		return "      " + estiloAlerta.Render(idioma.T("ATASCO · ")+txt+idioma.T(" sin señal")) + "\n"
 	}
 	return "      " + estiloApagado.Render(txt) + "\n"
 }
@@ -230,16 +231,16 @@ func renderFilaRun(f FilaRun, v *tareaViva, inicio time.Time, tick int) string {
 	switch {
 	case v == nil:
 		g = estiloApagado.Render("·")
-		estado = estiloApagado.Render("pendiente")
+		estado = estiloApagado.Render(idioma.T("pendiente"))
 	case v.estado == "lista":
 		g = estiloPresion.Render("✓")
-		estado = estiloPresion.Render("verde en " + intentosTxt(v.intentos))
+		estado = estiloPresion.Render(idioma.T("verde en ") + intentosTxt(v.intentos))
 	case v.estado == "sin_saldo":
 		g = estiloAlerta.Render("⏸")
-		estado = estiloAlerta.Render("sin saldo · queda pendiente")
+		estado = estiloAlerta.Render(idioma.T("sin saldo · queda pendiente"))
 	case v.estado == "detenida":
 		g = estiloAlerta.Render("⏸")
-		estado = estiloAlerta.Render("detenida")
+		estado = estiloAlerta.Render(idioma.T("detenida"))
 	default:
 		g = estiloEspera.Render(spinnerFrames[tick%len(spinnerFrames)])
 		estado = estiloApagado.Render(reloj(time.Since(inicio)))
@@ -251,7 +252,7 @@ func renderFilaRun(f FilaRun, v *tareaViva, inicio time.Time, tick int) string {
 // "1 intento", no "1 intentos".
 func intentosTxt(n int) string {
 	if n == 1 {
-		return "1 intento"
+		return idioma.T("1 intento")
 	}
-	return strconv.Itoa(n) + " intentos"
+	return strconv.Itoa(n) + idioma.T(" intentos")
 }

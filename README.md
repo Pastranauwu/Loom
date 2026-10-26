@@ -360,7 +360,7 @@ Planning, diagnosis and operation:
 
 | Command | What it does |
 |---|---|
-| `loom plan "<request>" [--aprobar]` | Generates a proposal of contracts. `--export-spec file.yml` exports it. |
+| `loom plan "<request>" [--approve]` | Generates a proposal of contracts. `--export-spec file.yml` exports it. |
 | `loom graph` | Updates the incremental repo index in `.loom/repo-graph.json`. |
 | `loom map` (alias `view`) | Draws the system without opening code: modules, the contracts each exposes and who consumes them, imports, active DNA and gate state. `--mermaid` exports a diagram for Markdown or a PR, `--json` the full structure. |
 | `loom sketch ["idea"]` | Interviews you with four edge-case questions and writes the spec. |
@@ -378,7 +378,7 @@ Planning, diagnosis and operation:
 | `loom task add\|edit\|rm\|list` | Manages contracts manually. |
 | `loom task seal T-001` | Seals a hidden suite written by hand. |
 
-All accept `--plain` for linear output and `--json` for structured output. In a terminal, where it applies, they use an interactive interface. The Spanish flags (`--agentes`, `--revisar`, `--integrar`, `--fondo`, `--reintentar`, `--todas`) remain as silent aliases of `--agents`, `--review`, `--merge`, `--background`, `--retry` and `--all`.
+All accept `--plain` for linear output and `--json` for structured output. In a terminal, where it applies, they use an interactive interface. The Spanish flags (`--agentes`, `--revisar`, `--integrar`, `--fondo`, `--reintentar`, `--todas`, `--ejecutor`, `--modelo`, `--aprobar`, `--forzar`, `--titulo`) remain as silent aliases of `--agents`, `--review`, `--merge`, `--background`, `--retry`, `--all`, `--executor`, `--model`, `--approve`, `--force` and `--title`.
 
 Useful `up` variants:
 

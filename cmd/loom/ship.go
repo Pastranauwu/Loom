@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,7 +57,7 @@ requests que se pisan entre sí.`,
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "corre la esclusa sin abrir el PR")
 	cmd.Flags().BoolVar(&todas, "all", false, "entrega todas las tareas listas en un solo PR")
-	cmd.Flags().StringVar(&titulo, "titulo", "", "título del PR conjunto (por defecto, el de la primera tarea)")
+	cmd.Flags().StringVar(&titulo, "title", "", "título del PR conjunto (por defecto, el de la primera tarea)")
 	cmd.Flags().BoolVar(&revisar, "review", false, "un modelo revisa el diff y deja el informe en el PR; apruebas tú")
 	cmd.Flags().BoolVar(&integrar, "merge", false, "revisa y, si no pide cambios, mergea el PR por rebase sin esperarte")
 	cmd.Flags().BoolVar(&local, "local", false, "deja el PR en el repo (rama y descripción) aunque haya remoto; igual que entrega: local en config.yml")
@@ -216,7 +217,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 		return fmt.Errorf("entrega frenada · %s", e.PrimerMotivo())
 	}
 	if dryRun {
-		out.Line("entregable · %d tareas en la rama %s · --dry-run, sin PR", len(listas), e.Rama)
+		out.Line(idioma.T("entregable · %d tareas en la rama %s · --dry-run, sin PR"), len(listas), e.Rama)
 		return nil
 	}
 	if err := ship.RegistrarEntrega(root, e.Rama, ids); err != nil {
@@ -380,7 +381,7 @@ func runShip(id string, dryRun, local bool) error {
 			return fmt.Errorf("esclusa frenada · %s", res.PrimerMotivo())
 		}
 		if dryRun {
-			out.Line("entregable · --dry-run, sin PR")
+			out.Line(idioma.T("entregable · --dry-run, sin PR"))
 		} else {
 			out.Line("entregado · %s", res.PR)
 			siguientePasoLocal(res.PR, r.Rama, cfg.Base)
@@ -402,7 +403,7 @@ func runShip(id string, dryRun, local bool) error {
 		return fmt.Errorf("esclusa frenada · %s", res.PrimerMotivo())
 	}
 	if dryRun {
-		out.Line("entregable · --dry-run, sin PR")
+		out.Line(idioma.T("entregable · --dry-run, sin PR"))
 	} else {
 		out.Line("entregado · %s", res.PR)
 		siguientePasoLocal(res.PR, r.Rama, cfg.Base)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"io"
 	"os"
 	"path/filepath"
@@ -72,8 +73,8 @@ correctiva en su cuarto hasta que su listo_cuando pase. Con --ship la entrega.`,
 	cmd.Flags().StringVarP(&archivoSpec, "file", "f", "", "spec a corregir (por defecto el del repo)")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "muestra el diagnóstico sin tocar el spec ni crear la tarea")
 	cmd.Flags().BoolVar(&entregar, "ship", false, "entrega la tarea correctiva cuando quede verde")
-	cmd.Flags().StringVar(&modelo, "modelo", "", "modelo del diagnóstico (por defecto el del planificador)")
-	cmd.Flags().StringVar(&ejecutor, "ejecutor", "", "CLI del diagnóstico (por defecto el de config.yml)")
+	cmd.Flags().StringVar(&modelo, "model", "", "modelo del diagnóstico (por defecto el del planificador)")
+	cmd.Flags().StringVar(&ejecutor, "executor", "", "CLI del diagnóstico (por defecto el de config.yml)")
 	return cmd
 }
 
@@ -126,7 +127,7 @@ func curar(root string, cfg config.Config, gen plan.Generador, log, archivoSpec 
 	recorte := heal.Recortar(log)
 
 	var d heal.Diagnostico
-	if err := esperarPlan("heal · buscando qué le faltaba al spec", func(avance func(string)) error {
+	if err := esperarPlan(idioma.T("heal · buscando qué le faltaba al spec"), func(avance func(string)) error {
 		r, err := conAvance(gen, avance).Generar(context.Background(), heal.Prompt(recorte, texto, resumenGrafo(root, recorte), cfg.Pruebas))
 		if err != nil {
 			return err
@@ -138,11 +139,11 @@ func curar(root string, cfg config.Config, gen plan.Generador, log, archivoSpec 
 	}
 
 	out.Line("")
-	out.Line("causa      %s", d.Causa)
-	out.Line("regla      %s", d.Invariante)
-	out.Line("criterio   %s", d.Criterio)
-	out.Line("reproduce  %s", d.Comando)
-	out.Line("tocar      %s", strings.Join(append(append([]string{}, d.Tocar...), d.ArchivoPrueba), ", "))
+	out.Line(idioma.T("causa      %s"), d.Causa)
+	out.Line(idioma.T("regla      %s"), d.Invariante)
+	out.Line(idioma.T("criterio   %s"), d.Criterio)
+	out.Line(idioma.T("reproduce  %s"), d.Comando)
+	out.Line(idioma.T("tocar      %s"), strings.Join(append(append([]string{}, d.Tocar...), d.ArchivoPrueba), ", "))
 	if dry {
 		out.Line("\n--dry-run · no se tocó el spec ni se creó la tarea")
 		return task.Task{}, nil

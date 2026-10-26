@@ -26,6 +26,7 @@ func mapaDePrueba() topo.Mapa {
 }
 
 func TestVistaMapaEnCapasEnIngles(t *testing.T) {
+	t.Setenv("LOOM_LANGUAGE", "en")
 	idioma.Set("en")
 	v := VistaMapa(mapaDePrueba(), 100)
 	for _, quiero := range []string{"loom map", "◈ hexagonal", "✓ 1 ready", "acceptance not run", "Entry points", "Foundations", "depends on", "cmd/app", "internal/domain", "✓ T-001 dominio", "◆ domain.Nueva() Orden", "→ domain", "╭"} {
@@ -39,6 +40,7 @@ func TestVistaMapaEnCapasEnIngles(t *testing.T) {
 }
 
 func TestVistaMapaEnEspanol(t *testing.T) {
+	t.Setenv("LOOM_LANGUAGE", "es")
 	idioma.Set("es")
 	defer idioma.Set("en")
 	v := VistaMapa(mapaDePrueba(), 100)
@@ -50,6 +52,7 @@ func TestVistaMapaEnEspanol(t *testing.T) {
 }
 
 func TestVistaMapaEstrechaAcomodaTarjetasEnFilas(t *testing.T) {
+	t.Setenv("LOOM_LANGUAGE", "en")
 	idioma.Set("en")
 	for _, l := range strings.Split(VistaMapa(mapaDePrueba(), 50), "\n") {
 		if n := len([]rune(stripANSI(l))); n > 50 {
@@ -72,4 +75,14 @@ func stripANSI(s string) string {
 		}
 	}
 	return b.String()
+}
+
+func TestTableroYEsclusaEnIngles(t *testing.T) {
+	t.Setenv("LOOM_LANGUAGE", "en")
+	idioma.Set("en")
+	defer idioma.Set("en")
+	g := renderGate("T-001", nil, false, 0, 100, 0)
+	if !strings.Contains(g, "EXIT GATE · T-001") || !strings.Contains(g, "noise") {
+		t.Errorf("esclusa en inglés:\n%s", g)
+	}
 }

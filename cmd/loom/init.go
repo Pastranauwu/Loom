@@ -46,9 +46,9 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&cli, "cli", "", "CLI de agente: opencode, claude o codex (por defecto pregunta si hay más de uno)")
-	cmd.Flags().StringVar(&pruebas, "pruebas", "", "comando de pruebas del proyecto, en vez del detectado")
-	cmd.Flags().StringVar(&plantilla, "pruebas-plantilla", "", "stack de pruebas: go, node o python")
-	cmd.Flags().BoolVar(&sinSkills, "sin-skills", false, "no traer las skills por defecto (puedes hacerlo luego con loom skills sync)")
+	cmd.Flags().StringVar(&pruebas, "tests", "", "comando de pruebas del proyecto, en vez del detectado")
+	cmd.Flags().StringVar(&plantilla, "tests-template", "", "stack de pruebas: go, node o python")
+	cmd.Flags().BoolVar(&sinSkills, "no-skills", false, "no traer las skills por defecto (puedes hacerlo luego con loom skills sync)")
 	return cmd
 }
 

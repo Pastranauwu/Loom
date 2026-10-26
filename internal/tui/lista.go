@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 
@@ -22,7 +23,7 @@ func Elegir(titulo, ayuda string, ops []Opcion) (string, error) {
 		return "", nil
 	}
 	if ayuda == "" {
-		ayuda = "j/k mueve · enter elige · q cancela"
+		ayuda = idioma.T("j/k mueve · enter elige · q cancela")
 	}
 	m := listaModel{titulo: titulo, ayuda: ayuda, ops: ops, ayudaMulti: false}
 	final, err := tea.NewProgram(m).Run()
@@ -43,7 +44,7 @@ func Marcar(titulo, ayuda string, ops []Opcion) ([]string, bool, error) {
 		return nil, true, nil
 	}
 	if ayuda == "" {
-		ayuda = "j/k mueve · espacio marca · a todas · n ninguna · enter confirma · q cancela"
+		ayuda = idioma.T("j/k mueve · espacio marca · a todas · n ninguna · enter confirma · q cancela")
 	}
 	m := listaModel{titulo: titulo, ayuda: ayuda, ops: ops, ayudaMulti: true}
 	final, err := tea.NewProgram(m).Run()
@@ -120,13 +121,13 @@ func (m listaModel) View() string {
 
 	desde, hasta := ventana(m.cursor, len(m.ops), maxVisibles)
 	if desde > 0 {
-		b.WriteString(estiloApagado.Render("  ↑ "+strconv.Itoa(desde)+" más arriba") + "\n")
+		b.WriteString(estiloApagado.Render("  ↑ "+strconv.Itoa(desde)+idioma.T(" más arriba")) + "\n")
 	}
 	for i := desde; i < hasta; i++ {
 		b.WriteString(renderOpcion(m.ops[i], i == m.cursor, m.ayudaMulti) + "\n")
 	}
 	if hasta < len(m.ops) {
-		b.WriteString(estiloApagado.Render("  ↓ "+strconv.Itoa(len(m.ops)-hasta)+" más abajo") + "\n")
+		b.WriteString(estiloApagado.Render("  ↓ "+strconv.Itoa(len(m.ops)-hasta)+idioma.T(" más abajo")) + "\n")
 	}
 
 	b.WriteString("\n" + estiloApagado.Render(m.ayuda))

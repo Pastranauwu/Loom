@@ -38,7 +38,7 @@ func newUsageCmd() *cobra.Command {
 			return runUsage(sonda)
 		},
 	}
-	cmd.Flags().BoolVar(&sonda, "sonda", false, "fuerza la consulta en vivo de la utilización real de Claude (ignora la caché)")
+	cmd.Flags().BoolVar(&sonda, "probe", false, "fuerza la consulta en vivo de la utilización real de Claude (ignora la caché)")
 	return cmd
 }
 

@@ -80,7 +80,7 @@ func newTaskAddCmd() *cobra.Command {
 			return runTaskAdd(root, titulo, agente)
 		},
 	}
-	cmd.Flags().StringVar(&agente, "agente", "", "agente asignado para la tarea (declarado en config.yml)")
+	cmd.Flags().StringVar(&agente, "agent", "", "agente asignado para la tarea (declarado en config.yml)")
 	return cmd
 }
 
@@ -146,10 +146,10 @@ lo sellado ya no depende de ellos.`,
 		},
 	}
 	cmd.Flags().StringVar(&visible, "visible", "", "archivo con las pruebas que el implementador SÍ ve")
-	cmd.Flags().StringVar(&oculta, "oculta", "", "archivo con las pruebas que se sellan y solo corren en ship")
-	cmd.Flags().BoolVar(&forzar, "forzar", false, "reemplaza una suite ya sellada")
+	cmd.Flags().StringVar(&oculta, "hidden", "", "archivo con las pruebas que se sellan y solo corren en ship")
+	cmd.Flags().BoolVar(&forzar, "force", false, "reemplaza una suite ya sellada")
 	_ = cmd.MarkFlagRequired("visible")
-	_ = cmd.MarkFlagRequired("oculta")
+	_ = cmd.MarkFlagRequired("hidden")
 	return cmd
 }
 

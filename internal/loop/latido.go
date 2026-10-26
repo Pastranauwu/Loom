@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"time"
@@ -69,11 +70,11 @@ func (l Latido) Silencio() time.Duration { return time.Since(l.Visto) }
 
 // Descripcion resume el latido en una línea para el tablero.
 func (l Latido) Descripcion() string {
-	s := fmt.Sprintf("intento %d", l.Intento)
+	s := fmt.Sprintf(idioma.T("intento %d"), l.Intento)
 	if l.Limite > 0 {
 		s += fmt.Sprintf("/%d", l.Limite)
 	}
-	s += " · " + l.Fase
+	s += " · " + idioma.T(l.Fase)
 	if l.Modelo != "" {
 		s += " · " + l.Modelo
 	}

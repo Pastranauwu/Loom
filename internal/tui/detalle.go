@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 
@@ -44,9 +45,9 @@ func detalleTarea(root, id string, ancho int) []lineaSticker {
 	campo("pregunta", st.Pregunta, rgbAlerta)
 
 	intentos, _ := loop.ReadAttempts(root, id)
-	ls = append(ls, lineaSticker{}, lineaSticker{texto: "INTENTOS · " + strconv.Itoa(len(intentos)), color: rgbPresion})
+	ls = append(ls, lineaSticker{}, lineaSticker{texto: idioma.T("INTENTOS · ") + strconv.Itoa(len(intentos)), color: rgbPresion})
 	if len(intentos) == 0 {
-		ls = append(ls, lineaSticker{texto: "  la tarea todavía no corre", color: rgbApagado})
+		ls = append(ls, lineaSticker{texto: idioma.T("  la tarea todavía no corre"), color: rgbApagado})
 	}
 	for _, a := range intentos {
 		salida, color := "—", rgbAlerta
@@ -56,11 +57,11 @@ func detalleTarea(root, id string, ancho int) []lineaSticker {
 				color = rgbPresion
 			}
 		}
-		ls = append(ls, lineaSticker{texto: "  " + strconv.Itoa(a.Intento) + " · salida " + salida +
+		ls = append(ls, lineaSticker{texto: "  " + strconv.Itoa(a.Intento) + idioma.T(" · salida ") + salida +
 			" · +" + strconv.Itoa(a.LineasMas) + "/-" + strconv.Itoa(a.LineasMenos) +
 			" · " + a.Modelo + " · " + strconv.Itoa(a.Tokens.Entrada) + "↑/" + strconv.Itoa(a.Tokens.Salida) + "↓ tokens", color: color})
-		campo("    archivos", strings.Join(a.ArchivosTocados, ", "), rgbApagado)
-		campo("    revertido", strings.Join(a.RevertidosFueraDeAlcance, ", "), rgbAlerta)
+		campo(idioma.T("    archivos"), strings.Join(a.ArchivosTocados, ", "), rgbApagado)
+		campo(idioma.T("    revertido"), strings.Join(a.RevertidosFueraDeAlcance, ", "), rgbAlerta)
 		campo("    agente", a.ErrorAgente, rgbAlerta)
 		if a.Revision != nil {
 			campo("    revisor", a.Revision.Cambios, rgbEspera)
