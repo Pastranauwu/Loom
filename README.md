@@ -1,13 +1,27 @@
 # loom
 
-**Declara qué software debe existir. loom decide cómo construirlo y no lo
-entrega si no pasa sus compuertas.**
+AI coding agents hallucinate, touch forbidden files, and claim "done!" while breaking production. `loom` is a deterministic, spec-driven orchestrator that locks Claude Code, Codex, and OpenCode inside isolated git worktrees, runs blind examiner tests, and blocks PRs until every gate passes.
 
-La interfaz principal es `loom.spec.yml`: una descripción versionable del
-feature, sus requirements, reglas, restricciones y criterios de aceptación.
-loom inspecciona el repositorio, genera contratos internos de tarea, valida
-su grafo, ejecuta el trabajo en aislamiento, integra los cambios y entrega un
-pull request verificado.
+![demo](docs/demo.gif)
+
+**Declare what software must exist. loom decides how to build it and refuses to deliver it unless it passes its gates.** Spanish edition: [README.es.md](README.es.md). Everything below works in Spanish too: contracts, specs and flags accept both languages, and `language: es` in `.loom/config.yml` makes loom write human-facing prose in Spanish.
+
+## Green task != working feature
+
+A calculator built by 5 agents in parallel (lexer → parser → evaluator → CLI). All 5 tasks green. Integration green. Then `-2^2` returned `unknown binary operator: ^`.
+
+The lexer and the parser had `^` in their contracts. The evaluator's contract never asked for it. No per-task check could see it, because each task was correct against its own contract. The bug lived in the seam between tasks, and the functional overlap level cannot see it either: it runs those same commands.
+
+loom closes that seam with two mechanisms:
+
+- **Seam test.** The final task depends on all the others, consumes everything the plan promises through `exposes`/`uses`, implements nothing and writes an end-to-end test. Its command also becomes feature acceptance, so it runs twice: in its own room and on the integrated result.
+- **Blind examiner.** A separate model writes tests from the public boundary only (signatures and examples), in a directory with no access to the implementation. Part of that suite is sealed and runs at delivery, so an agent cannot tune its code to tests it has seen.
+
+Both are written by a model, so their quality is not guaranteed. If you declare an `acceptance.command`, the seam is yours.
+
+## The product interface is a spec, not an agent
+
+`loom.spec.yml` describes the feature, its requirements, rules, constraints and acceptance criteria. loom inspects the repository, generates internal task contracts, validates their graph, runs the work in isolation, integrates the changes and delivers a verified pull request.
 
 ```text
 Requirements as Code
@@ -25,281 +39,233 @@ Integration / Feature Acceptance
 PR
 ```
 
-Los agentes son parte de la ejecución, no la interfaz del producto. La
-coordinación ocurre mediante contratos, dependencias, interfaces, Git y pruebas.
+Agents are part of execution, not the product interface. Coordination happens through contracts, dependencies, interfaces, Git and tests.
 
 ## Quick start
 
-En la raíz de tu proyecto, crea `loom.spec.yml`:
+At the root of your project, create `loom.spec.yml`:
 
 ```yaml
-feature: recuperación de contraseña
+feature: password recovery
 
 requirements:
   functional:
-    - solicitar recuperación por email
-    - cambiar contraseña usando el token
+    - request recovery by email
+    - change the password using the token
   security:
-    - token de un solo uso
+    - single-use token
 
 rules:
-  - no modificar sesiones
+  - do not modify sessions
 
 acceptance:
-  - token expirado debe rechazarse
-  - criterion: integración completa
+  - an expired token must be rejected
+  - criterion: full flow
     command: go test ./... -run TestPasswordRecovery
 
 constraints:
-  no_tocar:
+  dont_touch:
     - internal/session/**
 
 ship: true
 ```
 
-Después ejecuta:
+Then run:
 
 ```bash
 loom up
 ```
 
-Por detrás, loom:
+Behind the scenes, loom:
 
-1. lee `requirements`, `rules` y `acceptance`;
-2. inspecciona el lenguaje, las pruebas y las convenciones del repositorio;
-3. genera contratos de tarea en `.loom/tasks/`;
-4. construye y valida el task graph;
-5. ejecuta las tareas en `git worktree` aislados;
-6. verifica cada tarea con comandos ejecutables y sus compuertas;
-7. integra un commit limpio por tarea, respetando dependencias;
-8. ejecuta la suite del proyecto sobre el conjunto integrado;
-9. ejecuta los comandos globales de feature acceptance;
-10. crea el PR —o una entrega local si no existe remoto—.
+1. reads `requirements`, `rules` and `acceptance`;
+2. inspects the language, tests and conventions of the repository;
+3. generates task contracts in `.loom/tasks/`;
+4. builds and validates the task graph;
+5. runs the tasks in isolated `git worktree`s;
+6. verifies each task with executable commands and its gates;
+7. integrates one clean commit per task, respecting dependencies;
+8. runs the project suite on the integrated set;
+9. runs the global feature acceptance commands;
+10. creates the PR, or a local delivery if there is no remote.
 
-Normalmente no necesitas definir tareas, archivos, agentes, interfaces ni
-comandos por tarea. El planificador genera esos detalles a partir del estado
-deseado y del repositorio. Si `ship: true`, `up` llega hasta la entrega; sin él,
-termina después de ejecutar las tareas.
+You normally do not need to define tasks, files, agents, interfaces or per-task commands. The planner generates those details from the desired state and the repository. With `ship: true`, `up` goes all the way to delivery; without it, it stops after running the tasks.
 
-![demo](docs/demo.gif)
+Install:
 
-## Dos niveles de especificación
+```sh
+curl -fsSL https://github.com/Pastranauwu/loom/releases/latest/download/install.sh | sh
+# or: go install github.com/Pastranauwu/loom/cmd/loom@latest
+```
+
+## Two levels of specification
 
 ### Human Spec — `loom.spec.yml`
 
-Es la interfaz recomendada. Describe principalmente **qué debe conseguir el
-sistema**:
+The recommended interface. It mainly describes **what the system must achieve**:
 
-- `feature`: nombre del cambio y título predeterminado de la entrega;
-- `requirements`: lista simple o categorías YAML anidadas;
-- `rules` —también acepta `reglas`—: reglas comunes del feature;
-- `acceptance`: criterios textuales y comandos de aceptación global;
-- `constraints.no_tocar`: rutas globalmente prohibidas para todos los contratos
-  del feature;
-- `ship`: entrega al terminar;
-- opciones avanzadas como `agentes`, `agente` y `limites`.
+- `feature`: name of the change and default title of the delivery;
+- `requirements`: a flat list or nested YAML categories;
+- `rules`: rules shared by the whole feature;
+- `acceptance`: textual criteria and global acceptance commands;
+- `constraints.dont_touch`: paths forbidden to every contract of the feature;
+- `ship`: deliver when done;
+- advanced options such as `agents`, `agent` and `max_retries` / `max_lines`.
 
-El parser admite YAML anidado para requirements y acceptance. Las restricciones
-globales implementadas actualmente se limitan a `constraints.no_tocar`, y sus
-globs se añaden al `no_tocar` de cada contrato al aplicar el spec: da igual si
-la task venía escrita en el YAML o si la generó el planificador desde
-requirements.
+The parser accepts nested YAML for requirements and acceptance. The global constraints implemented today are limited to `constraints.dont_touch`; its globs are added to the `dont_touch` of every contract when the spec is applied, whether the task was written in the YAML or generated by the planner from requirements.
 
 ### Internal Task Contracts — `.loom/tasks/*.md`
 
-Son el IR generado por el planificador: expresan cómo ejecutar y verificar cada
-unidad de trabajo. Incluyen:
+The IR generated by the planner: how to run and verify each unit of work. They include:
 
-- `titulo` y `porque`;
-- `listo_cuando`;
-- `tocar_solo` y `no_tocar`;
-- `depende_de`;
-- `expone` y `usa`;
-- `riesgos`, `peso` y `agente`;
-- límite de intentos y, opcionalmente, un límite de líneas elegido por el humano.
+- `title` and `why`;
+- `done_when`;
+- `only_touch` and `dont_touch`;
+- `depends_on`;
+- `exposes` and `uses`;
+- `risks`, `weight` and `agent`;
+- a retry limit and, optionally, a line limit chosen by the human.
 
-Siguen siendo editables y ejecutables como interfaz avanzada. También puedes
-escribir tasks completos en el spec o administrar contratos a mano; el formato
-anterior no desapareció.
-
-Como analogía práctica:
+They remain editable and runnable as an advanced interface. You can also write full tasks in the spec or manage contracts by hand.
 
 ```text
-loom.spec.yml        → source humano
-.loom/tasks/*.md     → task IR generado
-código + commits         → resultado de ejecución
+loom.spec.yml        → human source
+.loom/tasks/*.md     → generated task IR
+code + commits           → execution result
 ```
 
-No es un compilador formal: el planificador usa un modelo y sus contratos pueden
-ser incorrectos. Las verificaciones deterministas deciden qué puede avanzar.
+It is not a formal compiler: the planner uses a model and its contracts can be wrong. Deterministic checks decide what may advance.
 
-## Arquitectura y delegación
+## The spec is living state
 
-El planificador usa `modelos.pesada` si no hay un modelo explícito para el rol
-`planificador`. En una sola llamada define la arquitectura, distribución de
-archivos, responsabilidades y contratos entre módulos, y propone las tareas.
-Estas decisiones quedan en las notas de los contratos y se transmiten a las
-subtareas recursivas. Las instrucciones piden asignar la base compartida a
-`architect` con peso `pesada`, y la implementación ya definida a agentes
-`liviana`; los pesos efectivos dependen del plan generado y tu configuración.
+The spec is the declared state of the system, not a disposable ticket. loom keeps the last applied hash per requirement, rule, acceptance and constraint in `.loom/state.json`. Edit the spec and run `loom apply --dry-run` to see the semantic delta (`+` added, `~` modified, `-` removed) without spending a token. A real `apply` or `up` sends the planner only that delta plus a compact map of the repository, and leaves what is already built and verified alone. Several specs can live side by side: `loom.spec.yml` plus `specs/*.yml`.
 
-El formato nuevo de respuesta del planificador es
-`{"arquitectura":"decisiones y árbol de archivos", "tareas":[...]}`.
-Los arrays de contratos anteriores siguen siendo compatibles. Las decisiones
-arquitectónicas son instrucciones para los agentes; las verificaciones de
-alcance, interfaces y pruebas siguen siendo las compuertas ejecutables.
+For large repositories, `loom graph` keeps an incremental index of exported symbols and imports in `.loom/repo-graph.json`. It re-parses only the files changed since the last indexed commit, and the planner and architect read a relevant slice of it instead of exploring the repository.
 
-Con tareas previas en el repo, el planificador recibe el id que tendrá su
-primera tarea y las firmas que ya exponen las anteriores, para que
-`depende_de` y `usa` apunten a lo que de verdad existe.
+## Architecture and delegation
 
-Mientras planea, loom muestra cuánto tiempo lleva y lo que el modelo va
-haciendo: los comandos que corre, los archivos que lee y cuántos tokens
-escribió en cada turno.
+The planner uses `modelos.pesada` if there is no explicit model for the `planificador` role. In a single call it defines the architecture, file layout, responsibilities and contracts between modules, and proposes the tasks. These decisions stay in the notes of the contracts and are passed on to recursive subtasks. The instructions ask to assign the shared base to `architect` with weight `heavy`, and the already-defined implementation to `light` agents; the effective weights depend on the generated plan and your configuration.
 
-La respuesta cruda del planificador se guarda en `.loom/plan-crudo.json`.
-Si la corrida falla después de planear (JSON mal formado, plan inválido) y la
-repites sin que se haya escrito ningún contrato, loom reusa esa respuesta
-en vez de pagar otro plan. Para forzar uno nuevo, borra ese archivo.
+The planner answers with `{"architecture": "decisions and file tree", "tasks": [...]}`. Arrays of contracts from earlier versions are still accepted, and so are the Spanish keys. Architectural decisions are instructions for agents; the scope, interface and test checks remain the executable gates.
 
-Las tareas nuevas tienen `limite_lineas: 0` (sin tope). El modelo no puede
-imponer un límite ni cambiar uno que hayas declarado en el spec o contrato.
-Los contratos existentes con un valor positivo conservan ese límite; puedes
-ponerlo en `0` para quitarlo. Los límites de tokens e intentos siguen vigentes.
+With earlier tasks in the repo, the planner receives the id its first task will have and the signatures the earlier ones already expose, so `depends_on` and `uses` point to what really exists.
 
-Si un intento repite exactamente el fallo anterior sin dejar cambios en el
-código, el bucle termina antes de gastar los intentos restantes y registra
-`sin progreso`. La recuperación recursiva puede entonces escalar de modelo;
-en tareas normales el diagnóstico queda disponible para corregir el contrato.
+While planning, loom shows how long it has been running and what the model is doing: the commands it runs, the files it reads and how many tokens it wrote in each turn.
+
+The planner's raw answer is saved in `.loom/plan-crudo.json`. If the run fails after planning (malformed JSON, invalid plan) and you repeat it without any contract having been written, loom reuses that answer instead of paying for another plan. To force a new one, delete that file.
+
+New tasks have `max_lines: 0` (no cap). The model cannot impose a limit or change one you declared in the spec or contract. Existing contracts with a positive value keep that limit; you can set it to `0` to remove it. Token and attempt limits still apply.
+
+If an attempt repeats exactly the previous failure without leaving code changes, the loop ends before spending the remaining attempts and records `no progress`. Recursive recovery can then escalate the model; for normal tasks the diagnosis is available to fix the contract.
 
 ## Progressive disclosure
 
-### Nivel 1 — normal
+### Level 1 — normal
 
-Solo declara el resultado:
+Just declare the outcome:
 
 ```yaml
-feature: notas markdown
+feature: markdown notes
 
 requirements:
-  - crear notas
-  - editar notas
-  - buscar notas
+  - create notes
+  - edit notes
+  - search notes
 ```
 
 ```bash
 loom up
 ```
 
-Si el spec contiene requirements pero no `tasks`, loom genera todo el task
-IR automáticamente. En este nivel `up` ejecuta las tareas, pero no crea el PR a
-menos que añadas `ship: true` o pases `--ship`.
+If the spec has requirements but no `tasks`, loom generates the whole task IR automatically. At this level `up` runs the tasks but does not create the PR unless you add `ship: true` or pass `--ship`.
 
-### Nivel 2 — control
+### Level 2 — control
 
-Añade reglas, aceptación, restricciones y delivery cuando importen:
+Add rules, acceptance, constraints and delivery when they matter:
 
 ```yaml
-feature: notas markdown
+feature: markdown notes
 
 requirements:
   functional:
-    - crear y editar notas
-    - buscar por contenido
+    - create and edit notes
+    - search by content
   security:
-    - impedir rutas fuera del directorio de notas
+    - prevent paths outside the notes directory
 
 rules:
-  - almacenamiento local
-  - mantener compatibilidad con la API actual
+  - local storage
+  - keep compatibility with the current API
 
 acceptance:
-  - una búsqueda encuentra una nota recién editada
-  - criterion: recorrido completo de notas
+  - a search finds a note that was just edited
+  - criterion: full notes workflow
     command: go test ./... -run TestNotesWorkflow
 
 constraints:
-  no_tocar:
+  dont_touch:
     - internal/auth/**
 
 ship: true
 ```
 
-### Nivel 3 — avanzado
+### Level 3 — advanced
 
-Decide tareas concretas cuando necesites controlar el IR:
+Decide concrete tasks when you need to control the IR:
 
 ```yaml
-feature: wake on lan con alexa
-agentes: 3
+feature: wake on lan with alexa
+agents: 3
 ship: true
 
 tasks:
-  - titulo: enviar magic packet por udp
-    listo_cuando: go test ./internal/wol/...
-    tocar_solo: ["internal/wol/**"]
-    expone: ["wol.Send(mac, addr string) error"]
-  - guardar la mac en json
-  - titulo: endpoint de la skill alexa
-    porque: expone el feature a la automatización
-    listo_cuando: go test ./internal/alexa/...
-    tocar_solo: ["internal/alexa/**"]
-    no_tocar: ["internal/auth/**"]
-    depende_de: ["T-001"]
-    usa: ["wol.Send(mac, addr string) error"]
+  - title: send magic packet over udp
+    done_when: go test ./internal/wol/...
+    only_touch: ["internal/wol/**"]
+    exposes: ["wol.Send(mac, addr string) error"]
+  - store the mac in json
+  - title: alexa skill endpoint
+    why: exposes the feature to automation
+    done_when: go test ./internal/alexa/...
+    only_touch: ["internal/alexa/**"]
+    dont_touch: ["internal/auth/**"]
+    depends_on: ["T-001"]
+    uses: ["wol.Send(mac, addr string) error"]
 ```
 
-Una línea como `- enviar magic packet por udp` es una tarea rápida: el
-planificador completa el contrato. En una tarea detallada, conserva los campos
-que escribiste y completa los huecos necesarios. Los specs con tasks completos,
-las tareas rápidas y los contratos manuales continúan soportados, pero el camino
-recomendado para empezar es Requirements as Code.
+A line like `- send magic packet over udp` is a quick task: the planner completes the contract. In a detailed task, loom keeps the fields you wrote and fills in the gaps. Specs with full tasks, quick tasks and manual contracts remain supported, but the recommended way to start is Requirements as Code.
 
-## Generación automática y aceptación
+## Automatic generation and acceptance
 
-Cuando hay `requirements` y no hay `tasks`, el planificador recibe:
+When there are `requirements` and no `tasks`, the planner receives:
 
-- el feature y todos los requirements;
-- las reglas obligatorias;
-- los criterios de acceptance;
-- el lenguaje, comando de pruebas y constitución detectados;
-- las zonas prohibidas y los alcances ya ocupados.
+- the feature and all requirements;
+- the mandatory rules;
+- the acceptance criteria;
+- the detected language, test command and constitution;
+- the forbidden zones and the scopes already taken.
 
-Su salida son contratos con comandos verificables, alcances, dependencias e
-interfaces. Después loom asigna IDs, sanea alcances imposibles y valida el
-grafo antes de guardar o ejecutar las tareas.
+Its output is contracts with verifiable commands, scopes, dependencies and interfaces. Then loom assigns ids, sanitizes impossible scopes and validates the graph before saving or running the tasks.
 
-Hay dos formas de acceptance con garantías distintas:
+There are two forms of acceptance with different guarantees:
 
 ```yaml
 acceptance:
-  - token expirado debe rechazarse
-  - criterion: recuperación completa
+  - an expired token must be rejected
+  - criterion: full recovery
     command: go test ./... -run TestPasswordRecovery
 ```
 
-- **Acceptance textual:** entra en el razonamiento del planificador y debe quedar
-  cubierta por el plan. Por sí sola no es una compuerta determinista.
-- **Acceptance con `command` o `comando`:** se guarda en
-  `.loom/feature.json` y se ejecuta sobre la rama donde ya se integraron
-  todas las tareas. Un código de salida distinto de cero frena la entrega.
+- **Textual acceptance:** enters the planner's reasoning and must be covered by the plan. On its own it is not a deterministic gate.
+- **Acceptance with `command`:** saved in `.loom/feature.json` and executed on the branch where all tasks were already integrated. A non-zero exit code blocks delivery.
 
-Si necesitas garantizar feature acceptance de forma determinista, declara un
-comando ejecutable. El texto explica la intención; el comando actúa como oráculo.
+If you need deterministic feature acceptance, declare an executable command. The text explains the intent; the command acts as the oracle.
 
-**Si no declaras ninguno, loom lo deriva.** Cuando el plan tiene varias
-tareas encadenadas y el spec no trae `command`, loom agrega una última tarea
-que prueba la costura: depende de todas, consume todo lo que el plan promete, no
-implementa nada y escribe pruebas en `test/integracion/`. Su comando queda
-también como aceptación del feature, así que corre dos veces: en su propio cuarto
-y sobre el conjunto integrado. En la salida aparece como
-`· T-00N prueba la costura entre tareas`.
+**If you declare none, loom derives one.** When the plan has several chained tasks and the spec has no `command`, loom adds a final task that tests the seam: it depends on all of them, consumes everything the plan promises, implements nothing and writes tests in `test/integracion/`. Its command also becomes the feature acceptance, so it runs twice: in its own room and on the integrated set. The output shows it as `· T-00N tests the seam between tasks`.
 
-### Task verde no implica feature correcto
+### A green task does not imply a correct feature
 
-Cada contrato conserva su propio `listo_cuando`, pero una tarea puede pasar
-aislada y romperse al juntarse con las demás. Por eso la entrega conjunta añade
-verificación sobre el resultado integrado:
+Each contract keeps its own `done_when`, but a task can pass in isolation and break when combined with the others. That is why joint delivery adds verification on the integrated result:
 
 ```text
 Task verification + per-task quality/security gates
@@ -313,220 +279,195 @@ Feature acceptance commands
 PR
 ```
 
-Primero cada tarea pasa su esclusa individual. Luego loom integra un commit
-por tarea, corre el comando `pruebas` del proyecto sobre el conjunto y finalmente
-ejecuta cada `acceptance.command`. El PR solo se crea si todo queda verde.
+First each task passes its individual gate. Then loom integrates one commit per task, runs the project's `pruebas` command on the set and finally executes each `acceptance.command`. The PR is created only if everything is green.
 
-El hueco que esto tapa: cada `listo_cuando` prueba lo que su propio contrato
-pide, así que una tarea puede soportar un caso que su consumidora nunca le pidió
-y nadie lo ejercita. Cinco tareas verdes construyendo una calculadora dejaban
-`-2^2` devolviendo `unknown binary operator: ^`, porque el operador estaba en el
-contrato del lexer y del parser y no en el del evaluador. El nivel funcional del
-solapamiento tampoco lo ve: corre esos mismos comandos. Solo lo atrapa una prueba
-que entre por la frontera final, y por eso ahora siempre existe una.
+The hole this closes: each `done_when` tests what its own contract asks, so a task can support a case its consumer never asked for and nobody exercises it. Five green tasks building a calculator left `-2^2` returning `unknown binary operator: ^`, because the operator was in the lexer's and parser's contract and not in the evaluator's. Only a test that enters through the final boundary catches it, and that is why one now always exists.
 
-## Análisis estático del task graph
+## Static analysis of the task graph
 
-Antes de ejecutar agentes, loom valida el IR siempre que ya dispone del plan.
-Los errores estructurales bloquean la aplicación completa, antes de escribir las
-tareas o gastar trabajo de implementación:
+Before running agents, loom validates the IR whenever it already has the plan. Structural errors block the whole apply, before writing the tasks or spending implementation work:
 
-- dependencias circulares;
-- dependencias que no existen;
-- interfaces en `usa` que nadie declara en `expone`;
-- interfaces incompatibles con una firma expuesta del mismo nombre;
-- la misma interfaz expuesta por más de una tarea;
-- zonas de `tocar_solo` que pueden solaparse.
+- circular dependencies;
+- dependencies that do not exist;
+- interfaces in `uses` that nobody declares in `exposes`;
+- interfaces incompatible with an exposed signature of the same name;
+- the same interface exposed by more than one task;
+- `only_touch` zones that may overlap.
 
-También emite advertencias —no bloqueos— cuando:
+It also emits warnings, not blocks, when:
 
-- no reconoce cobertura de un requirement en los contratos;
-- no reconoce cobertura de un criterio textual de acceptance;
-- hay varias tareas y no se declaró aceptación global.
+- it does not recognize coverage of a requirement in the contracts;
+- it does not recognize coverage of a textual acceptance criterion;
+- there are several tasks and no global acceptance was declared.
 
-La cobertura se estima a partir del texto de títulos, motivos, notas y comandos.
-Sirve para señalar huecos evidentes, no para demostrar corrección semántica.
+Coverage is estimated from the text of titles, reasons, notes and commands.
 
-## Qué hace, en concreto
+## What it does, concretely
 
-1. Lee el estado deseado desde requirements.
-2. Inspecciona el repositorio y genera un plan compatible con su stack.
-3. Convierte el plan en contratos de tarea verificables.
-4. Analiza dependencias, interfaces y alcances antes de ejecutar.
-5. Congela en `expone`/`usa` las fronteras relevantes entre tareas.
-6. Ejecuta cada tarea en un worktree aislado.
-7. Revierte cambios fuera de `tocar_solo`, incluso si el agente los commiteó.
-8. Verifica mediante comandos y códigos de salida, no mediante opinión del
-   modelo. Un comando que sale con cero sin ejecutar pruebas no cuenta como verde.
-9. Integra las tareas en orden de dependencia y vuelve a probar el conjunto.
-10. Ejecuta feature acceptance y entrega el PR solo si pasan las compuertas.
+1. Reads the desired state from requirements.
+2. Inspects the repository and generates a plan compatible with its stack.
+3. Turns the plan into verifiable task contracts.
+4. Analyzes dependencies, interfaces and scopes before running.
+5. Freezes the relevant boundaries between tasks in `exposes`/`uses`.
+6. Runs each task in an isolated worktree.
+7. Reverts changes outside `only_touch`, even if the agent committed them.
+8. Verifies through commands and exit codes, not the model's opinion. A command that exits with zero without running tests does not count as green.
+9. Integrates the tasks in dependency order and tests the set again.
+10. Runs feature acceptance and delivers the PR only if the gates pass.
 
-En Go y Python, un examinador ciego puede redactar pruebas desde la frontera
-pública antes de la implementación. En tareas nacidas del esqueleto también
-puede hacerlo para TypeScript y JavaScript desde firmas y `Casos:`; trabaja en
-un directorio separado sin acceso al código del cuarto. En ambos caminos sella
-una parte de la suite para la entrega. La
-esclusa individual revisa rebase, historial, ruido, secretos, presupuesto,
-interfaces, reglas de imports, bisectabilidad, suite oculta y handoff.
+In Go and Python, a blind examiner can write tests from the public boundary before the implementation. In tasks born from the skeleton it can also do so for TypeScript and JavaScript from signatures and `Cases:`; it works in a separate directory with no access to the room's code. In both paths it seals part of the suite for delivery. The individual gate checks rebase, history, noise, secrets, budget, interfaces, import rules, bisectability, hidden suite and handoff.
 
-## Instalación
+**Code for agents, not for people.** The code loom produces is meant to be read and maintained by agents. The prompts ask for dense code with no comments for humans, no dead code and no wrapper functions added only for readability, and the noise gate rejects a diff that adds commented-out code, `TODO`/`FIXME`/`HACK`/`NOTE` markers or comment blocks longer than two lines (compiler directives such as `//go:build` and `//nolint` are exempt).
+
+**Context under control.** loom counts the context of each agent session. With claude, while a session uses less than `resume_below_pct` (default 70) of the model's window, the next attempt continues it with `--resume` and a short message instead of resending the whole prompt; above that, it starts a fresh session with the full prompt. `loom usage` shows the peak context and the resumes per task. opencode and codex only measure for now.
+
+## Install
 
 ```sh
 curl -fsSL https://github.com/Pastranauwu/loom/releases/latest/download/install.sh | sh
 ```
 
-Deja el binario en `~/.local/bin`. Alternativa:
+Leaves the binary in `~/.local/bin`. Alternative:
 
 ```sh
 go install github.com/Pastranauwu/loom/cmd/loom@latest
 ```
 
-loom no trae ningún modelo. Dirige un CLI que ya tienes y pagas:
-[Claude Code](https://docs.anthropic.com/claude-code) (`claude`),
-[OpenCode](https://opencode.ai) (`opencode`) o
-[Codex](https://developers.openai.com/codex/cli) (`codex`). Necesitas uno instalado y
-autenticado, además de `git`. Para PRs en GitHub necesitas `gh`; sin remoto
-`origin`, loom crea la rama `loom/_entrega` y una descripción local en
-`.loom/pr/`.
+loom ships no model. It drives a CLI you already have and pay for: [Claude Code](https://docs.anthropic.com/claude-code) (`claude`), [OpenCode](https://opencode.ai) (`opencode`) or [Codex](https://developers.openai.com/codex/cli) (`codex`). You need one installed and authenticated, plus `git`. For GitHub PRs you need `gh`; without an `origin` remote, loom creates the `loom/_entrega` branch and a local description in `.loom/pr/`.
 
-`loom doctor` comprueba las dependencias del entorno.
+`loom doctor` checks the environment's dependencies.
 
-`loom archive` guarda el spec ya probado en `.loom/historial/` con su
-resultado y el `motivo:` que declaraste, y lo vacía para el siguiente feature:
-los commits dicen qué cambió; el historial, por qué se pidió.
+`loom archive` saves the already-tested spec in `.loom/historial/` with its result and the `why:` you declared, and empties it for the next feature: commits say what changed; the history says why it was asked for.
 
-Después de archivar, un ajuste va en un spec **nuevo que solo contenga el
-cambio**, no el spec anterior completo: lo archivado ya está construido, y
-volver a declararlo haría que loom lo planee otra vez como si faltara.
-El spec anterior queda en `.loom/historial/` para consultarlo.
+After archiving, an adjustment goes in a **new spec that contains only the change**, not the whole previous spec: what was archived is already built, and declaring it again would make loom plan it as if it were missing. The previous spec stays in `.loom/historial/` for reference.
 
-## Comandos
+## Commands
 
-Flujo principal:
+Main flow:
 
-| Comando | Qué hace |
+| Command | What it does |
 |---|---|
-| `loom up ["<petición>"]` | Sin petición, encuentra y aplica el spec del repo; con texto, genera un plan desde esa petición. Después ejecuta las tareas. `--ship` entrega. |
-| `loom apply [-f archivo]` | Lee un spec, completa/genera contratos y los guarda. `--dry-run` valida sin gastar tokens ni escribir; `--run` ejecuta después. |
-| `loom board` | Muestra tareas listas, en curso, detenidas y pendientes. |
-| `loom run [--reintentar]` | Ejecuta pendientes; `--reintentar` revive detenidas reusando su trabajo. |
-| `loom stop` | Para la corrida en curso (también en `--fondo`) y sus agentes; lo que iba en curso queda detenido. |
-| `loom ship T-001` | Pasa la esclusa y entrega una tarea. |
-| `loom ship --todas` | Verifica e integra todas las tareas listas, corre las pruebas globales y crea un solo PR. |
-| `loom logs T-001` | Muestra intentos y diagnósticos de una tarea. |
+| `loom up ["<request>"]` | Without a request, finds and applies the repo's spec; with text, generates a plan from that request. Then runs the tasks. `--ship` delivers. |
+| `loom apply [-f file]` | Reads a spec, completes/generates contracts and saves them. `--dry-run` validates and shows the delta without spending tokens or writing; `--run` executes afterwards. |
+| `loom board` | Shows ready, running, stopped and pending tasks. |
+| `loom run [--retry]` | Runs pending tasks; `--retry` revives stopped ones, reusing their work. |
+| `loom stop` | Stops the current run (also with `--background`) and its agents; whatever was running ends up stopped. |
+| `loom ship T-001` | Passes the gate and delivers one task. |
+| `loom ship --all` | Verifies and integrates all ready tasks, runs the global tests and creates a single PR. |
+| `loom logs T-001` | Shows attempts and diagnostics of a task. |
 
-Planificación, diagnóstico y operación:
+Planning, diagnosis and operation:
 
-| Comando | Qué hace |
+| Command | What it does |
 |---|---|
-| `loom plan "<petición>" [--aprobar]` | Genera una propuesta de contratos. `--export-spec archivo.yml` la exporta. |
-| `loom check T-001` | Corre la esclusa de entrada sobre un contrato. |
-| `loom ps` | Muestra tareas y worktrees activos, estilo compose. |
-| `loom standup` | Resume avance, bloqueos y colisiones desde artefactos, sin conversaciones entre agentes. |
-| `loom report` | Muestra las métricas del proyecto y su tendencia. |
-| `loom usage` | Muestra consumo por ventanas y gasto registrado por tarea, incluido el arquitecto cuando hay logs; USD es precio de lista informado por el CLI, no el cargo de una suscripción. |
-| `loom doctor` | Verifica Git, configuración, credenciales y ejecutores. |
-| `loom init` | Crea `.loom/` explícitamente; `up` también prepara lo necesario. |
-| `loom constitution` | Genera `.loom/constitution.md`, que se incorpora a planificación y prompts. |
-| `loom skills sync` | Descarga las skills configuradas para los agentes. |
-| `loom task add\|edit\|rm\|list` | Administra contratos manualmente. |
-| `loom task seal T-001` | Sella una suite oculta escrita a mano. |
+| `loom plan "<request>" [--aprobar]` | Generates a proposal of contracts. `--export-spec file.yml` exports it. |
+| `loom graph` | Updates the incremental repo index in `.loom/repo-graph.json`. |
+| `loom sketch ["idea"]` | Interviews you with four edge-case questions and writes the spec. |
+| `loom heal --from crash.log` | Reads a failure log, adds the missing rule and a reproducing acceptance criterion to the spec, and runs the corrective task. |
+| `loom dna [add\|rm\|list]` | Picks design archetypes (`hexagonal`, `zero-deps`, `crash-early`, `functional-core`) injected into every prompt; `zero-deps` and `hexagonal` are also enforced by the exit gate. |
+| `loom check T-001` | Runs the entry gate on a contract. |
+| `loom ps` | Shows active tasks and worktrees, compose-style. |
+| `loom standup` | Summarizes progress, blockers and collisions from artifacts, with no conversations between agents. |
+| `loom report` | Shows the project's metrics and their trend. |
+| `loom usage` | Shows consumption by windows and recorded spend per task, including peak context and resumes; USD is the list price reported by the CLI, not a subscription charge. |
+| `loom doctor` | Verifies Git, configuration, credentials and executors. |
+| `loom init` | Creates `.loom/` explicitly; `up` also prepares what is needed. |
+| `loom constitution` | Generates `.loom/constitution.md`, which is incorporated into planning and prompts. |
+| `loom skills sync` | Downloads the skills configured for the agents. |
+| `loom task add\|edit\|rm\|list` | Manages contracts manually. |
+| `loom task seal T-001` | Seals a hidden suite written by hand. |
 
-Todos aceptan `--plain` para salida lineal y `--json` para salida estructurada.
-En una terminal, cuando corresponde, usan interfaz interactiva.
+All accept `--plain` for linear output and `--json` for structured output. In a terminal, where it applies, they use an interactive interface. The Spanish flags (`--agentes`, `--revisar`, `--integrar`, `--fondo`, `--reintentar`, `--todas`) remain as silent aliases of `--agents`, `--review`, `--merge`, `--background`, `--retry` and `--all`.
 
-Variantes útiles de `up`:
+Useful `up` variants:
 
 ```bash
-loom up --ship                 # spec → tareas → ejecución → entrega
-loom up --agentes 4            # fuerza el paralelismo de ejecución
-loom up --revisar              # crea PR y publica una revisión del diff
-loom up --integrar             # revisa e integra si no se piden cambios
-loom up --fondo                # deja la corrida en segundo plano
-loom up -f specs/auth.yml      # usa un spec concreto
+loom up --ship                 # spec → tasks → run → delivery
+loom up --agents 4             # force the run's parallelism
+loom up --review               # create the PR and post a review of the diff
+loom up --merge                # review and merge if no changes are requested
+loom up --background           # leave the run in the background
+loom up -f specs/auth.yml      # use a specific spec
 ```
 
-`--revisar` y `--integrar` implican la fase de entrega. Los flags de CLI ganan
-sobre las opciones equivalentes del spec.
+`--review` and `--merge` imply the delivery phase. CLI flags win over the equivalent spec options.
 
-### Trabajar en segundo plano
+### Working in the background
 
 ```text
-$ loom up --ship --fondo
-corriendo en segundo plano · pid 41287
-registro · .loom/corridas/2026-09-10T18-02-29.log
-parar · loom stop · retomar después · loom run --reintentar
+$ loom up --ship --background
+running in the background · pid 41287
+log · .loom/corridas/2026-09-10T18-02-29.log
+stop · loom stop · resume later · loom run --retry
 ```
 
-Las preguntas ocurren antes de desprender el proceso. Si una corrida muere,
-`board` detecta el latido obsoleto y permite retomarla con `run --reintentar`.
+Questions happen before the process is detached. If a run dies, `board` detects the stale heartbeat and lets you resume it with `run --retry`.
 
-## Formato avanzado de contratos
+## Advanced contract format
 
-Cada tarea vive en `.loom/tasks/T-001.md`. `id`, `titulo` y
-`listo_cuando` son obligatorios al validar el contrato:
+Each task lives in `.loom/tasks/T-001.md`. `id`, `title` and `done_when` are mandatory when validating the contract:
 
 ```yaml
 ---
 version: 1
 id: T-001
-titulo: exportar clientes a CSV
-porque: soporte pierde tiempo copiando datos a mano
-listo_cuando: npm test -- export.spec.ts
-tocar_solo: ["src/export/**"]
-no_tocar: ["src/auth/**"]
-depende_de: []
-expone: ["export.ToCSV(rows []Row) []byte"]
-usa: []
-riesgos: conservar escapes y codificación UTF-8
-peso: liviana
-agente: backend
-limite_intentos: 3
-limite_lineas: 200
+title: export customers to CSV
+why: support loses time copying data by hand
+done_when: npm test -- export.spec.ts
+only_touch: ["src/export/**"]
+dont_touch: ["src/auth/**"]
+depends_on: []
+exposes: ["export.ToCSV(rows []Row) []byte"]
+uses: []
+risks: keep escapes and UTF-8 encoding
+weight: light
+agent: backend
+max_retries: 3
+max_lines: 200
 ---
-Enfoque sugerido para la implementación.
+Suggested approach for the implementation.
 ```
 
-`listo_cuando` debe ser ejecutable, fallar antes del cambio y pasar cuando la
-tarea quede completa. El cuerpo después del frontmatter son notas para quien
-implementa; no sustituye al criterio ejecutable.
+`done_when` must be executable, fail before the change and pass when the task is complete. The body after the frontmatter are notes for whoever implements; it does not replace the executable criterion.
 
-Un spec avanzado también puede incluir contratos completos:
+The Spanish keys (`titulo`, `porque`, `listo_cuando`, `tocar_solo`, `no_tocar`, `depende_de`, `expone`, `usa`, `riesgos`, `peso`, `agente`, `limite_intentos`, `limite_lineas`) and weights (`liviana`, `media`, `pesada`) are still read, so existing projects keep working. loom writes the English ones.
+
+An advanced spec can also include full contracts:
 
 ```yaml
 version: 1
-feature: exportación de clientes
-agentes: 2
+feature: customer export
+agents: 2
 ship: true
-agente: backend
-limites:
-  intentos: 3
-  lineas: 300
+agent: backend
+max_retries: 3
+max_lines: 300
 rules:
-  - conservar compatibilidad con la API pública
+  - keep compatibility with the public API
 
 tasks:
-  - titulo: serializador CSV
-    porque: produce el formato descargable
-    listo_cuando: go test ./internal/export/... -run TestCSV
-    tocar_solo: ["internal/export/**"]
-    no_tocar: ["internal/auth/**"]
-    expone: ["export.ToCSV(rows []Row) []byte"]
-    riesgos: escapar comas, comillas y saltos de línea
-    peso: media
+  - title: CSV serializer
+    why: produces the downloadable format
+    done_when: go test ./internal/export/... -run TestCSV
+    only_touch: ["internal/export/**"]
+    dont_touch: ["internal/auth/**"]
+    exposes: ["export.ToCSV(rows []Row) []byte"]
+    risks: escape commas, quotes and line breaks
+    weight: medium
 ```
 
-Si ninguna tarea trae ID, referencias como `T-001` en `depende_de` se resuelven
-por posición dentro de ese spec y luego se traducen a los IDs reales.
+If no task carries an ID, references such as `T-001` in `depends_on` are resolved by position within that spec and then translated to the real IDs.
 
-## Configuración interna
+## Internal configuration
 
-`up` crea `.loom/config.yml` cuando hace falta. Es una interfaz avanzada:
+`up` creates `.loom/config.yml` when needed. It is an advanced interface (its keys are still in Spanish):
 
 ```yaml
 base: main
 pruebas: go test ./...
 cli: claude
+language: en          # "es" writes human-facing prose in Spanish
+resume_below_pct: 70  # claude: resume the session below this % of the context window
 modelos:
   liviana: haiku
   media: sonnet
@@ -545,91 +486,53 @@ reglas_import: ["api → dominio → datos"]
 recursion_max: 0
 ```
 
-Aquí viven selección de modelos, retries, presupuestos, timeouts, reglas de
-imports y arquetipos. El flujo normal no obliga a administrarlos. Los arquetipos
-incorporados son `ejecutor`, `backend`, `frontend`, `architect`, `tester` y
-`refactor`.
+Model selection, retries, budgets, timeouts, import rules and archetypes live here. The normal flow does not require you to manage them. The built-in archetypes are `ejecutor`, `backend`, `frontend`, `architect`, `tester` and `refactor`.
 
-## Cuando algo falla
+## When something fails
 
-- **Plan inválido.** `apply` enumera el ciclo, dependencia, interfaz o alcance
-  conflictivo y no escribe ningún contrato.
-- **Advertencia de cobertura.** El análisis no encontró términos del requirement
-  o acceptance en el IR. No bloquea: revisa el plan antes de ejecutarlo.
-- **Tarea rechazada en entrada.** Normalmente `listo_cuando` ya pasa o el alcance
-  viola una zona protegida. `loom check T-001` muestra la causa.
-- **Tarea detenida.** Agotó intentos. Usa `logs` y después
-  `run --reintentar` para continuar desde su worktree.
-- **Verde sin pruebas.** Un comando puede salir con cero sin ejecutar ninguna
-  prueba. loom detecta varios casos y detiene la tarea en lugar de aceptarla.
-- **Integración roja.** Las tareas pasan aisladas pero el comando `pruebas` falla
-  sobre el conjunto. No se crea el PR.
-- **Feature acceptance roja.** El `acceptance.command` falló sobre la rama
-  integrada. La salida indica el comando y el error.
-- **Esclusa de salida frenada.** El primer gate fallido detiene la publicación y
-  conserva la razón exacta.
-- **Presupuesto excedido.** El mensaje indica líneas y límite. Las pruebas se
-  contabilizan aparte del código de solución.
+- **Invalid plan.** `apply` lists the conflicting cycle, dependency, interface or scope and writes no contract.
+- **Coverage warning.** The analysis found no terms of the requirement or acceptance in the IR. It does not block: review the plan before running it.
+- **Task rejected at entry.** Usually `done_when` already passes or the scope violates a protected zone. `loom check T-001` shows the cause.
+- **Task stopped.** It ran out of attempts. Use `logs` and then `run --retry` to continue from its worktree.
+- **Green without tests.** A command can exit with zero without running any test. loom detects several cases and stops the task instead of accepting it.
+- **Red integration.** The tasks pass in isolation but the `pruebas` command fails on the set. No PR is created.
+- **Red feature acceptance.** The `acceptance.command` failed on the integrated branch. The output shows the command and the error.
+- **Exit gate blocked.** The first failed gate stops publication and keeps the exact reason.
+- **Budget exceeded.** The message shows lines and limit. Tests are counted apart from solution code.
 
-## Seguridad
+## Security
 
-- El agente trabaja en un worktree propio y los cambios fuera de `tocar_solo`
-  se revierten antes de verificar.
-- Las credenciales no se incorporan deliberadamente a prompts o logs.
-- Cada tarea pasa escaneo de secretos y ruido antes de entrar a la entrega.
-- `loom ship --dry-run` recorre las compuertas sin publicar el PR.
-- La única sonda HTTP directa de loom es la opción de
-  `loom usage --sonda`; los CLIs de agentes y `gh` sí usan red por su cuenta.
+- The agent works in its own worktree and changes outside `only_touch` are reverted before verifying.
+- Credentials are not deliberately incorporated into prompts or logs.
+- Each task passes secret and noise scanning before entering delivery.
+- `loom ship --dry-run` goes through the gates without publishing the PR.
+- loom's only direct HTTP probe is the `loom usage --sonda` option; the agent CLIs and `gh` do use the network on their own.
 
-## Coste y modelos
+## Cost and models
 
-El coste depende del plan, el tamaño del contexto, el modelo y los reintentos.
-Una tarea detenida puede escalar de modelo y reutilizar el trabajo anterior.
-`presupuesto_tokens` y los presupuestos por ventana permiten cortar antes de
-agotar cuota; `loom usage` muestra el estado registrado.
+Cost depends on the plan, the context size, the model and the retries. A stopped task can escalate its model and reuse earlier work. `presupuesto_tokens` and the per-window budgets let you cut before running out of quota; `loom usage` shows the recorded state. Continuing a claude session instead of resending the prompt also lowers input cost.
 
-Los detalles de modelo y agente quedan en `.loom/config.yml` o en el IR. No
-son necesarios en el human spec salvo que quieras imponerlos.
+Model and agent details stay in `.loom/config.yml` or in the IR. They are not needed in the human spec unless you want to impose them.
 
-## Límite honesto
+## Honest limits
 
-loom eleva el nivel de evidencia; no demuestra que el software sea correcto.
+loom raises the level of evidence; it does not prove software correct.
 
-- **La calidad de salida depende de los requirements.** Una omisión o ambigüedad
-  puede producir un plan incompleto y código verde que no resuelve la intención.
-- **Acceptance textual no es una compuerta.** Ayuda al planificador y genera
-  advertencias de cobertura, pero solo un `command` ejecutable se corre como
-  aceptación global determinista.
-- **Un comando incorrecto también puede mentir.** Si comprueba poco, pasa sin
-  demostrar el feature; si depende del entorno, puede fallar código correcto.
-- **Los contratos son generados por modelos.** Pueden dividir mal el trabajo,
-  inventar rutas, elegir pruebas débiles o congelar interfaces equivocadas.
-- **El análisis estático es estructural.** Detecta ciclos, referencias rotas,
-  firmas inconsistentes y algunos solapamientos; no demuestra compatibilidad
-  semántica ni cobertura real del comportamiento.
-- **La prueba de costura la escribe un modelo.** Garantiza que exista un examen
-  end-to-end y que corra sobre el conjunto integrado, no que sea exhaustivo. Se
-  deriva solo en Go, Node y Python, y solo cuando el spec no declara ya un
-  `acceptance.command`: si lo declaras, la costura es tuya.
-- **`listo_cuando` debe fallar antes del cambio.** Una suite general que ya está
-  verde no prueba que una tarea nueva exista.
-- **El examen automático no cubre todos los lenguajes ni tareas.** Go y Python
-  requieren una frontera importable; los stubs de esqueleto también pueden
-  examinarse en TypeScript/JavaScript si el proyecto tiene su toolchain.
-  `package main`, Rust y tareas Node antiguas sin contrato de esqueleto quedan
-  fuera del flujo nuevo.
-- **La suite oculta depende de la respuesta del examinador.** Si no produce el
-  bloque oculto, ese gate se omite; la suite visible puede seguir existiendo.
-- **Las pruebas ocultas están separadas, no blindadas.** Viven fuera del worktree
-  y llevan hash contra corrupción accidental, pero no forman un secreto
-  criptográfico frente a un atacante con acceso al repositorio.
-- **Los worktrees no son un sandbox de seguridad.** Aíslan ramas y directorios;
-  no aíslan red, procesos, credenciales del sistema ni permisos del usuario.
-- **Los agentes y cuotas son externos.** Un CLI sin login, sin cuota o caído
-  detiene la corrida; loom diagnostica el problema, no lo elimina.
-- **La interfaz YAML madura aplica al human spec.** Los contratos y otros
-  archivos internos históricos todavía usan el parser reducido de loom.
+- **Output quality depends on the requirements.** An omission or ambiguity can produce an incomplete plan and green code that does not solve the intent.
+- **Textual acceptance is not a gate.** It helps the planner and generates coverage warnings, but only an executable `command` runs as deterministic global acceptance.
+- **A wrong command can also lie.** If it checks too little, it passes without proving the feature; if it depends on the environment, it can fail correct code.
+- **Contracts are generated by models.** They can split work badly, invent paths, choose weak tests or freeze wrong interfaces.
+- **Static analysis is structural.** It detects cycles, broken references, inconsistent signatures and some overlaps; it does not prove semantic compatibility or real behavior coverage.
+- **The seam test is written by a model.** It guarantees that an end-to-end test exists and runs on the integrated set, not that it is exhaustive. It is derived only in Go, Node and Python, and only when the spec does not already declare an `acceptance.command`: if you declare one, the seam is yours.
+- **`done_when` must fail before the change.** A general suite that is already green does not prove that a new task exists.
+- **The automatic exam does not cover every language or task.** Go and Python require an importable boundary; skeleton stubs can also be examined in TypeScript/JavaScript if the project has its toolchain. `package main`, Rust and old Node tasks without a skeleton contract stay outside the new flow.
+- **The hidden suite depends on the examiner's answer.** If it does not produce the hidden block, that gate is skipped; the visible suite may still exist.
+- **Hidden tests are separated, not hardened.** They live outside the worktree and carry a hash against accidental corruption, but they are not a cryptographic secret against an attacker with access to the repository.
+- **Worktrees are not a security sandbox.** They isolate branches and directories; they do not isolate network, processes, system credentials or user permissions.
+- **Agents and quotas are external.** A CLI with no login, no quota or down stops the run; loom diagnoses the problem, it does not remove it.
+- **Context resume is claude-only for now.** opencode and codex do not expose sessions the same way, so they only measure context until their adapters support it.
+- **The mature YAML interface applies to the human spec.** Contracts and other internal files still use loom's reduced parser.
 
-## Licencia
+## License
 
 MIT.
