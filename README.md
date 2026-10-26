@@ -362,6 +362,7 @@ Planning, diagnosis and operation:
 |---|---|
 | `loom plan "<request>" [--aprobar]` | Generates a proposal of contracts. `--export-spec file.yml` exports it. |
 | `loom graph` | Updates the incremental repo index in `.loom/repo-graph.json`. |
+| `loom map` (alias `view`) | Draws the system without opening code: modules, the contracts each exposes and who consumes them, imports, active DNA and gate state. `--mermaid` exports a diagram for Markdown or a PR, `--json` the full structure. |
 | `loom sketch ["idea"]` | Interviews you with four edge-case questions and writes the spec. |
 | `loom heal --from crash.log` | Reads a failure log, adds the missing rule and a reproducing acceptance criterion to the spec, and runs the corrective task. |
 | `loom dna [add\|rm\|list]` | Picks design archetypes (`hexagonal`, `zero-deps`, `crash-early`, `functional-core`) injected into every prompt; `zero-deps` and `hexagonal` are also enforced by the exit gate. |

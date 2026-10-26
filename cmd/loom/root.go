@@ -72,6 +72,7 @@ func newRootCmd() *cobra.Command {
 		newDNACmd(),
 		newSketchCmd(),
 		newHealCmd(),
+		newMapCmd(),
 	)
 
 	return root
