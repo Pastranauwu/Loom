@@ -36,6 +36,7 @@ type Modulo struct {
 	Importa     []string   `json:"importa,omitempty"`
 	UsadoPor    []string   `json:"usado_por,omitempty"`
 	Consume     []string   `json:"consume,omitempty"` // modules whose contracts its tasks use
+	Capa        int        `json:"capa"`              // 0 = entry points: nobody depends on them
 }
 
 type Arista struct {
@@ -62,6 +63,7 @@ type Mapa struct {
 	Aristas    []Arista   `json:"aristas"`
 	DNA        []DNA      `json:"dna"`
 	Compuertas Compuertas `json:"compuertas"`
+	NumCapas   int        `json:"capas"`
 }
 
 // Entrada is everything the map is built from; Grafo may be nil.
@@ -193,6 +195,7 @@ func Construir(e Entrada) Mapa {
 		}
 	}
 
+	n := asignarCapas(out, finales)
 	c := Compuertas{Tareas: map[string]int{}, Aceptacion: e.Aceptacion, Motivo: e.Motivo}
 	if c.Aceptacion == "" {
 		c.Aceptacion = "sin correr"
@@ -205,7 +208,7 @@ func Construir(e Entrada) Mapa {
 		dd = append(dd, DNA{Nombre: a.Nombre, Resumen: a.Resumen()})
 	}
 	c.DNA = len(dd) > 0
-	return Mapa{Modulos: out, Aristas: finales, DNA: dd, Compuertas: c}
+	return Mapa{Modulos: out, Aristas: finales, DNA: dd, Compuertas: c, NumCapas: n}
 }
 
 // truncar keeps the first n segments of a directory.
@@ -256,4 +259,46 @@ func unico(s []string) []string {
 		}
 	}
 	return out
+}
+
+// asignarCapas puts each module one layer below the deepest module that
+// depends on it, so entry points land on layer 0 and shared foundations at
+// the bottom. A cycle is cut where it is found. It returns the layer count.
+func asignarCapas(mods []Modulo, aristas []Arista) int {
+	dependientes := map[string][]string{}
+	for _, a := range aristas {
+		dependientes[a.A] = append(dependientes[a.A], a.De)
+	}
+	capa := map[string]int{}
+	enCurso := map[string]bool{}
+	var prof func(string) int
+	prof = func(r string) int {
+		if c, ok := capa[r]; ok {
+			return c
+		}
+		if enCurso[r] {
+			return 0
+		}
+		enCurso[r] = true
+		c := 0
+		for _, d := range dependientes[r] {
+			if v := prof(d) + 1; v > c {
+				c = v
+			}
+		}
+		enCurso[r] = false
+		capa[r] = c
+		return c
+	}
+	max := 0
+	for i := range mods {
+		mods[i].Capa = prof(mods[i].Ruta)
+		if mods[i].Capa > max {
+			max = mods[i].Capa
+		}
+	}
+	if len(mods) == 0 {
+		return 0
+	}
+	return max + 1
 }

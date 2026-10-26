@@ -98,3 +98,16 @@ func TestListasLargasSeCortan(t *testing.T) {
 		t.Errorf("%s", txt)
 	}
 }
+
+func TestCapasPonenLasEntradasArribaYLosCimientosAbajo(t *testing.T) {
+	e := fixture()
+	e.Tareas = nil
+	m := Construir(e)
+	capa := map[string]int{}
+	for _, mod := range m.Modulos {
+		capa[mod.Ruta] = mod.Capa
+	}
+	if capa["cmd/app"] != 0 || capa["internal/adapters"] != 1 || capa["internal/domain"] != 2 || m.NumCapas != 3 {
+		t.Errorf("capas = %v de %d", capa, m.NumCapas)
+	}
+}

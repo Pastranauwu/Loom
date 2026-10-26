@@ -84,3 +84,6 @@ func NormalizarClaves(data []byte, tabla map[string]string) []byte {
 	}
 	return out
 }
+
+// Es reports whether human-facing text should be Spanish.
+func Es() bool { return lang == "es" }

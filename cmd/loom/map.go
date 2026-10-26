@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -91,10 +92,15 @@ func runMap(root string, mermaid, todos bool, profundidad int) error {
 		out.Line("%s", topo.Mermaid(m))
 		return nil
 	}
-	estilo := topo.Estilo{}
-	if esTUI() {
-		estilo = topo.Estilo{Titulo: tui.Titulo, Apagado: tui.Apagado, Ok: tui.Presion, Mal: tui.Alerta, Espera: tui.Espera}
+	if !esTUI() {
+		out.Line("%s", strings.TrimRight(topo.Texto(m, topo.Estilo{}), "\n"))
+		return nil
 	}
-	out.Line("%s", strings.TrimRight(topo.Texto(m, estilo), "\n"))
+	ancho, alto := tui.Terminal(os.Stdout.Fd())
+	vista := tui.VistaMapa(m, ancho)
+	if strings.Count(vista, "\n") >= alto-1 {
+		return tui.Visor(vista)
+	}
+	out.Line("%s", vista)
 	return nil
 }
