@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // moduloConPuntos es un id de Python como lo recibe unittest o Django:

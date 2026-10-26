@@ -4,15 +4,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/state"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/state"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // detalleTarea arma el panel de detalle de una tarea: su contrato y lo
 // que pasó en cada intento. Antes la tecla d salía del tablero a
-// `devclean logs` y había que volver a abrirlo para mirar la siguiente.
+// `loom logs` y había que volver a abrirlo para mirar la siguiente.
 // Lo que no se puede leer se omite: el panel no falla.
 func detalleTarea(root, id string, ancho int) []lineaSticker {
 	ancho -= 2 * margenTablero

@@ -20,7 +20,7 @@ func TestSaveGetRoundtrip(t *testing.T) {
 		ID:       "T-002",
 		Estado:   EnCurso,
 		Intentos: 2,
-		Rama:     "devclean/T-002",
+		Rama:     "loom/T-002",
 		Puerto:   4321,
 	}
 	if err := Save(root, s); err != nil {

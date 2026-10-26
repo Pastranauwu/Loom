@@ -8,5 +8,5 @@
 - **Sin examen, el implementador recupera la prueba y se le avisa en el primer prompt:** lenguaje sin soporte, `package main`, contrato ilegible, import relativo que no existe o suite que no parsea.
 - **El bool de `Run` es "la prueba visible es del examinador", no "se selló":** la visible se escribe y commitea antes de juzgar la oculta; si ya existe no se vuelve a pagar (es suya si su primer commit es `exam: suite visible`).
 - **Su gasto va a `runs/<id>/examinador-usage.jsonl`** y cuenta en presupuesto y `usage`.
-- **TS se valida con el `typescript` del cuarto y JS con `node --check`:** sin dependencias nuevas en devclean.
+- **TS se valida con el `typescript` del cuarto y JS con `node --check`:** sin dependencias nuevas en loom.
 - Examen de tareas del esqueleto y TypeScript: sin verificar con agentes reales.

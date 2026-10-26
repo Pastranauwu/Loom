@@ -1,4 +1,4 @@
-// Package tui es el modo interactivo de devclean: la compuerta
+// Package tui es el modo interactivo de loom: la compuerta
 // animada de la esclusa de salida, el tablero y la corrida en vivo. Cuando
 // la salida es una terminal y no hay --plain ni --json, los comandos usan
 // esta vista; si no, el texto plano de internal/ui.
@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/Pastranauwu/devclean/internal/ship"
+	"github.com/Pastranauwu/loom/internal/ship"
 )
 
 // NombresPasos es el orden de la compuerta, tal como los emite

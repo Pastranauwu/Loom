@@ -1,3 +1,3 @@
 # internal/ventanas: advertencias
 
-- **El ledger es global del usuario (`~/.devclean/ventanas.jsonl`):** no se resetea borrando `.devclean/` del proyecto.
+- **El ledger es global del usuario (`~/.loom/ventanas.jsonl`):** no se resetea borrando `.loom/` del proyecto.

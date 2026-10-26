@@ -39,7 +39,7 @@ var (
 	rgbApagado = [3]int{107, 111, 114}
 )
 
-// logoFilas es el logotipo de devclean en arte de píxeles (fuente
+// logoFilas es el logotipo de loom en arte de píxeles (fuente
 // unsciithin de bit), sin colores; el degradado se aplica aquí.
 var logoFilas = []string{
 	"    █                   ▀█",

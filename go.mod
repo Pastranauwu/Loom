@@ -1,4 +1,4 @@
-module github.com/Pastranauwu/devclean
+module github.com/Pastranauwu/loom
 
 go 1.22
 

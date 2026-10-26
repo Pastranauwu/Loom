@@ -15,15 +15,15 @@ type OpenCode struct{}
 
 // agenteOpenCode es el --agent de cada rol, definido en entornoOpenCode.
 var agenteOpenCode = map[Rol]string{
-	RolImplementador: "devclean-implementador",
-	RolTexto:         "devclean-texto",
-	RolPlanificador:  "devclean-planificador",
+	RolImplementador: "loom-implementador",
+	RolTexto:         "loom-texto",
+	RolPlanificador:  "loom-planificador",
 	// ponytail: opencode no tiene un agente de solo lectura; el del
 	// planificador lee y corre comandos. Uno propio si hace falta cerrarlo.
-	RolVisual: "devclean-planificador",
+	RolVisual: "loom-planificador",
 }
 
-// entornoOpenCode trae los agentes de devclean sin tocar la config del
+// entornoOpenCode trae los agentes de loom sin tocar la config del
 // usuario (proveedores y credenciales siguen siendo los suyos). Medido
 // con un "responde ok": el agente por defecto arranca con 10,3k tokens,
 // el implementador con 5,8k y el de texto con 2,1k. Las skills del
@@ -37,9 +37,9 @@ var agenteOpenCode = map[Rol]string{
 // JSON. El min con el límite del modelo mantiene válido el tope alto.
 var entornoOpenCode = []string{
 	`OPENCODE_CONFIG_CONTENT={"agent":{` +
-		`"devclean-implementador":{"mode":"primary","tools":{"webfetch":false,"task":false,"todowrite":false,"todoread":false,"skill":false}},` +
-		`"devclean-texto":{"mode":"primary","tools":{"*":false}},` +
-		`"devclean-planificador":{"mode":"primary","tools":{"*":false,"read":true,"bash":true}}}}`,
+		`"loom-implementador":{"mode":"primary","tools":{"webfetch":false,"task":false,"todowrite":false,"todoread":false,"skill":false}},` +
+		`"loom-texto":{"mode":"primary","tools":{"*":false}},` +
+		`"loom-planificador":{"mode":"primary","tools":{"*":false,"read":true,"bash":true}}}}`,
 	"OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1",
 	"OPENCODE_DISABLE_EXTERNAL_SKILLS=1",
 	"OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX=128000",
@@ -59,7 +59,7 @@ func (OpenCode) Available() error {
 }
 
 // Models devuelve el catálogo real de `opencode models`, en el formato
-// provider/model que el CLI exige. Sin esto devclean inventaba ids como
+// provider/model que el CLI exige. Sin esto loom inventaba ids como
 // "glm-5.2" que el servidor rechaza: cada invocación moría en dos
 // segundos sin gastar un token y sin dejar rastro.
 func (OpenCode) Models(ctx context.Context) ([]string, error) {

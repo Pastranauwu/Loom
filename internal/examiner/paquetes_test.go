@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 func cuartoConAst(t *testing.T) string {

@@ -44,7 +44,7 @@ func TestWriteYReadDanLaVuelta(t *testing.T) {
 // cuarto es dominio del implementador y ahí la vería.
 func TestElDirectorioSelladoNoEstaEnElCuarto(t *testing.T) {
 	d := Dir("/repo", "T-001")
-	if d != filepath.Join("/repo", ".devclean", "sealed", "T-001") {
+	if d != filepath.Join("/repo", ".loom", "sealed", "T-001") {
 		t.Errorf("Dir = %q", d)
 	}
 	if strings.Contains(d, "rooms") {

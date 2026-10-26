@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 type generadorFijo struct {

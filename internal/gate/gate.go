@@ -1,5 +1,5 @@
 // Package gate implements the entry gate: the checks a
-// task must pass before devclean spends a single token on it.
+// task must pass before loom spends a single token on it.
 //
 //  0. el contrato es válido (version, id, límites)
 //  1. listo_cuando existe y se ejecuta
@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // DefaultTimeout is the maximum time check 2 gives listo_cuando to run.
@@ -280,7 +280,7 @@ func checkSinCruce(t task.Task, otras []task.Task) Check {
 // devuelve cuál. `plan` la usa para recortar el alcance antes de
 // escribir el contrato: el planificador es un modelo y a veces las
 // incluye, y un rechazo en la esclusa no tiene arreglo salvo editar a
-// mano, que es justo lo que devclean evita.
+// mano, que es justo lo que loom evita.
 func AlcanceProhibido(p string, zonas, patronesPrueba []string) (string, bool) {
 	for _, z := range zonas {
 		if globsOverlap(p, z) {

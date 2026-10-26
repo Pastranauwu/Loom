@@ -1,5 +1,5 @@
-// Package kv implements the small yaml subset devclean uses in both
-// .devclean/config.yml and the task contract frontmatter:
+// Package kv implements the small yaml subset loom uses in both
+// .loom/config.yml and the task contract frontmatter:
 // flat `clave: valor` scalars and inline lists `clave: ["a", "b"]`.
 //
 // It lives apart so config and task share one parser. Two copies that

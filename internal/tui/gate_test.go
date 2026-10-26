@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/Pastranauwu/devclean/internal/ship"
+	"github.com/Pastranauwu/loom/internal/ship"
 )
 
 func TestClasificar(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // stdlibComunes son los paquetes que una suite de pruebas referencia sin
@@ -159,7 +159,7 @@ func paqueteEnModulo(roomPath, mod, nombre string) string {
 			return nil
 		}
 		base := filepath.Base(p)
-		if base == ".git" || base == ".devclean" || base == "vendor" || strings.HasPrefix(base, "testdata") {
+		if base == ".git" || base == ".loom" || base == "vendor" || strings.HasPrefix(base, "testdata") {
 			return filepath.SkipDir
 		}
 		if paqueteReal(p) != nombre {
@@ -204,7 +204,7 @@ func suiteCompleta(lenguaje, roomPath, pkg, importPath string, imports, funcs []
 	return contenido, true
 }
 
-// Examinable reporta si devclean puede escribirle un examen ciego a esa
+// Examinable reporta si loom puede escribirle un examen ciego a esa
 // tarea. Importa fuera de este paquete porque la veda de pruebas —el
 // implementador nunca toca las pruebas— solo tiene sentido donde hay un
 // examen que proteger: en una tarea que no se puede examinar, vedarle

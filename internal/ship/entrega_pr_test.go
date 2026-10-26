@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // cuartoDeTarea crea el cuarto de una tarea con un archivo propio y un
@@ -37,7 +37,7 @@ func tareaEntrega(id, archivo string, deps ...string) task.Task {
 }
 
 // sinIdentidadGit deja el repo como un runner de CI limpio: sin user.name
-// ni user.email. Cualquier commit que devclean cree ahí tiene que traer su
+// ni user.email. Cualquier commit que loom cree ahí tiene que traer su
 // propia identidad, o git responde "empty ident name" y la entrega muere.
 func sinIdentidadGit(t *testing.T, root string) {
 	t.Helper()
@@ -284,7 +284,7 @@ func TestEntregarTodasEsIdempotente(t *testing.T) {
 	// la rama del cuarto vuelve a su punta: lo aplanado vive en la rama
 	// de entrega, y las tareas que dependen de esta siguen encima de sus
 	// commits originales
-	if log := gitCmd(t, root, "log", "--format=%s", "main..devclean/T-001"); !strings.Contains(log, "wip:") {
+	if log := gitCmd(t, root, "log", "--format=%s", "main..loom/T-001"); !strings.Contains(log, "wip:") {
 		t.Fatalf("la entrega no debe dejar reescrita la rama del cuarto · %q", log)
 	}
 
@@ -534,7 +534,7 @@ func TestEntregarTodasNombraLaPruebaDeAceptacionQueNoExiste(t *testing.T) {
 		t.Fatalf("motivo = %q fallo = %+v", e.PrimerMotivo(), e.Fallo)
 	}
 	if a, ok := LeerAceptacion(root); !ok || a.Fallo == nil || a.Fallo.Paso != "aceptación" {
-		t.Errorf("el fallo debe quedar en aceptacion.json para devclean reparar: %+v", a)
+		t.Errorf("el fallo debe quedar en aceptacion.json para loom reparar: %+v", a)
 	}
 }
 

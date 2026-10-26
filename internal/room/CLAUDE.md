@@ -1,7 +1,7 @@
 # internal/room: advertencias
 
-- **Usa siempre `Dir(root)`, nunca la ruta a mano:** los cuartos viven fuera del árbol del proyecto (`~/.devclean/rooms/…`, o `DEVCLEAN_ROOMS`). Adentro, todo runner los toma por código del proyecto y ninguno respeta el `.gitignore` de `.devclean/`. Un repo con cuartos en `.devclean/rooms` los sigue usando hasta que se vacíen.
-- **Las pruebas que crean cuartos fijan `DEVCLEAN_ROOMS` en `TestMain`:** para no escribir en el home de quien las corre.
+- **Usa siempre `Dir(root)`, nunca la ruta a mano:** los cuartos viven fuera del árbol del proyecto (`~/.loom/rooms/…`, o `LOOM_ROOMS`). Adentro, todo runner los toma por código del proyecto y ninguno respeta el `.gitignore` de `.loom/`. Un repo con cuartos en `.loom/rooms` los sigue usando hasta que se vacíen.
+- **Las pruebas que crean cuartos fijan `LOOM_ROOMS` en `TestMain`:** para no escribir en el home de quien las corre.
 - **`Ensure` reusa el cuarto:** un esqueleto cortado se corrige, no se rehace. Si la base cambió desde su punto de partida, reaplica el trabajo propio encima (`rebase --onto`) y mueve `Commit` a la base nueva. Si el rebase choca en commits intermedios, aplana el neto en un commit (`aplanarSobre`); si el neto también choca, lo deja como estaba y avisa.
 - **`ExcluirArtefactos` escribe en `info/exclude` del repo:** el bucle indexa con `git add -A` y un repo nuevo no tiene `.gitignore`; sin esto `node_modules` viaja a cada cuarto, diff y revisor.
 - **`InstalarDependencias` busca manifiestos hasta dos niveles:** `package.json` con el gestor de su lockfile (`gestorNode`), `go.mod`, `Cargo.toml`, `Gemfile`, `composer.json` y `pyproject.toml`/`requirements.txt` (a `.venv` con `--system-site-packages`, solo dependencias). Los extras de `pyproject.toml` se intentan aparte y el que no instala se salta.

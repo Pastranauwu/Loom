@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 const specEjemplo = `version: 1
@@ -180,7 +180,7 @@ func TestAssignCorrelativeIDsDependenciasPorPosicion(t *testing.T) {
 
 func TestApplyYDryRun(t *testing.T) {
 	dir := t.TempDir()
-	tasksDir := filepath.Join(dir, ".devclean", "tasks")
+	tasksDir := filepath.Join(dir, ".loom", "tasks")
 
 	s := Spec{
 		Version: 1,
@@ -240,7 +240,7 @@ func TestFindSpec(t *testing.T) {
 		t.Fatal("Find debió fallar sin archivos")
 	}
 
-	specPath := filepath.Join(root, "devclean.spec.yml")
+	specPath := filepath.Join(root, "loom.spec.yml")
 	if err := os.WriteFile(specPath, []byte("version: 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +573,7 @@ func TestMarshalEscribeConstraints(t *testing.T) {
 }
 
 func TestFindSpecPlural(t *testing.T) {
-	for _, nombre := range []string{"devclean.specs.yml", "devclean.specs.yaml"} {
+	for _, nombre := range []string{"loom.specs.yml", "loom.specs.yaml"} {
 		t.Run(nombre, func(t *testing.T) {
 			root := t.TempDir()
 			p := filepath.Join(root, nombre)

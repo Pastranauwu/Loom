@@ -51,7 +51,7 @@ func TestDetectBaseBranchUnbornHead(t *testing.T) {
 }
 
 // La rama en la que está el humano gana sobre main: ahí espera el
-// resultado. En una rama de devclean o sin rama, cae a main.
+// resultado. En una rama de loom o sin rama, cae a main.
 func TestDetectBaseBranchPrefiereLaRamaActual(t *testing.T) {
 	root := t.TempDir()
 	git(t, root, "init", "-b", "dev")
@@ -61,9 +61,9 @@ func TestDetectBaseBranchPrefiereLaRamaActual(t *testing.T) {
 	if got := DetectBaseBranch(root); got != "dev" {
 		t.Errorf("DetectBaseBranch = %q, quiero %q", got, "dev")
 	}
-	git(t, root, "checkout", "-q", "-b", "devclean/T-001")
+	git(t, root, "checkout", "-q", "-b", "loom/T-001")
 	if got := DetectBaseBranch(root); got != "main" {
-		t.Errorf("en una rama de devclean: DetectBaseBranch = %q, quiero %q", got, "main")
+		t.Errorf("en una rama de loom: DetectBaseBranch = %q, quiero %q", got, "main")
 	}
 	git(t, root, "checkout", "-q", "--detach")
 	if got := DetectBaseBranch(root); got != "main" {
@@ -206,7 +206,7 @@ func TestDetectTestCommand(t *testing.T) {
 }
 
 func TestSpecNoCuentaComoCodigo(t *testing.T) {
-	for _, nombre := range []string{"devclean.spec.yml", "devclean.specs.yml", "devclean.specs.yaml"} {
+	for _, nombre := range []string{"loom.spec.yml", "loom.specs.yml", "loom.specs.yaml"} {
 		root := t.TempDir()
 		if err := os.WriteFile(filepath.Join(root, nombre), []byte("feature: snake\n"), 0644); err != nil {
 			t.Fatal(err)

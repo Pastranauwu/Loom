@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 func TestBuildGoFileImports(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 // AceptacionFile guarda el desenlace de la última entrega conjunta. Antes
 // el resultado de los comandos de aceptación se imprimía y se perdía:
 // nadie podía saber después si el feature quedó probado, que es lo que
-// `devclean archive` exige para archivarlo.
+// `loom archive` exige para archivarlo.
 const AceptacionFile = "aceptacion.json"
 
 // Criterio es un comando de aceptación del spec y cómo le fue. Corrio es
@@ -62,7 +62,7 @@ func aceptacionDe(o OpcionesEntrega, e Entrega) Aceptacion {
 }
 
 func guardarAceptacion(root string, a Aceptacion) error {
-	dir := filepath.Join(root, ".devclean")
+	dir := filepath.Join(root, ".loom")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func guardarAceptacion(root string, a Aceptacion) error {
 // false si nunca hubo una.
 func LeerAceptacion(root string) (Aceptacion, bool) {
 	var a Aceptacion
-	b, err := os.ReadFile(filepath.Join(root, ".devclean", AceptacionFile))
+	b, err := os.ReadFile(filepath.Join(root, ".loom", AceptacionFile))
 	if err != nil || json.Unmarshal(b, &a) != nil {
 		return a, false
 	}

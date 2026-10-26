@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 func TestLenguajeExamen(t *testing.T) {
@@ -29,14 +29,14 @@ func TestRutasSuitePorLenguaje(t *testing.T) {
 	tocarSolo := []string{"src/export/**"}
 
 	visible, oculta := RutasSuite(tocarSolo, "python")
-	if visible != "src/export/test_devclean_visible.py" {
+	if visible != "src/export/test_loom_visible.py" {
 		t.Errorf("visible python = %q", visible)
 	}
-	if oculta != "src/export/test_devclean_hidden.py" {
+	if oculta != "src/export/test_loom_hidden.py" {
 		t.Errorf("oculta python = %q", oculta)
 	}
 	// pytest descubre por el prefijo test_, sin configuración extra
-	if !strings.HasPrefix("test_devclean_visible.py", "test_") {
+	if !strings.HasPrefix("test_loom_visible.py", "test_") {
 		t.Error("el nombre de python debe empezar con test_")
 	}
 

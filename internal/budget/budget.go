@@ -8,7 +8,7 @@
 // tokens que los intentos reportan de verdad). GastoEnDisco reconstruye
 // la misma cifra desde los archivos para board/standup que corren desde
 // otra terminal: como los intentos de las subtareas ya viven en
-// .devclean/runs/<id>/ (no dentro del cuarto que se destruye), barrer
+// .loom/runs/<id>/ (no dentro del cuarto que se destruye), barrer
 // esos attempts.jsonl alcanza — sin latidos, para no contar doble.
 package budget
 
@@ -19,8 +19,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Pastranauwu/devclean/internal/examiner"
-	"github.com/Pastranauwu/devclean/internal/loop"
+	"github.com/Pastranauwu/loom/internal/examiner"
+	"github.com/Pastranauwu/loom/internal/loop"
 )
 
 // Contador es un tope compartido entre todas las tareas de una corrida.

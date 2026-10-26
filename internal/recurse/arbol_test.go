@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/room"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/room"
 )
 
 func TestLeerArbolSinArchivo(t *testing.T) {

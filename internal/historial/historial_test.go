@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/ship"
-	"github.com/Pastranauwu/devclean/internal/spec"
+	"github.com/Pastranauwu/loom/internal/ship"
+	"github.com/Pastranauwu/loom/internal/spec"
 )
 
 const specDePrueba = `feature: Recuperación de contraseña
@@ -52,15 +52,15 @@ func repo(t *testing.T, contenidoSpec string, a *ship.Aceptacion) (root, specPat
 	gitEn(t, root, "init", "-q")
 	gitEn(t, root, "config", "user.email", "t@t")
 	gitEn(t, root, "config", "user.name", "t")
-	specPath = filepath.Join(root, "devclean.spec.yml")
+	specPath = filepath.Join(root, "loom.spec.yml")
 	escribir(t, specPath, contenidoSpec)
-	escribir(t, filepath.Join(root, ".devclean", "tasks", "T-001.md"), "---\nversion: 1\nid: T-001\ntitulo: enviar el correo\nlisto_cuando: go test ./...\ntocar_solo: [\"mail/**\"]\n---\n")
-	escribir(t, filepath.Join(root, ".devclean", spec.IntencionFile), "{}")
+	escribir(t, filepath.Join(root, ".loom", "tasks", "T-001.md"), "---\nversion: 1\nid: T-001\ntitulo: enviar el correo\nlisto_cuando: go test ./...\ntocar_solo: [\"mail/**\"]\n---\n")
+	escribir(t, filepath.Join(root, ".loom", spec.IntencionFile), "{}")
 	gitEn(t, root, "add", "-A")
 	gitEn(t, root, "commit", "-q", "-m", "base")
 	if a != nil {
 		b, _ := json.Marshal(a)
-		escribir(t, filepath.Join(root, ".devclean", ship.AceptacionFile), string(b))
+		escribir(t, filepath.Join(root, ".loom", ship.AceptacionFile), string(b))
 	}
 	return root, specPath
 }
@@ -79,7 +79,7 @@ func verde() *ship.Aceptacion {
 	s, _ := spec.Parse([]byte(specDePrueba))
 	return &ship.Aceptacion{
 		Spec:  spec.IntencionDe(s).Hash(),
-		Fecha: time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC), Rama: "devclean/_entrega", Commit: "abc123", Aprobado: true,
+		Fecha: time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC), Rama: "loom/_entrega", Commit: "abc123", Aprobado: true,
 		Tareas:    []string{"T-001"},
 		Criterios: []ship.Criterio{{Comando: "go test ./...", Corrio: true, Paso: true}},
 	}
@@ -119,11 +119,11 @@ func TestArchivarTodoVerde(t *testing.T) {
 		t.Errorf("el spec debe quedar en 0 bytes, quedó %q", got)
 	}
 	for _, f := range []string{spec.IntencionFile, spec.FeatureStateFile, ship.AceptacionFile} {
-		if _, err := os.Stat(filepath.Join(root, ".devclean", f)); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(root, ".loom", f)); !os.IsNotExist(err) {
 			t.Errorf("%s debía borrarse: es del feature archivado", f)
 		}
 	}
-	if msg := gitEn(t, root, "log", "-1", "--format=%s"); msg != "devclean: archiva 0001-recuperacion-de-contrasena" {
+	if msg := gitEn(t, root, "log", "-1", "--format=%s"); msg != "loom: archiva 0001-recuperacion-de-contrasena" {
 		t.Errorf("commit = %q", msg)
 	}
 	if sucio := gitEn(t, root, "status", "--porcelain"); sucio != "" {
@@ -195,7 +195,7 @@ func TestArchivarNumeraEnOrdenSinReusar(t *testing.T) {
 	otra := verde()
 	otra.Spec = hashDe(t, leer(t, specPath))
 	b, _ := json.Marshal(otra)
-	escribir(t, filepath.Join(root, ".devclean", ship.AceptacionFile), string(b))
+	escribir(t, filepath.Join(root, ".loom", ship.AceptacionFile), string(b))
 	e, err = Archivar(root, specPath)
 	if err != nil || e.Nombre != "0009-otro-feature" {
 		t.Fatalf("entrada = %q err = %v, quiero 0009-otro-feature", e.Nombre, err)
@@ -210,14 +210,14 @@ func TestArchivarNumeraEnOrdenSinReusar(t *testing.T) {
 	}
 }
 
-// El proyecto real ignora `.devclean/` entero: el commit de archive tiene
+// El proyecto real ignora `.loom/` entero: el commit de archive tiene
 // que llevar el historial igual, y nada más de esa carpeta.
-func TestArchivarEnRepoQueIgnoraDevclean(t *testing.T) {
+func TestArchivarEnRepoQueIgnoraLoom(t *testing.T) {
 	root, specPath := repo(t, specDePrueba, verde())
-	escribir(t, filepath.Join(root, ".gitignore"), "node_modules/\n.devclean/\ndist/\n")
-	gitEn(t, root, "rm", "-r", "-q", "--cached", ".devclean")
+	escribir(t, filepath.Join(root, ".gitignore"), "node_modules/\n.loom/\ndist/\n")
+	gitEn(t, root, "rm", "-r", "-q", "--cached", ".loom")
 	gitEn(t, root, "add", ".gitignore")
-	gitEn(t, root, "commit", "-q", "-m", "ignora .devclean")
+	gitEn(t, root, "commit", "-q", "-m", "ignora .loom")
 
 	e, err := Archivar(root, specPath)
 	if err != nil {
@@ -228,12 +228,12 @@ func TestArchivarEnRepoQueIgnoraDevclean(t *testing.T) {
 	}
 	stat := gitEn(t, root, "show", "--stat=200", "--format=%s")
 	for _, quiero := range []string{
-		"devclean: archiva 0001-recuperacion-de-contrasena",
-		".devclean/historial/0001-recuperacion-de-contrasena/spec.yml",
-		".devclean/historial/0001-recuperacion-de-contrasena/resultado.yml",
-		".devclean/index.md",
+		"loom: archiva 0001-recuperacion-de-contrasena",
+		".loom/historial/0001-recuperacion-de-contrasena/spec.yml",
+		".loom/historial/0001-recuperacion-de-contrasena/resultado.yml",
+		".loom/index.md",
 		".gitignore",
-		"devclean.spec.yml",
+		"loom.spec.yml",
 	} {
 		if !strings.Contains(stat, quiero) {
 			t.Errorf("el commit no incluye %q:\n%s", quiero, stat)
@@ -244,11 +244,11 @@ func TestArchivarEnRepoQueIgnoraDevclean(t *testing.T) {
 			t.Errorf("%q no debe entrar al commit:\n%s", no, stat)
 		}
 	}
-	if got := leer(t, filepath.Join(root, ".gitignore")); got != "node_modules/\n.devclean/*\n!.devclean/historial/\n!.devclean/index.md\ndist/\n" {
+	if got := leer(t, filepath.Join(root, ".gitignore")); got != "node_modules/\n.loom/*\n!.loom/historial/\n!.loom/index.md\ndist/\n" {
 		t.Errorf(".gitignore = %q", got)
 	}
-	// lo demás de .devclean sigue ignorado: una aceptación nueva no ensucia
-	escribir(t, filepath.Join(root, ".devclean", ship.AceptacionFile), "{}")
+	// lo demás de .loom sigue ignorado: una aceptación nueva no ensucia
+	escribir(t, filepath.Join(root, ".loom", ship.AceptacionFile), "{}")
 	if sucio := gitEn(t, root, "status", "--porcelain"); sucio != "" {
 		t.Errorf("el árbol quedó sucio:\n%s", sucio)
 	}
@@ -281,17 +281,17 @@ func TestArchivarRechazaUnSpecQueCambioDesdeLaEntrega(t *testing.T) {
 // proyecto: ahí archive no puede arreglarla y tiene que decir dónde está.
 func TestArchivarAvisaSiElHistorialQuedaIgnoradoFueraDelProyecto(t *testing.T) {
 	root, specPath := repo(t, specDePrueba, verde())
-	escribir(t, filepath.Join(root, ".gitignore"), ".devclean/\n")
-	escribir(t, filepath.Join(root, ".git", "info", "exclude"), ".devclean/\n")
+	escribir(t, filepath.Join(root, ".gitignore"), ".loom/\n")
+	escribir(t, filepath.Join(root, ".git", "info", "exclude"), ".loom/\n")
 
 	_, err := Archivar(root, specPath)
-	if err == nil || !strings.Contains(err.Error(), "git ignora el historial") || !strings.Contains(err.Error(), "info/exclude") || !strings.Contains(err.Error(), "!.devclean/historial/") {
+	if err == nil || !strings.Contains(err.Error(), "git ignora el historial") || !strings.Contains(err.Error(), "info/exclude") || !strings.Contains(err.Error(), "!.loom/historial/") {
 		t.Fatalf("err = %v", err)
 	}
 	if leer(t, specPath) != specDePrueba {
 		t.Error("el spec no se toca si no se puede archivar")
 	}
-	if got := leer(t, filepath.Join(root, ".gitignore")); got != ".devclean/\n" {
+	if got := leer(t, filepath.Join(root, ".gitignore")); got != ".loom/\n" {
 		t.Errorf("el .gitignore debía quedar como estaba, quedó %q", got)
 	}
 	if _, err := os.Stat(Dir(root)); !os.IsNotExist(err) {

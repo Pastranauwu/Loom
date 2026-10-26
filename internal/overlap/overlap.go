@@ -11,8 +11,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/room"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/room"
 )
 
 // Resultado is the overlap check result between two tasks.
@@ -102,7 +102,7 @@ func CheckPar(root, idA, idB string, attemptsA, attemptsB []loop.Attempt) Result
 //
 //   - arbol, nil, nil     fusion limpia (arbol vacio si no habia nada que
 //     comparar: una rama que aun no existe no es un conflicto, era el
-//     falso positivo "devclean/T-001 ↔ devclean/T-002" de antes del
+//     falso positivo "loom/T-001 ↔ loom/T-002" de antes del
 //     primer wip:)
 //   - "", conflictos, nil conflicto real, con las rutas
 //   - "", nil, err        NO se pudo comparar, y hay que decirlo

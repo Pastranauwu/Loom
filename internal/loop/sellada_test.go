@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/sealed"
 )
 
 // examinadorFalso cuenta invocaciones: lo que se verifica es si el bucle
@@ -68,9 +68,9 @@ func TestRunNoExaminaConSuiteSelladaAMano(t *testing.T) {
 	tk := tareaDePrueba()
 	if err := sealed.Write(root, tk.ID, sealed.SuiteOculta{
 		Content:        "def test_oculta():\n    assert True\n",
-		Archivo:        "src/test_devclean_hidden.py",
+		Archivo:        "src/test_loom_hidden.py",
 		Visible:        "def test_visible():\n    assert True\n",
-		ArchivoVisible: "src/test_devclean_visible.py",
+		ArchivoVisible: "src/test_loom_visible.py",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestRunNoExaminaConSuiteSelladaAMano(t *testing.T) {
 	}
 
 	// la suite visible manual aterriza en el cuarto, en la ruta sellada
-	visible := filepath.Join(o.Room.Path, "src", "test_devclean_visible.py")
+	visible := filepath.Join(o.Room.Path, "src", "test_loom_visible.py")
 	data, err := os.ReadFile(visible)
 	if err != nil {
 		t.Fatalf("la suite visible manual no llegó al cuarto: %v", err)
@@ -102,7 +102,7 @@ func TestRunNoExaminaConSuiteSelladaAMano(t *testing.T) {
 
 	// y queda commiteada, o revertFueraDeAlcance la borraría en el
 	// primer intento
-	if salida, err := gitRun(o.Room.Path, "log", "--oneline", "--", "src/test_devclean_visible.py"); err != nil || salida == "" {
+	if salida, err := gitRun(o.Room.Path, "log", "--oneline", "--", "src/test_loom_visible.py"); err != nil || salida == "" {
 		t.Errorf("la suite visible manual no quedó commiteada: %q %v", salida, err)
 	}
 
@@ -111,7 +111,7 @@ func TestRunNoExaminaConSuiteSelladaAMano(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sealed.Read: %v", err)
 	}
-	if s.Archivo != "src/test_devclean_hidden.py" {
+	if s.Archivo != "src/test_loom_hidden.py" {
 		t.Errorf("la oculta cambió de ruta: %q", s.Archivo)
 	}
 }

@@ -1,5 +1,5 @@
 // Package executor wraps agent CLIs as subprocesses behind the
-// Executor interface. devclean does not implement its
+// Executor interface. loom does not implement its
 // own tool loop: it inherits editing, context and tools from the CLI.
 package executor
 
@@ -22,12 +22,12 @@ type Executor interface {
 	Available() error // verifica binario y versión
 	Run(ctx context.Context, req Request) (Result, error)
 	// Models lista los ids de modelo que este CLI acepta de verdad.
-	// devclean nunca inventa ids: los pide al CLI y valida contra esta
+	// loom nunca inventa ids: los pide al CLI y valida contra esta
 	// lista antes de gastar un token.
 	Models(ctx context.Context) ([]string, error)
 }
 
-// Todos son los CLIs que devclean sabe manejar, en orden de preferencia
+// Todos son los CLIs que loom sabe manejar, en orden de preferencia
 // cuando nadie eligió uno.
 var Todos = []Executor{OpenCode{}, Claude{}, Codex{}}
 
@@ -106,7 +106,7 @@ var ErrTope = errors.New("tope de gasto alcanzado")
 // Turns son las llamadas al modelo de la invocación. FirstTurn es el
 // contexto con que arrancó el primer turno (entrada + caché leída + caché
 // escrita): prompt de sistema, herramientas, skills y el prompt de
-// devclean, antes de que el agente trabaje. FirstTurnWrite es la parte
+// loom, antes de que el agente trabaje. FirstTurnWrite es la parte
 // de ese contexto que no estaba en caché.
 type Usage struct {
 	Input          int `json:"input"`

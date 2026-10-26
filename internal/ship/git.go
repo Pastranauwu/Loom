@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // sinPreguntas es el entorno con que corre todo git de la entrega: una
@@ -123,7 +123,7 @@ func identity(roomPath string) []string {
 	nombre, _ := gitRun(roomPath, "config", "user.name")
 	email, _ := gitRun(roomPath, "config", "user.email")
 	if strings.TrimSpace(nombre) == "" || strings.TrimSpace(email) == "" {
-		return []string{"-c", "user.name=devclean", "-c", "user.email=devclean@local"}
+		return []string{"-c", "user.name=loom", "-c", "user.email=loom@local"}
 	}
 	return nil
 }

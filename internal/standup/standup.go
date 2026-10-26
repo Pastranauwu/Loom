@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/state"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/state"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // TipoEvento classifies each standup alert.
@@ -45,7 +45,7 @@ func detectarFaseLenta(l loop.Latido) (Evento, bool) {
 	return Evento{
 		Tipo:    EventoAtasco,
 		TareaID: l.ID,
-		Detalle: fmt.Sprintf("%s lleva %s en %s (intento %d) sin dar señal · mira devclean logs %s",
+		Detalle: fmt.Sprintf("%s lleva %s en %s (intento %d) sin dar señal · mira loom logs %s",
 			l.ID, redondear(transcurrido), l.Fase, l.Intento, l.ID),
 	}, true
 }
@@ -99,7 +99,7 @@ func Analizar(
 			eventos = append(eventos, Evento{
 				Tipo:    EventoInterrumpida,
 				TareaID: t.ID,
-				Detalle: fmt.Sprintf("%s quedó en curso pero su corrida murió hace %s (intento %d, fase %s) · retómala con devclean run --reintentar",
+				Detalle: fmt.Sprintf("%s quedó en curso pero su corrida murió hace %s (intento %d, fase %s) · retómala con loom run --reintentar",
 					t.ID, redondear(l.Silencio()), l.Intento, l.Fase),
 			})
 		}

@@ -10,11 +10,11 @@ import (
 )
 
 // TrailerTarea marca cada commit entregado con su tarea. Sobrevive al
-// rebase y al squash de GitHub (que junta los mensajes), así devclean
+// rebase y al squash de GitHub (que junta los mensajes), así loom
 // reconoce en la rama base lo que ya entregó aunque el hash cambie.
 const TrailerTarea = "Tarea"
 
-// entrega es una línea de .devclean/entregas.jsonl: la punta de una rama
+// entrega es una línea de .loom/entregas.jsonl: la punta de una rama
 // de entrega y las tareas que llevaba. Cubre los commits sin trailer
 // (entregas anteriores a él) cuando la rama se integró con merge.
 type entrega struct {
@@ -23,7 +23,7 @@ type entrega struct {
 }
 
 func rutaEntregas(root string) string {
-	return filepath.Join(root, ".devclean", "entregas.jsonl")
+	return filepath.Join(root, ".loom", "entregas.jsonl")
 }
 
 // RegistrarEntrega anota la punta de la rama de entrega y sus tareas.

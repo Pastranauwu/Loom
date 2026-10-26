@@ -26,9 +26,9 @@ type Uso struct {
 
 // sondaModelo es el modelo con el que se hace la llamada mínima. El
 // costo real es ~1 token de entrada; se puede forzar otro con
-// DEVCLEAN_SONDA_MODELO si el default deja de existir.
+// LOOM_SONDA_MODELO si el default deja de existir.
 func sondaModelo() string {
-	if m := strings.TrimSpace(os.Getenv("DEVCLEAN_SONDA_MODELO")); m != "" {
+	if m := strings.TrimSpace(os.Getenv("LOOM_SONDA_MODELO")); m != "" {
 		return m
 	}
 	return "claude-3-5-haiku-latest"
@@ -105,7 +105,7 @@ func cachePathReal() string {
 	if err != nil || home == "" {
 		home = "."
 	}
-	return filepath.Join(home, ".devclean", "uso-claude.json")
+	return filepath.Join(home, ".loom", "uso-claude.json")
 }
 
 // TTL de la caché: la sonda cuesta una llamada, board/standup no la

@@ -14,16 +14,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/capturas"
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/spec"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/capturas"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/spec"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // RamaEntrega es la rama donde se juntan los commits de todas las tareas
 // verdes antes de abrir un solo PR.
-const RamaEntrega = "devclean/_entrega"
+const RamaEntrega = "loom/_entrega"
 
 // OpcionesEntrega lleva las dependencias de la entrega conjunta.
 type OpcionesEntrega struct {
@@ -81,7 +81,7 @@ type Entrega struct {
 }
 
 // Fallo es un comando que falló sobre el conjunto integrado. Es lo que
-// `devclean reparar` necesita para reabrir la tarea responsable.
+// `loom reparar` necesita para reabrir la tarea responsable.
 type Fallo struct {
 	Paso    string `json:"paso"`
 	Comando string `json:"comando"`
@@ -186,7 +186,7 @@ func (e Entrega) PrimerMotivo() string {
 // rompen juntas.
 func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 	var e Entrega
-	// lo que quedó probado se guarda, pase o no: `devclean archive` solo
+	// lo que quedó probado se guarda, pase o no: `loom archive` solo
 	// archiva un feature cuya última entrega salió en verde
 	defer func() { _ = guardarAceptacion(o.Root, aceptacionDe(o, e)) }()
 	if o.Base == "" {
@@ -399,7 +399,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 	// final es suyo, y las pruebas no lo ven. Nunca frena la entrega
 	var fotos []string
 	if !o.Config.Pantallas.Vacia() && !o.DryRun {
-		dir := filepath.Join(o.Root, ".devclean", "pr", "capturas")
+		dir := filepath.Join(o.Root, ".loom", "pr", "capturas")
 		_ = os.RemoveAll(dir)
 		var err error
 		if fotos, err = capturas.Tomar(ctx, path, o.Config.Pantallas, puertoLibre(), room.Entorno(path), dir); err != nil {
@@ -507,7 +507,7 @@ func revisarEntrega(ctx context.Context, o OpcionesEntrega, path, target, url st
 }
 
 // baseDelta devuelve el commit desde el que empieza el trabajo propio de
-// una tarea: el padre del primer commit que escribió devclean en ese
+// una tarea: el padre del primer commit que escribió loom en ese
 // cuarto (la suite del examinador, o el primer `wip:`).
 //
 // Hace falta porque un cuarto de la segunda oleada nace desde la rama de
@@ -746,7 +746,7 @@ func abrirPREntrega(ctx context.Context, root, path, base, titulo, cuerpo string
 		return url, nil
 	}
 
-	f, err := os.CreateTemp("", "devclean-entrega-*.md")
+	f, err := os.CreateTemp("", "loom-entrega-*.md")
 	if err != nil {
 		return "", err
 	}
@@ -846,7 +846,7 @@ func comentarPR(ctx context.Context, root, url, cuerpo string) error {
 }
 
 // seccionCapturas agrega las fotos al PR. Las rutas son relativas al
-// markdown de .devclean/pr: se ven en el PR local; en GitHub quedan como
+// markdown de .loom/pr: se ven en el PR local; en GitHub quedan como
 // referencia a los archivos de la máquina.
 func seccionCapturas(fotos []string) string {
 	if len(fotos) == 0 {

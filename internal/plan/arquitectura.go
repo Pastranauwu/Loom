@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Marcas con que Parse y spec.Apply componen las notas de un contrato:

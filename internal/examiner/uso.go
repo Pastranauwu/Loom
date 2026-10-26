@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
+	"github.com/Pastranauwu/loom/internal/loop"
 )
 
 const usoArchivo = "examinador-usage.jsonl"

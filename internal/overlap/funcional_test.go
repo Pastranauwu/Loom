@@ -42,13 +42,13 @@ func repoDosTareasVerdes(t *testing.T, cambioA, cambioB string) string {
 	git("add", "-A")
 	git("commit", "-qm", "init")
 
-	git("checkout", "-qb", "devclean/T-001")
+	git("checkout", "-qb", "loom/T-001")
 	escribir(cambioA)
 	git("add", "-A")
 	git("commit", "-qm", "a")
 
 	git("checkout", "-q", "main")
-	git("checkout", "-qb", "devclean/T-002")
+	git("checkout", "-qb", "loom/T-002")
 	escribir(cambioB)
 	git("add", "-A")
 	git("commit", "-qm", "b")

@@ -43,18 +43,18 @@ func repoConRamas(t *testing.T, cambioA, cambioB string) (root, ramaA, ramaB str
 		}
 	}
 
-	git("checkout", "-qb", "devclean/T-001")
+	git("checkout", "-qb", "loom/T-001")
 	escribir(cambioA)
 	git("add", "-A")
 	git("commit", "-qm", "a")
 
 	git("checkout", "-q", "main")
-	git("checkout", "-qb", "devclean/T-002")
+	git("checkout", "-qb", "loom/T-002")
 	escribir(cambioB)
 	git("add", "-A")
 	git("commit", "-qm", "b")
 
-	return root, "devclean/T-001", "devclean/T-002"
+	return root, "loom/T-001", "loom/T-002"
 }
 
 // Cada tarea toca su propio archivo: fusión limpia, sin alerta.
@@ -93,7 +93,7 @@ func TestMergeTreeConflictoRealConRuta(t *testing.T) {
 // positivo que se veía al arrancar la oleada, antes del primer wip:.
 func TestMergeTreeRamaInexistenteNoEsConflicto(t *testing.T) {
 	root, a, _ := repoConRamas(t, "src/a.txt=aaa", "docs/b.txt=bbb")
-	_, conflictos, err := mergeTree(root, a, "devclean/T-999")
+	_, conflictos, err := mergeTree(root, a, "loom/T-999")
 	if err != nil {
 		t.Fatalf("mergeTree: %v", err)
 	}

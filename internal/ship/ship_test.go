@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 func gitCmd(t *testing.T, dir string, args ...string) string {

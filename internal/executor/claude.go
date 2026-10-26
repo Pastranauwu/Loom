@@ -51,7 +51,7 @@ func (Claude) Models(context.Context) ([]string, error) {
 //     las 4 herramientas, "responde ok" baja de 11,9k a 5,8k tokens, y
 //     eso se reenvía en cada turno de cada intento. Es fijo, igual para
 //     todos los roles y cuartos: el caché se comparte. Cómo trabajar lo
-//     dice el prompt de devclean (skills.Base).
+//     dice el prompt de loom (skills.Base).
 //
 // --disable-slash-commands no va: también apaga las skills del proyecto
 // (y medido no ahorra nada).
@@ -71,7 +71,7 @@ var herramientasClaude = map[Rol]string{
 
 func (e Claude) Run(ctx context.Context, req Request) (Result, error) {
 	// bypassPermissions: el agente no puede preguntar nada (modo -p) y
-	// el contenedor real es el cuarto + la reversión de devclean
+	// el contenedor real es el cuarto + la reversión de loom
 	// stream-json y no json: el resultado final trae lo mismo, y los
 	// eventos de cada turno son la única forma de saber cuántos turnos
 	// hubo y con cuánto contexto arrancó el primero

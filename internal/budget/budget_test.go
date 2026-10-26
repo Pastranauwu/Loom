@@ -62,7 +62,7 @@ func TestAgotadoConTope(t *testing.T) {
 
 func TestGastoEnDiscoSumaIntentos(t *testing.T) {
 	root := t.TempDir()
-	runs := filepath.Join(root, ".devclean", "runs")
+	runs := filepath.Join(root, ".loom", "runs")
 	if err := os.MkdirAll(filepath.Join(runs, "T-001"), 0o755); err != nil {
 		t.Fatal(err)
 	}

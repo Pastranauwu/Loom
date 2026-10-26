@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/plan"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/sealed"
-	"github.com/Pastranauwu/devclean/internal/skills"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/skills"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // DefaultTimeout is the fallback for PruebaTimeout when Options no lo fija.
@@ -62,7 +62,7 @@ const MotivoPresupuesto = "presupuesto de tokens agotado · sube presupuesto_tok
 // gasto pasaría un tope de una ventana rodante (5h/semanal/mensual) del
 // proveedor (`presupuesto:` en config.yml). El ledger es global de la
 // cuenta, así que vale entre proyectos.
-const MotivoVentanas = "ventana de presupuesto agotada · revisa devclean usage · sube el tope en el bloque presupuesto: de config.yml"
+const MotivoVentanas = "ventana de presupuesto agotada · revisa loom usage · sube el tope en el bloque presupuesto: de config.yml"
 
 // Examinador genera la suite de pruebas ciega antes de que el
 // implementador empiece. La interfaz vive en loop para evitar
@@ -135,7 +135,7 @@ type Options struct {
 	// cuartos separados y no pueden leerse entre sí.
 	Interfaces []string
 
-	// Constitucion es el contenido de .devclean/constitution.md,
+	// Constitucion es el contenido de .loom/constitution.md,
 	// ya cargado por quien llama. Si está vacío, no se inyecta nada.
 	Constitucion string
 
@@ -206,7 +206,7 @@ type Outcome struct {
 // se agotó: detenerse es un resultado válido, no un fallo).
 func Run(ctx context.Context, o Options) (Outcome, error) {
 	if o.Agent == nil {
-		return Outcome{}, errors.New("bucle sin ejecutor · elige uno con devclean doctor")
+		return Outcome{}, errors.New("bucle sin ejecutor · elige uno con loom doctor")
 	}
 	if o.Room.Path == "" {
 		return Outcome{}, errors.New("bucle sin cuarto · crea el worktree antes de correr")
@@ -334,7 +334,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		latiendo.Wait() // que no quede una escritura en vuelo tras el borrado
 	}()
 
-	// una suite sellada a mano (devclean task seal) manda sobre el
+	// una suite sellada a mano (loom task seal) manda sobre el
 	// examinador automático: el usuario ya pagó esas pruebas y volver a
 	// generarlas las pisaría.
 	var fallaExamen string
@@ -405,7 +405,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		}
 		parcheRel := ""
 		if parche != "" {
-			parcheRel = filepath.Join(".devclean", "runs", o.Task.ID, "fuera-de-alcance.patch")
+			parcheRel = filepath.Join(".loom", "runs", o.Task.ID, "fuera-de-alcance.patch")
 			if os.WriteFile(filepath.Join(o.Root, parcheRel), []byte(parche), 0o644) != nil {
 				parcheRel = ""
 			}
@@ -536,7 +536,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		// y nunca hubo suite. Reintentar no lo arregla —el agente no
 		// puede tocar las pruebas—, así que se detiene con el motivo.
 		if code != nil && *code == 0 && SinPruebas(salida) {
-			motivo := fmt.Sprintf("listo_cuando pasó sin ejecutar ninguna prueba · %s no tiene suite que lo juzgue · sella una con devclean task seal %s o apunta listo_cuando a pruebas que existan", o.Task.ID, o.Task.ID)
+			motivo := fmt.Sprintf("listo_cuando pasó sin ejecutar ninguna prueba · %s no tiene suite que lo juzgue · sella una con loom task seal %s o apunta listo_cuando a pruebas que existan", o.Task.ID, o.Task.ID)
 			if fallaExamen != "" {
 				motivo += " · " + fallaExamen
 			}
@@ -614,7 +614,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		// el agente no llegó al modelo: reintentar no cambia nada, y
 		// gastar los intentos restantes solo retrasa el diagnóstico
 		if falloDeInfra(res, agentErr, archivos) {
-			motivo := fmt.Sprintf("el agente no pudo ejecutarse (%s) · revisa el modelo y la key con devclean doctor", a.ErrorAgente)
+			motivo := fmt.Sprintf("el agente no pudo ejecutarse (%s) · revisa el modelo y la key con loom doctor", a.ErrorAgente)
 			if logRel != "" {
 				motivo += " · detalle en " + logRel
 			}
@@ -684,7 +684,7 @@ func contratoEditado(root, id string) time.Time {
 }
 
 // suiteManualEnCuarto copia al cuarto la suite visible que el usuario
-// selló con `devclean task seal`. Aterriza en la misma ruta que usaría el
+// selló con `loom task seal`. Aterriza en la misma ruta que usaría el
 // examinador automático, así que de acá para abajo nadie distingue el
 // origen. Degrada igual que el examinador: si algo falla, el implementador
 // corre sin suite visible, pero nunca se lo frena.
@@ -703,7 +703,7 @@ func suiteManualEnCuarto(root, id, roomPath string) {
 	// commitear o revertFueraDeAlcance la borra en el primer
 	// intento: git status lista lo que cambió, no lo ya commiteado.
 	_, _ = gitRun(roomPath, "add", s.ArchivoVisible)
-	_, _ = gitRun(roomPath, "-c", "user.name=devclean", "-c", "user.email=devclean@local",
+	_, _ = gitRun(roomPath, "-c", "user.name=loom", "-c", "user.email=loom@local",
 		"commit", "-m", "exam: suite visible sellada a mano")
 }
 
@@ -715,7 +715,7 @@ func commitWip(roomPath, id string, intento int) error {
 		return nil // nada que guardar
 	}
 	msg := fmt.Sprintf("wip: %s intento %d", id, intento)
-	if _, err := gitRun(roomPath, "-c", "user.name=devclean", "-c", "user.email=devclean@local", "commit", "-m", msg); err != nil {
+	if _, err := gitRun(roomPath, "-c", "user.name=loom", "-c", "user.email=loom@local", "commit", "-m", msg); err != nil {
 		return fmt.Errorf("no se pudo guardar el punto de restauración · %s", err)
 	}
 	return nil
@@ -871,7 +871,7 @@ func conPruebasPropias(t task.Task) []string {
 // que listo_cuando ejecuta la escribe el propio agente, y decírselo
 // evita que la deje sin crear esperando a un examinador que no existe.
 //
-// Primero va lo común a todas las tareas del plan —la base de devclean,
+// Primero va lo común a todas las tareas del plan —la base de loom,
 // constitución, reglas y arquitectura—, idéntico byte a byte, y al final
 // lo de la tarea (incluidas las skills que declara). Así el
 // inicio del prompt se repite entre agentes e intentos y el caché de

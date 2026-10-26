@@ -12,7 +12,7 @@ const FeatureStateFile = "feature.json"
 
 // SaveFeatureState conserva la intención humana separada del IR de tareas.
 func SaveFeatureState(root string, s Spec) error {
-	dir := filepath.Join(root, ".devclean")
+	dir := filepath.Join(root, ".loom")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func SaveFeatureState(root string, s Spec) error {
 	return os.WriteFile(filepath.Join(dir, FeatureStateFile), append(b, '\n'), 0o644)
 }
 func LoadFeatureState(root string) (Spec, error) {
-	b, err := os.ReadFile(filepath.Join(root, ".devclean", FeatureStateFile))
+	b, err := os.ReadFile(filepath.Join(root, ".loom", FeatureStateFile))
 	if err != nil {
 		return Spec{}, err
 	}
@@ -64,14 +64,14 @@ func IntencionDe(s Spec) Intencion {
 
 // Igual compara dos intenciones por contenido. Los ids se completan
 // antes: una intención guardada antes de que existieran no cuenta como
-// cambio (replanearía todo el spec al actualizar devclean).
+// cambio (replanearía todo el spec al actualizar loom).
 func (i Intencion) Igual(o Intencion) bool {
 	return i.Hash() == o.Hash()
 }
 
 // Hash identifica lo que el spec pide construir. Dos specs con la misma
 // intención dan el mismo hash aunque cambien comentarios, el motivo o el
-// orden de las claves: es lo que la entrega anota para que `devclean
+// orden de las claves: es lo que la entrega anota para que `loom
 // archive` no archive un spec distinto del que se probó.
 func (i Intencion) Hash() string {
 	i.IDs = i.TodosLosIDs()
@@ -89,13 +89,13 @@ func SaveIntencion(root string, i Intencion) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(root, ".devclean", IntencionFile), append(b, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(root, ".loom", IntencionFile), append(b, '\n'), 0o644)
 }
 
 // LoadIntencion devuelve la última intención planeada; false si nunca se
 // planeó un spec en este repo.
 func LoadIntencion(root string) (Intencion, bool) {
-	b, err := os.ReadFile(filepath.Join(root, ".devclean", IntencionFile))
+	b, err := os.ReadFile(filepath.Join(root, ".loom", IntencionFile))
 	if err != nil {
 		return Intencion{}, false
 	}

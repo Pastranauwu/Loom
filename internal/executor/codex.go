@@ -77,7 +77,7 @@ func (Codex) Models(context.Context) ([]string, error) {
 // bypassPermissions: el sandbox de codex solo deja escribir en el cuarto
 // y /tmp, y `go test`, npm o cargo escriben su caché en el home, así que
 // el agente no podía correr sus propias pruebas. El contenedor real es el
-// cuarto más la reversión de devclean. Los roles que no escriben van en
+// cuarto más la reversión de loom. Los roles que no escriben van en
 // read-only: codex no deja quitar herramientas por rol, así que el
 // sandbox es lo que impide que un revisor toque el repo.
 func argsCodex(req Request) []string {

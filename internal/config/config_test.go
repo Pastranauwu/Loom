@@ -197,22 +197,22 @@ func TestLoadMissing(t *testing.T) {
 func TestExists(t *testing.T) {
 	root := t.TempDir()
 	if Exists(root) {
-		t.Fatal("Exists = true sin .devclean")
+		t.Fatal("Exists = true sin .loom")
 	}
 	if err := os.MkdirAll(Dir(root), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if !Exists(root) {
-		t.Fatal("Exists = false con .devclean creado")
+		t.Fatal("Exists = false con .loom creado")
 	}
 }
 
 func TestPathsStayUnderRoot(t *testing.T) {
 	root := "/proyecto"
-	if Path(root) != filepath.Join(root, ".devclean", "config.yml") {
+	if Path(root) != filepath.Join(root, ".loom", "config.yml") {
 		t.Errorf("Path inesperado: %s", Path(root))
 	}
-	if TasksDir(root) != filepath.Join(root, ".devclean", "tasks") {
+	if TasksDir(root) != filepath.Join(root, ".loom", "tasks") {
 		t.Errorf("TasksDir inesperado: %s", TasksDir(root))
 	}
 }
@@ -571,7 +571,7 @@ func TestAgentesPagados(t *testing.T) {
 		t.Error("0 debió rechazarse")
 	}
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, ".devclean"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".loom"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := cfg.Save(root); err != nil {
@@ -584,7 +584,7 @@ func TestAgentesPagados(t *testing.T) {
 
 func TestPantallasSobrevivenAlGuardar(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, ".devclean"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".loom"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cfg := Config{Base: "main"}

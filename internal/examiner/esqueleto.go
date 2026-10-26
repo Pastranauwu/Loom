@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/esqueleto"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/esqueleto"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // contratoDelEsqueleto entrega al examinador solo ejemplos y firmas de

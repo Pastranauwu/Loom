@@ -1,4 +1,4 @@
-# Roadmap de devclean
+# Roadmap de loom
 
 Lo que falta y lo que hay que pulir. Se mantiene al día aquí, no en `CLAUDE.md`.
 
@@ -9,7 +9,7 @@ Lo que falta y lo que hay que pulir. Se mantiene al día aquí, no en `CLAUDE.md
 4. **Las pruebas las escribe el agente barato que rellena, desde los `Casos:` del contrato:** el mismo que implementa, así que puede escribir una prueba complaciente. El revisor es el contrapeso (sin `expone` no hay examinador ciego ni suite oculta). Falta medir su cobertura real (ver el punto 1 de mutation score).
 5. **El presupuesto cuenta la caché (`loop.Tokens.Gasto`):** entrada + salida + leída×0.1 + escrita×1.25. Antes `budget`, `metrics` y el ledger de ventanas sumaban solo `entrada + salida` y con `claude` casi todo llega como caché (T-008: 129 de entrada contra 789k leídos y 42k escritos). Presupuestos ya configurados saltan antes que en v1.1. La salida sigue pesando 1× aunque cueste 5×: el tope compara tokens, no dinero.
    - **Corrida A del benchmark (snake, 13 contratos fijos, 23 sep 2026):** 18 intentos contra 13 del original. El recorte de firmas/árbol **no** causó reintentos: de los 5, **3 fueron 429** (límite de 5h agotado; T-011 quemó dos intentos con sonnet y el de opus sin gastar un token) y **2 fueron bugs reales de haiku que atrapó el revisor** (T-002 encerraba a la serpiente en el nivel CRUZ; T-006 lanzaba con `mapKey(undefined)`), ambos con el requisito escrito en el prompt. Contar esos 429 como intento fallido es el pendiente 3 de "Motores de Agentes y Modelos".
-6. **Benchmark de prompts:** `DEVCLEAN_BENCH_DIR=<proyecto> go test -tags bench -run TestBenchPrompts -v ./internal/loop/` mide el tamaño del prompt por tarea, el prefijo común y los intentos por tarea de la última corrida (`DEVCLEAN_BENCH_TAREA=T-00N` vuelca un prompt). Los intentos son de la corrida que ya pasó: para juzgar un cambio en el prompt hay que volver a correr el plan con él.
+6. **Benchmark de prompts:** `LOOM_BENCH_DIR=<proyecto> go test -tags bench -run TestBenchPrompts -v ./internal/loop/` mide el tamaño del prompt por tarea, el prefijo común y los intentos por tarea de la última corrida (`LOOM_BENCH_TAREA=T-00N` vuelca un prompt). Los intentos son de la corrida que ya pasó: para juzgar un cambio en el prompt hay que volver a correr el plan con él.
 
 ## Motores de Agentes y Modelos
 1. **Modo API Directa:** Actualmente la ejecución depende obligatoriamente de los binarios instalados de `claude` (Claude Code) u `opencode`. Falta agregar un adaptador que permita llamadas directas a APIs (Anthropic, OpenAI, DeepSeek) sin requerir los CLIs externos.

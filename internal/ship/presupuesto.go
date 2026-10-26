@@ -3,8 +3,8 @@ package ship
 import (
 	"fmt"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // ToleranciaPresupuesto es cuánto puede pasarse una tarea de su
@@ -38,7 +38,7 @@ func verificarPresupuesto(mas, menos, masPrueba, archivos int, t task.Task) (str
 	case codigo > techo:
 		// decir el número exacto ahorra el ida y vuelta: es el que hay
 		// que escribir si el cambio es correcto y el límite era corto
-		return fmt.Sprintf("presupuesto excedido · %s · reduce el cambio, o sube limite_lineas a %d en .devclean/tasks/%s.md",
+		return fmt.Sprintf("presupuesto excedido · %s · reduce el cambio, o sube limite_lineas a %d en .loom/tasks/%s.md",
 			detalle, codigo, t.ID), false
 	case codigo > limite:
 		return detalle + " · sobre lo estimado, dentro de la tolerancia", true

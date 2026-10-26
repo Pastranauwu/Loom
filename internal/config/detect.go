@@ -31,7 +31,7 @@ func RepoRoot(dir string) (string, error) {
 // feature los agentes partían de otro código que el que se veía, y un
 // arreglo commiteado en la rama actual nunca les llegaba.
 func DetectBaseBranch(root string) string {
-	if branch, err := gitOut(root, "symbolic-ref", "--quiet", "--short", "HEAD"); err == nil && branch != "" && !strings.HasPrefix(branch, "devclean/") {
+	if branch, err := gitOut(root, "symbolic-ref", "--quiet", "--short", "HEAD"); err == nil && branch != "" && !strings.HasPrefix(branch, "loom/") {
 		return branch
 	}
 	if ref, err := gitOut(root, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"); err == nil {
@@ -96,19 +96,19 @@ var scaffoldNames = map[string]bool{
 	"CONTRIBUTING.md":     true,
 	"CODE_OF_CONDUCT.md":  true,
 	".gitignore":          true,
-	"devclean.spec.yml":   true,
-	"devclean.spec.yaml":  true,
-	"devclean.specs.yml":  true,
-	"devclean.specs.yaml": true,
+	"loom.spec.yml":   true,
+	"loom.spec.yaml":  true,
+	"loom.specs.yml":  true,
+	"loom.specs.yaml": true,
 	"spec.yml":            true,
 	"spec.yaml":           true,
-	"skills-lock.json":    true, // lo deja devclean skills sync, no es código
+	"skills-lock.json":    true, // lo deja loom skills sync, no es código
 	".gitattributes":      true,
 	".editorconfig":       true,
 }
 
 // DetectEmpty reports whether the repository has no source code yet:
-// only scaffolding files and hidden directories (.git, .devclean,
+// only scaffolding files and hidden directories (.git, .loom,
 // .github). Used to switch the planner into greenfield mode.
 func DetectEmpty(root string) bool {
 	entries, err := os.ReadDir(root)

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/sealed"
 )
 
 // Quemar la suite al fallar dejaba el paso saltado en el siguiente ship
@@ -55,11 +55,11 @@ func TestSuiteOcultaSeQuemaAlAprobar(t *testing.T) {
 func TestSuiteOcultaQueNoCompilaLoDice(t *testing.T) {
 	root := repoConCommit(t)
 	tarea := taskTitulo("una tarea")
-	s := sealed.SuiteOculta{Content: "contenido\n", Archivo: "cmd/calc/devclean_hidden_test.go"}
+	s := sealed.SuiteOculta{Content: "contenido\n", Archivo: "cmd/calc/loom_hidden_test.go"}
 	if err := sealed.Write(root, tarea.ID, s); err != nil {
 		t.Fatal(err)
 	}
-	salida := "# calc/cmd/calc_test\ncmd/calc/devclean_hidden_test.go:8:2: imported as main and not used\nFAIL\tcalc/cmd/calc [build failed]\n"
+	salida := "# calc/cmd/calc_test\ncmd/calc/loom_hidden_test.go:8:2: imported as main and not used\nFAIL\tcalc/cmd/calc [build failed]\n"
 	if !noCompila(salida, s.Archivo) {
 		t.Fatal("un fallo de compilación del examen tiene que reconocerse")
 	}

@@ -1,9 +1,9 @@
-# Arquitectura de devclean
+# Arquitectura de loom
 
 Cómo funciona cada pieza. El resumen y las reglas viven en `CLAUDE.md`; las advertencias de cada paquete, en su propio `CLAUDE.md`.
 
 ## Tareas como Código y el Contrato de Tarea
-Las tareas se almacenan en `.devclean/tasks/T-00N.md`.
+Las tareas se almacenan en `.loom/tasks/T-00N.md`.
 ```yaml
 ---
 version: 1
@@ -24,13 +24,13 @@ limite_lineas: 200
 Notas libres: Enfoque sugerido para el ejecutor.
 ```
 
-## Requirements as Code: el Spec Humano (`devclean.spec.yml`)
+## Requirements as Code: el Spec Humano (`loom.spec.yml`)
 
 Hay **dos niveles de especificación**, y no son alternativas sino un pipeline: el spec humano es el source, los contratos de tarea son el IR generado.
 
 ```text
-devclean.spec.yml        → source humano (QUÉ debe existir)
-.devclean/tasks/*.md     → task IR generado (CÓMO ejecutar y verificar)
+loom.spec.yml        → source humano (QUÉ debe existir)
+.loom/tasks/*.md     → task IR generado (CÓMO ejecutar y verificar)
 código + commits         → resultado de ejecución
 ```
 
@@ -59,11 +59,11 @@ constraints:
 
 ship: true               # `up` llega hasta la entrega
 ```
-Con `requirements` y sin `tasks` (y con `up "<petición>"`), `completarSpec` delega en `planearRequirements` → `planearEsqueleto` (`cmd/devclean/esqueleto.go`). Ver "El Esqueleto".
+Con `requirements` y sin `tasks` (y con `up "<petición>"`), `completarSpec` delega en `planearRequirements` → `planearEsqueleto` (`cmd/loom/esqueleto.go`). Ver "El Esqueleto".
 
 **Dos formas de `acceptance` con garantías distintas:**
 - **Textual:** entra en el prompt del planificador y debe quedar cubierta por el plan. Por sí sola **no** es compuerta determinista; sin cobertura reconocible sale como advertencia.
-- **Con `command`/`comando`:** se guarda en `.devclean/feature.json` (`spec.SaveFeatureState`) y corre sobre la rama donde ya se integraron todas las tareas. Salida distinta de cero frena la entrega.
+- **Con `command`/`comando`:** se guarda en `.loom/feature.json` (`spec.SaveFeatureState`) y corre sobre la rama donde ya se integraron todas las tareas. Salida distinta de cero frena la entrega.
 
 `constraints.no_tocar` se aplica en `Apply`, no en `Parse`: los globs se suman al `no_tocar` de **todo** contrato que se vaya a escribir, venga del YAML o lo haya generado el planificador. La restricción del humano sobrevive el viaje spec → IR.
 
@@ -79,7 +79,7 @@ El modelo grande no reparte prosa: escribe el **plano en código**, sin lógica 
 - estructura, manifiestos, `.gitignore` y dependencias instaladas;
 - `ARCHITECTURE.md` en la raíz: módulos, responsabilidades, dependencias permitidas, flujo de datos. Es la fuente de verdad que el siguiente cambio **evoluciona** (el prompt se lo pasa si ya existe);
 - tipos, entidades, interfaces y puertos solo como **declaraciones**;
-- todo lo demás como **stub**, también el cableado: firma exacta, comentario de contrato (entradas, salida, errores, a quién llama y quién lo usa, y `Casos:` con 2 a 5 ejemplos) y cuerpo que lanza `devclean: sin implementar` (`esqueleto.Marca`).
+- todo lo demás como **stub**, también el cableado: firma exacta, comentario de contrato (entradas, salida, errores, a quién llama y quién lo usa, y `Casos:` con 2 a 5 ejemplos) y cuerpo que lanza `loom: sin implementar` (`esqueleto.Marca`).
 
 **Sobre código existente no hay stubs:** lo que ya funciona se cambia, no se reemplaza. Una tarea que toca archivos que ya estaban en el commit base lleva su contrato con `Casos:` en `como`, su `listo_cuando` corre una prueba nueva del comportamiento nuevo y recibe `notaCambio` en vez de `notaRelleno` (`notaPara` decide por la marca). El prompt manda respetar el stack, las librerías y el sistema de diseño que ya hay.
 - **Docker por defecto:** un Dockerfile por servicio, `compose.yaml` en la raíz (`docker compose up --build` levanta todo), `.env.example` y `.dockerignore`. Se apaga escribiendo "sin docker" en el spec (una librería o un CLI no se despliegan). Solo aplica a un repo vacío: sobre código existente no se exige ni se verifica, salvo que el spec diga "con docker".
@@ -89,7 +89,7 @@ Las pruebas las escribe **cada tarea de relleno** a partir de los `Casos:` de su
 
 Responde un JSON con `verificar` (build/typecheck que pasa con los stubs), `integracion` (la prueba de punta a punta), `pruebas` y `tareas` (una por stub, con el stub y su archivo de prueba en `tocar_solo`). **`esqueleto.Problemas` lo verifica sin modelo:** existe `ARCHITECTURE.md`, `verificar` pasa, cada tarea tiene `listo_cuando` y `tocar_solo`, cada archivo no-prueba de `tocar_solo` existe, trae al menos un stub con la marca y un `Casos:` (`contrato`), y alguna tarea tiene `integracion` como `listo_cuando`. La marca y los `Casos:` del archivo se exigen solo en archivos **nuevos** respecto de `Verificacion.Base` (el commit con que arrancó el cuarto); un cambio a un archivo existente exige `Casos:` en `como`. Con docker: `compose.yaml`, `.dockerignore` y, si docker está instalado, `docker compose config -q`. No corre los `listo_cuando` (las pruebas todavía no existen), salvo `integracion`: si falla hoy, una tarea tiene que tenerla como `listo_cuando`; si ya pasa, es la regresión de un proyecto existente y ninguna tarea puede usarla (la esclusa la rechazaría por "ya pasa"). Un cambio solo visual deja `integracion` como regresión sin tarea final; exigir siempre una tarea final contradecía la regla anterior y el arquitecto no podía cumplir las dos. Si algo falla, el arquitecto recibe la lista con el mismo prompt delante (caché) y corrige en el mismo cuarto (con claude continúa su propia sesión por `--resume` y solo recibe la lista), hasta `correccionesEsqueleto` veces. `room.Ensure` reusa el cuarto: un esqueleto cortado se corrige, no se rehace.
 
-Al pasar: commit `wip: T-00N esqueleto`, estado **lista** y contrato con `listo_cuando: <verificar>`. Cada stub es una tarea de relleno con `depende_de: [T-00N]`, **sin `expone`/`usa`** (las firmas las valida el compilador) y la nota `notaRelleno`. `verificar`, `integracion` y (con docker instalado) `docker compose build` entran como `acceptance.command`. `run` integra el esqueleto por `sembrarVerdesPrevias`, igual que cualquier verde previo. Log del arquitecto en `.devclean/runs/T-00N/esqueleto-N.log`.
+Al pasar: commit `wip: T-00N esqueleto`, estado **lista** y contrato con `listo_cuando: <verificar>`. Cada stub es una tarea de relleno con `depende_de: [T-00N]`, **sin `expone`/`usa`** (las firmas las valida el compilador) y la nota `notaRelleno`. `verificar`, `integracion` y (con docker instalado) `docker compose build` entran como `acceptance.command`. `run` integra el esqueleto por `sembrarVerdesPrevias`, igual que cualquier verde previo. Log del arquitecto en `.loom/runs/T-00N/esqueleto-N.log`.
 
 ### Análisis Estático del Task Graph (`spec.ValidatePlan`)
 Corre en `Apply` sobre el IR ya con IDs, **antes** de escribir tareas o gastar implementación. Los `Issue{Level:"error"}` abortan el `Apply` completo; los `"warning"` solo se imprimen.
@@ -110,7 +110,7 @@ Antes de invocar al agente o gastar un token:
 6. No tiene `usa` huérfanos (no consume firmas que ninguna otra tarea exponga).
 
 ### Esclusa de Salida (`internal/ship`)
-Secuencia determinista de 9 a 10 pasos en `devclean ship`:
+Secuencia determinista de 9 a 10 pasos en `loom ship`:
 1. `base`: Rebase limpio sobre la rama base.
 2. `historial`: Aplana los commits `wip:` internos en Conventional Commits con trailer `Agent: <modelo>`.
 3. `ruido`: Escaneo de prints de debug (`console.log`, `fmt.Println`), bloques de código comentado y archivos temporales.
@@ -120,12 +120,12 @@ Secuencia determinista de 9 a 10 pasos en `devclean ship`:
 7. `dependencias` (condicional): Valida el grafo de imports según `reglas_import`.
 8. `bisectable`: Comprueba que cada commit compile y pase la suite de pruebas individualmente.
 9. `handoff`: Genera un informe determinista (qué cambió, qué NO se hizo, riesgos y verificación).
-10. `pr`: Publica en GitHub (`gh pr create`) o entrega en rama local `devclean/_entrega` con descripción en `.devclean/pr/`.
+10. `pr`: Publica en GitHub (`gh pr create`) o entrega en rama local `loom/_entrega` con descripción en `.loom/pr/`.
 
-En la entrega conjunta (`ship --todas` → `ship.EntregarTodas`) la secuencia sobre el resultado integrado es: esclusa por tarea → integración commit por commit → paso `integradas` (suite `pruebas` del proyecto) → paso **`aceptación`** (un paso por cada `acceptance.command` del spec, leído de `.devclean/feature.json`) → `pr`. El primer comando de aceptación que falle corta la entrega. Este paso **solo existe en `--todas`**: el `ship` de una tarea suelta no tiene conjunto integrado que aceptar.
+En la entrega conjunta (`ship --todas` → `ship.EntregarTodas`) la secuencia sobre el resultado integrado es: esclusa por tarea → integración commit por commit → paso `integradas` (suite `pruebas` del proyecto) → paso **`aceptación`** (un paso por cada `acceptance.command` del spec, leído de `.loom/feature.json`) → `pr`. El primer comando de aceptación que falle corta la entrega. Este paso **solo existe en `--todas`**: el `ship` de una tarea suelta no tiene conjunto integrado que aceptar.
 
 ## Aislamiento y Bucle de Trabajo (`internal/loop`, `internal/room`)
-- Cada tarea corre en un cuarto aislado: `~/.devclean/rooms/<proyecto>-<hash>/T-00N/` (`room.Dir`, fuera del árbol del proyecto) montado mediante `git worktree` sobre la rama `devclean/T-00N`.
+- Cada tarea corre en un cuarto aislado: `~/.loom/rooms/<proyecto>-<hash>/T-00N/` (`room.Dir`, fuera del árbol del proyecto) montado mediante `git worktree` sobre la rama `loom/T-00N`.
 - En cada intento:
   1. Se inyecta en el prompt, primero lo común y después lo de la tarea: `skills.Base` (cómo trabajar, código limpio resumido, no narrar), Constitución, reglas, arquitectura común; luego las skills que la tarea declara en `skills:` (o las de su rol si el contrato no trae el campo), Contrato, Interfaces expuestas/usadas, árbol y firmas recortados, Presupuesto y el error/diagnóstico del intento anterior.
   2. El agente (`claude` u `opencode`) ejecuta modificaciones.
@@ -144,13 +144,13 @@ En la entrega conjunta (`ship --todas` → `ship.EntregarTodas`) la secuencia so
 ## Examinador Ciego y Suite Oculta (`internal/examiner`, `internal/sealed`)
 - Implementado para **Go** y **Python**.
 - Antes de que el agente implemente, un examinador genera pruebas basadas únicamente en la frontera pública (`expone`).
-- El 70% de las pruebas queda visible para el agente en el cuarto; el 30% restante se sella con hash en `.devclean/sealed/<id>/` en el repositorio principal y corre solo una vez en la esclusa de salida.
+- El 70% de las pruebas queda visible para el agente en el cuarto; el 30% restante se sella con hash en `.loom/sealed/<id>/` en el repositorio principal y corre solo una vez en la esclusa de salida.
 
 ## Presupuesto y Ventanas Rodantes (`internal/ventanas`, `internal/budget`)
 - Los proveedores de IA tienen límites de gasto en ventanas de 5 horas, semanales y mensuales.
-- devclean mantiene un ledger en `~/.devclean/ventanas.jsonl` (global a la máquina, compartido entre proyectos). Si una corrida va a superar el presupuesto configurado, se detiene con advertencia antes de agotar cuota.
+- loom mantiene un ledger en `~/.loom/ventanas.jsonl` (global a la máquina, compartido entre proyectos). Si una corrida va a superar el presupuesto configurado, se detiene con advertencia antes de agotar cuota.
 
 ## Ejecución en Segundo Plano (`--fondo`)
-- Disponible en `devclean up --fondo` y `devclean run --fondo`.
-- Realiza las preguntas interactivas primero; una vez listo el entorno, se desprende de la terminal (`setsid` en Unix, flags de proceso desacoplado en Windows) y redirige la salida a `.devclean/corridas/<fecha>.log`.
+- Disponible en `loom up --fondo` y `loom run --fondo`.
+- Realiza las preguntas interactivas primero; una vez listo el entorno, se desprende de la terminal (`setsid` en Unix, flags de proceso desacoplado en Windows) y redirige la salida a `.loom/corridas/<fecha>.log`.
 - Sobrevive al cierre de terminal o pérdida de conexión.

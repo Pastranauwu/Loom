@@ -26,15 +26,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/capturas"
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/plan"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/capturas"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Marca es el texto con que lanza todo stub. La verificación no depende
 // de él, pero le dice al agente que rellena qué reemplazar.
-const Marca = "devclean: sin implementar"
+const Marca = "loom: sin implementar"
 
 // Documento es el archivo de arquitectura que el esqueleto deja en la
 // raíz y que cada cambio siguiente evoluciona.
@@ -49,7 +49,7 @@ type Resultado struct {
 	// stubs y pasa cuando todo está rellenado. Es la aceptación global.
 	Integracion string `json:"integracion"`
 	// Pruebas corre la suite completa del proyecto. En un monorepo
-	// devclean no la detecta, y la esclusa de salida la necesita.
+	// loom no la detecta, y la esclusa de salida la necesita.
 	Pruebas      string `json:"pruebas"`
 	Arquitectura string `json:"arquitectura"`
 	// Pantallas dice cómo levantar la interfaz web y qué capturar: lo
@@ -82,7 +82,7 @@ type Pedido struct {
 // una corrección (PromptCorregir) comparta el prefijo en caché.
 func Prompt(p Pedido, c plan.Contexto) string {
 	var b strings.Builder
-	b.WriteString("Eres el ARQUITECTO de devclean. No implementas la lógica: dejas el proyecto listo para que muchos agentes baratos lo rellenen en paralelo, cada uno un archivo, sin verse entre sí. Lo que ellos no pueden decidir lo decides tú ahora, en código.\n\n")
+	b.WriteString("Eres el ARQUITECTO de loom. No implementas la lógica: dejas el proyecto listo para que muchos agentes baratos lo rellenen en paralelo, cada uno un archivo, sin verse entre sí. Lo que ellos no pueden decidir lo decides tú ahora, en código.\n\n")
 	b.WriteString("PEDIDO\n")
 	b.WriteString(p.Texto)
 	b.WriteString("\n")
@@ -125,7 +125,7 @@ No escribes lógica ni pruebas: cada línea que escribas la paga el modelo caro,
    - a quién llama (módulo y método) y quién lo usa;
    - "Idea:" cómo se resuelve, ya pensado por ti: algoritmo, estructuras de datos, orden de los pasos y las trampas (casos límite, lo que parece obvio y está mal). Telegráfico, de 1 a 8 líneas, sin código ni frases completas: tú ya resolviste el problema al planear y el agente solo lo escribe. No repitas lo que la firma ya dice.
    - "Casos:" de 2 a 5 ejemplos concretos de entrada → salida o error, que el agente convertirá en su prueba.
-   Las etiquetas "Idea:" y "Casos:" son LITERALES: la palabra y los dos puntos pegados, sin nada en medio, también en el "como" de un cambio a código existente. "Casos (con mocks):" o "Ejemplos:" no cuentan: devclean las busca por texto exacto y te devuelve el plano.
+   Las etiquetas "Idea:" y "Casos:" son LITERALES: la palabra y los dos puntos pegados, sin nada en medio, también en el "como" de un cambio a código existente. "Casos (con mocks):" o "Ejemplos:" no cuentan: loom las busca por texto exacto y te devuelve el plano.
    El cuerpo solo lanza un error con el texto exacto "` + Marca + `".
 5. Nada más. No escribas pruebas, implementaciones de referencia, datos de ejemplo ni código fuera del repositorio. No corras nada salvo lo necesario para que "verificar" pase.
 `)
@@ -138,7 +138,7 @@ No escribes lógica ni pruebas: cada línea que escribas la paga el modelo caro,
 CÓMO REPARTIR
 - Una tarea por módulo: un archivo stub, o varios que comparten estado o no tienen sentido por separado, o un cambio a un archivo existente. Con la "Idea:" escrita, un agente barato puede con un módulo complejo entero: no partas en tareas mínimas lo que se entiende junto, ni subas el "peso" de una tarea porque sea difícil de pensar; eso ya lo pensaste tú. El peso sube solo por tamaño o por interfaz.
 - Excepción: un pedido VISUAL (diseño, estilo, experiencia de uso) no se reparte en tareas chicas. Es UNA tarea de diseño con "peso": "pesada", dueña de todos los archivos de interfaz que cambian (tema, componentes y pantallas en su "tocar_solo"), porque un diseño coherente no sale de parches de agentes que no ven la pantalla completa. En "como" describe el diseño concreto: paleta, tipografía, espaciado, cómo se ve cada pantalla y cada estado. Las tareas funcionales que toquen esos archivos dependen de ella. Cuanto más chicas e independientes, más agentes en paralelo y más barato.
-- Cada tarea con stub declara en "listo_cuando" un archivo de prueba nuevo y lo lista en "tocar_solo" junto al stub. devclean lo retira del alcance del implementador y un examinador independiente escribe esa prueba desde las firmas y "Casos:". Los cambios sin stub conservan la escritura de su prueba por el implementador.
+- Cada tarea con stub declara en "listo_cuando" un archivo de prueba nuevo y lo lista en "tocar_solo" junto al stub. loom lo retira del alcance del implementador y un examinador independiente escribe esa prueba desde las firmas y "Casos:". Los cambios sin stub conservan la escritura de su prueba por el implementador.
 - El agente es un modelo barato: no rediseña ni elige librerías. Lo que necesite decidir tiene que estar en el contrato.
 - Las dependencias entre módulos entran por parámetro o constructor (puertos), para que cada módulo se pruebe con fakes sin esperar a los demás. "depende_de" solo cuando un módulo necesita de verdad la implementación real de otro.
 - Una tarea final escribe la prueba de punta a punta del flujo principal: depende de todas y su "listo_cuando" es el comando de "integracion". Si ya existe una prueba de punta a punta, esa pasa hoy: si lo que cambia es comportamiento, la tarea final escribe una NUEVA y "integracion" corre la nueva; si el cambio no altera el flujo (estilos, textos), no hay tarea final y "integracion" es la prueba que ya existe, como regresión.
@@ -181,7 +181,7 @@ RESPONDE AL FINAL SOLO CON ESTE JSON
 func PromptCorregir(original string, problemas []string) string {
 	var b strings.Builder
 	b.WriteString(original)
-	b.WriteString("\nYA TRABAJASTE SOBRE ESTE REPOSITORIO. Lo que escribiste sigue en disco, pero la verificación de devclean encontró esto:\n")
+	b.WriteString("\nYA TRABAJASTE SOBRE ESTE REPOSITORIO. Lo que escribiste sigue en disco, pero la verificación de loom encontró esto:\n")
 	for _, p := range problemas {
 		b.WriteString("- " + p + "\n")
 	}
@@ -194,7 +194,7 @@ func PromptCorregir(original string, problemas []string) string {
 // que solo recibe lo que la verificación encontró.
 func PromptCorregirSesion(problemas []string) string {
 	var b strings.Builder
-	b.WriteString("La verificación de devclean encontró esto en lo que dejaste:\n")
+	b.WriteString("La verificación de loom encontró esto en lo que dejaste:\n")
 	for _, p := range problemas {
 		b.WriteString("- " + p + "\n")
 	}

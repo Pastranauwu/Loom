@@ -1,6 +1,6 @@
 // Package plan implementa al planificador: convierte una
 // petición en lenguaje natural en contratos de tarea. El contrato lo
-// redacta un modelo; devclean solo parsea, muestra y aprueba. Nunca lo
+// redacta un modelo; loom solo parsea, muestra y aprueba. Nunca lo
 // escribe a mano el usuario.
 package plan
 
@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/skills"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/skills"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Borrador es una tarea propuesta por el planificador, antes de asignarle
@@ -101,7 +101,7 @@ type Generador interface {
 	Generar(ctx context.Context, prompt string) (string, error)
 }
 
-// Contexto es lo que devclean sabe del repositorio al momento de
+// Contexto es lo que loom sabe del repositorio al momento de
 // planear. Se lo pasa al modelo para que no adivine el stack ni
 // invente comandos que no existen en el proyecto.
 type Contexto struct {
@@ -110,7 +110,7 @@ type Contexto struct {
 	Pruebas      string   // comando de pruebas detectado ("" si no hay)
 	Stack        string   // stack elegido por el humano ("" si lo decide el modelo)
 	Requisitos   string   // requisitos extra que dijo el humano, en texto libre
-	Constitucion string   // contenido de .devclean/constitution.md, "" si no existe
+	Constitucion string   // contenido de .loom/constitution.md, "" si no existe
 	Vedadas      []string // globs que tocar_solo nunca puede incluir (zonas prohibidas + rutas de prueba)
 	// Ocupados son los alcances que ya tienen dueño: tocar_solo de las
 	// tareas activas, por id. Sin esto el planificador propone tareas
@@ -142,7 +142,7 @@ type Contexto struct {
 // El contexto del repo se inyecta para
 // que el modelo use el lenguaje y el comando de pruebas reales.
 func Prompt(frase string, c Contexto) string {
-	return prompt("Eres el planificador de devclean. Diseña la solución y reparte unidades de trabajo completas y verificables:\n\n", "\""+frase+"\"\n\n", c)
+	return prompt("Eres el planificador de loom. Diseña la solución y reparte unidades de trabajo completas y verificables:\n\n", "\""+frase+"\"\n\n", c)
 }
 
 // PromptCompletar pide el contrato de tareas que el humano ya decidió en
@@ -150,7 +150,7 @@ func Prompt(frase string, c Contexto) string {
 // alcance, dependencias y firmas de exactamente esas tareas, en ese orden.
 func PromptCompletar(feature string, reglas []string, tareas []task.Task, c Contexto) string {
 	n := len(tareas)
-	intro := fmt.Sprintf("Eres el planificador de devclean. El humano ya decidió estas %d tareas; tu trabajo es escribir su contrato. "+
+	intro := fmt.Sprintf("Eres el planificador de loom. El humano ya decidió estas %d tareas; tu trabajo es escribir su contrato. "+
 		"NO partas, juntes, quites ni agregues tareas: devuelve exactamente %d, en este mismo orden y con el mismo \"titulo\". "+
 		"Si una tarea ya trae un campo, cópialo tal cual.\n\n", n, n)
 
@@ -204,7 +204,7 @@ func prompt(intro, peticion string, c Contexto) string {
 	b.WriteString("- \"titulo\": frase corta en minúscula\n")
 	b.WriteString("- \"porque\": por qué importa (una frase)\n")
 	b.WriteString("- \"listo_cuando\": un comando ejecutable que HOY FALLE y que pase cuando la tarea esté hecha (obligatorio).\n")
-	b.WriteString("  · devclean lo ejecuta ANTES de gastar un solo token y rechaza la tarea si ya pasa: un comando que hoy da verde no verifica nada.\n")
+	b.WriteString("  · loom lo ejecuta ANTES de gastar un solo token y rechaza la tarea si ya pasa: un comando que hoy da verde no verifica nada.\n")
 	b.WriteString("  · Por eso no sirve el comando de pruebas del proyecto tal cual si la suite ya está verde (`npm test`, `go test ./...`, `pytest`): acótalo a lo que esta tarea va a crear — el archivo de prueba, el módulo o el paquete que todavía no existe.\n")
 	b.WriteString("  · Ejemplos que fallan hoy porque el destino no existe: \"go test ./internal/wol/...\", \"node --test test/validator.test.js\", \"pytest tests/test_wol.py\", \"npm test -- validator\".\n")
 	b.WriteString("- \"tocar_solo\": array de globs de archivos que la tarea puede tocar\n")
@@ -290,7 +290,7 @@ func contextoPrompt(c Contexto) string {
 	}
 	return fmt.Sprintf("El repositorio ya está en desarrollo. Lenguaje detectado: %s. Comando de pruebas del proyecto: %s.\n"+
 		"- Mantén ese lenguaje y ese corredor de pruebas; no cambies el stack ni propongas paquetes o rutas que no existen.\n"+
-		"- Pero NO copies ese comando tal cual en los \"listo_cuando\" si la suite del proyecto ya está verde: entonces pasaría hoy y devclean rechazaría la tarea. Apunta con el mismo corredor a lo que la tarea va a crear y que todavía no existe.",
+		"- Pero NO copies ese comando tal cual en los \"listo_cuando\" si la suite del proyecto ya está verde: entonces pasaría hoy y loom rechazaría la tarea. Apunta con el mismo corredor a lo que la tarea va a crear y que todavía no existe.",
 		c.Lenguaje, pruebas)
 }
 

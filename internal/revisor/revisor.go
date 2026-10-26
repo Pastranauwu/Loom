@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // MaxDiff acota lo que se le manda al modelo. Un diff más grande no se
@@ -125,7 +125,7 @@ func (v Veredicto) Informe() string {
 	} else {
 		b.WriteString("_El revisor pide cambios. Corrígelos y vuelve a entregar, o apruébalo igual si no estás de acuerdo._\n")
 	}
-	b.WriteString("\n<sub>revisado por devclean · las esclusas ya verificaron que compila, que pasa la suite, que no hay secretos y que cabe en presupuesto</sub>\n")
+	b.WriteString("\n<sub>revisado por loom · las esclusas ya verificaron que compila, que pasa la suite, que no hay secretos y que cabe en presupuesto</sub>\n")
 	return b.String()
 }
 
@@ -172,7 +172,7 @@ func Revisar(ctx context.Context, o Opciones) (Veredicto, error) {
 // Prompt arma la instrucción del revisor: qué se pidió y qué se escribió.
 func Prompt(tareas []task.Task, diff string) string {
 	var b strings.Builder
-	b.WriteString("Eres el revisor de devclean. Decides si esta entrega entra en la rama principal.\n\n")
+	b.WriteString("Eres el revisor de loom. Decides si esta entrega entra en la rama principal.\n\n")
 	b.WriteString("Ya se verificó por código, no lo repitas: la rama rebasea limpio, cada tarea es un commit, ")
 	b.WriteString("la suite del proyecto pasa sobre el conjunto, no hay secretos ni prints de debug, y cada tarea ")
 	b.WriteString("cabe en su presupuesto de líneas.\n\n")

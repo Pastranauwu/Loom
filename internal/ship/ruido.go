@@ -1,7 +1,7 @@
 package ship
 
 import (
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 	"path"
 	"regexp"
 	"strings"

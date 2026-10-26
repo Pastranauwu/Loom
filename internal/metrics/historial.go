@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/config"
+	"github.com/Pastranauwu/loom/internal/config"
 )
 
 // Snapshot es una fotografía de las métricas en un momento dado. Cada
-// corrida de `report` apunta una línea en .devclean/historial.jsonl para
+// corrida de `report` apunta una línea en .loom/historial.jsonl para
 // poder dibujar la flecha de tendencia: valor actual frente a la
 // corrida anterior. Nada se recalcula leyendo el repo.
 type Snapshot struct {

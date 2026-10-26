@@ -1,4 +1,4 @@
-# Tape de vhs para grabar el GIF de devclean CON la TUI.
+# Tape de vhs para grabar el GIF de loom CON la TUI.
 #   vhs docs/demo.tape
 #
 # Graba run (corrida en vivo), board (tablero), la recursion en subtareas
@@ -9,7 +9,7 @@
 # primeros segundos del bucle.
 #
 # HOME apunta al home falso que crea demo-env.sh: el ledger de consumo vive
-# en $HOME/.devclean y sin aislarlo el GIF publica el gasto real de quien
+# en $HOME/.loom y sin aislarlo el GIF publica el gasto real de quien
 # graba.
 #
 # Las esperas son Wait+Screen sobre lo que el comando imprime, no Sleep a
@@ -37,18 +37,18 @@ Hide
 Type "sh scripts/demo-env.sh"
 Enter
 Wait+Screen /demo lista/
-Type "cd /tmp/devclean-demo"
+Type "cd /tmp/loom-demo"
 Enter
 Type "export PATH=/tmp/fakebin:$PATH"
 Enter
-Type "export HOME=/tmp/devclean-demo-home OPENCODE_API_KEY=demo"
+Type "export HOME=/tmp/loom-demo-home OPENCODE_API_KEY=demo"
 Enter
 Type "clear"
 Enter
 Show
 
 # ---------- run: la corrida en vivo, sale sola ----------
-Type "devclean run --agentes 2 --ejecutor opencode"
+Type "loom run --agentes 2 --ejecutor opencode"
 Enter
 Wait+Screen /verde en/
 Sleep 2s
@@ -59,7 +59,7 @@ Enter
 Show
 
 # ---------- board: el tablero ----------
-Type "devclean board"
+Type "loom board"
 Enter
 Wait+Screen /LISTO PARA ENTREGAR/
 Sleep 4s
@@ -75,13 +75,13 @@ Sleep 1s
 Hide
 Type "clear"
 Enter
-Type "mv .devclean/tasks/T-003.md.pendiente .devclean/tasks/T-003.md"
+Type "mv .loom/tasks/T-003.md.pendiente .loom/tasks/T-003.md"
 Enter
 Type "clear"
 Enter
 Show
 
-Type "devclean run --agentes 1 --ejecutor opencode"
+Type "loom run --agentes 1 --ejecutor opencode"
 Enter
 Wait+Screen /verde en/
 Sleep 2s
@@ -96,7 +96,7 @@ Show
 # llegarle a la shell en vez de al programa si el timing no da), y el
 # texto plano muestra el arbol de subtareas de T-003 con mas claridad
 # para un GIF de todos modos.
-Type "devclean board --plain"
+Type "loom board --plain"
 Enter
 Sleep 4s
 
@@ -106,6 +106,6 @@ Enter
 Show
 
 # ---------- ship: la compuerta, sale sola ----------
-Type "devclean ship T-001 --dry-run"
+Type "loom ship T-001 --dry-run"
 Enter
 Sleep 6s

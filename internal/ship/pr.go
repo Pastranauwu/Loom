@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/room"
+	"github.com/Pastranauwu/loom/internal/room"
 )
 
 // abrirPR sube la rama, abre el PR con gh y libera el cuarto.
@@ -26,7 +26,7 @@ func abrirPR(ctx context.Context, root string, r room.Room, base, titulo, cuerpo
 		return "", errors.New("sin remoto origin · agrégalo con git remote add origin <url> o usa --dry-run")
 	}
 
-	// --force: la rama devclean/<id> es propiedad exclusiva de este cuarto.
+	// --force: la rama loom/<id> es propiedad exclusiva de este cuarto.
 	// Cada `ship` aplana de nuevo sobre la base (aplanar en git.go), así
 	// que un reintento tras un fallo parcial (p. ej. `gh pr create` caído
 	// por red después de que el push ya había salido) produce un commit
@@ -37,7 +37,7 @@ func abrirPR(ctx context.Context, root string, r room.Room, base, titulo, cuerpo
 		return "", fmt.Errorf("no se pudo subir la rama · %s", tail(out))
 	}
 
-	// si un intento previo ya empujó y abrió el PR pero devclean se cortó
+	// si un intento previo ya empujó y abrió el PR pero loom se cortó
 	// antes de reportarlo (o `gh pr create` fue el que falló después de
 	// crearlo, cosa que gh reporta con error igual en algunas versiones),
 	// un reintento no debe duplicar el PR: lo detecta y lo devuelve tal cual.
@@ -46,7 +46,7 @@ func abrirPR(ctx context.Context, root string, r room.Room, base, titulo, cuerpo
 		return url, nil
 	}
 
-	f, err := os.CreateTemp("", "devclean-handoff-*.md")
+	f, err := os.CreateTemp("", "loom-handoff-*.md")
 	if err != nil {
 		return "", err
 	}

@@ -1,4 +1,4 @@
-// Package ui implements the two output modes of devclean:
+// Package ui implements the two output modes of loom:
 // plain text (one line per event) and structured JSON.
 package ui
 

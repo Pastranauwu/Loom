@@ -1,5 +1,5 @@
 // Package sealed manages the hidden test suite storage of the blind examiner.
-// The sealed dir lives in the main repo (.devclean/sealed/<id>/), NOT
+// The sealed dir lives in the main repo (.loom/sealed/<id>/), NOT
 // in the worktree — the worktree is the implementer's domain.
 package sealed
 
@@ -20,7 +20,7 @@ type SuiteOculta struct {
 	Content string `json:"content"` // the hidden test file content
 	Archivo string `json:"archivo"` // relative path within the room to write this file
 
-	// Visible y ArchivoVisible los llena solo `devclean task seal`. El
+	// Visible y ArchivoVisible los llena solo `loom task seal`. El
 	// examinador automático escribe su suite visible directo en el cuarto
 	// porque corre con el cuarto ya creado; la manual se sella antes de
 	// que exista, así que espera acá hasta que el bucle lo cree. Quedan
@@ -29,9 +29,9 @@ type SuiteOculta struct {
 	ArchivoVisible string `json:"archivo_visible,omitempty"`
 }
 
-// Dir returns .devclean/sealed/<id>/ in root.
+// Dir returns .loom/sealed/<id>/ in root.
 func Dir(root, id string) string {
-	return filepath.Join(root, ".devclean", "sealed", id)
+	return filepath.Join(root, ".loom", "sealed", id)
 }
 
 // Write seals the hidden suite for a task. Overwrites any prior sealed suite.
@@ -55,8 +55,8 @@ func Write(root, id string, s SuiteOculta) error {
 // deliberada de un archivo intacto.
 //
 // ponytail: integridad, no antimanipulación. Lo que de verdad separa al
-// agente de la suite es que esta vive en .devclean/sealed/ del repo
-// principal y el agente trabaja en .devclean/rooms/<id>/, y que
+// agente de la suite es que esta vive en .loom/sealed/ del repo
+// principal y el agente trabaja en .loom/rooms/<id>/, y que
 // revertFueraDeAlcance deshace lo que se salga de tocar_solo — pero solo
 // DENTRO del cuarto. Un agente con shell que suba por encima del cuarto
 // llega a este archivo y nadie lo revierte. Cerrarlo de verdad pide

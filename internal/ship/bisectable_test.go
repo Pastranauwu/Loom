@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // con esqueleto la suite sigue roja hasta rellenar todos los módulos:

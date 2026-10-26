@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 type Issue struct {

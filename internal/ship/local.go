@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/config"
+	"github.com/Pastranauwu/loom/internal/config"
 )
 
 // PRLocal marca el PR de un repo sin remoto: la rama se queda en el repo y
-// la descripción que llevaría el PR va a .devclean/pr/. Un repo local es un
+// la descripción que llevaría el PR va a .loom/pr/. Un repo local es un
 // caso normal, no un error: la esclusa corre igual y lo único que cambia es
 // dónde queda la entrega.
 const PRLocal = "local · "
@@ -30,7 +30,7 @@ func prLocal(root string, cfg config.Config) bool {
 
 // archivoPRLocal devuelve dónde vive la descripción del PR local de una rama.
 func archivoPRLocal(root, rama string) string {
-	return filepath.Join(config.Dir(root), "pr", strings.TrimPrefix(rama, "devclean/")+".md")
+	return filepath.Join(config.Dir(root), "pr", strings.TrimPrefix(rama, "loom/")+".md")
 }
 
 // abrirPRLocal escribe la descripción del PR junto a la rama, que se queda

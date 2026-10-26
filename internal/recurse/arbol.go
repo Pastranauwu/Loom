@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
+	"github.com/Pastranauwu/loom/internal/loop"
 )
 
 // muArbol serializa las escrituras del árbol: desde que las subtareas

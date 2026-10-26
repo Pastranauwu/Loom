@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 func tareaValida() task.Task {
@@ -302,7 +302,7 @@ func TestGateRechazaContratoSinVersion(t *testing.T) {
 func TestGatePropagaElAvisoDeVersionFutura(t *testing.T) {
 	tarea := tareaValida()
 	tarea.Version = 2
-	tarea.Aviso = "contrato versión 2, binario soporta 1 · actualiza devclean"
+	tarea.Aviso = "contrato versión 2, binario soporta 1 · actualiza loom"
 	res := Run(context.Background(), t.TempDir(), config.Config{}, tarea, nil, DefaultTimeout)
 	if !res.Aprobada {
 		t.Fatalf("un contrato de versión futura válido fue rechazado: %s", res.PrimerMotivo())

@@ -32,8 +32,8 @@ func TestCreateYDestroy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if r.Rama != "devclean/T-001" {
-		t.Errorf("Rama = %q, quiero devclean/T-001", r.Rama)
+	if r.Rama != "loom/T-001" {
+		t.Errorf("Rama = %q, quiero loom/T-001", r.Rama)
 	}
 	if r.Puerto <= 0 {
 		t.Errorf("Puerto = %d, quiero > 0", r.Puerto)
@@ -43,7 +43,7 @@ func TestCreateYDestroy(t *testing.T) {
 	}
 	// el worktree está en su propia rama
 	out, _ := gitOut(t, r.Path, "branch", "--show-current")
-	if out != "devclean/T-001" {
+	if out != "loom/T-001" {
 		t.Errorf("rama del cuarto = %q", out)
 	}
 
@@ -53,7 +53,7 @@ func TestCreateYDestroy(t *testing.T) {
 	if _, err := os.Stat(r.Path); !os.IsNotExist(err) {
 		t.Errorf("el cuarto sigue en disco tras Destroy")
 	}
-	out, _ = gitOut(t, root, "branch", "--list", "devclean/T-001")
+	out, _ = gitOut(t, root, "branch", "--list", "loom/T-001")
 	if out != "" {
 		t.Errorf("la rama sigue existiendo tras Destroy")
 	}
@@ -187,7 +187,7 @@ func TestIntegrarConflictoAborta(t *testing.T) {
 // TestCreateTrasBorrarRooms simula el caso real: rooms/ está gitignored
 // y un `git clean -fdx` (o un rm a mano) borró la carpeta sin tocar la
 // registración del worktree ni la rama. Create debe recuperarse solo,
-// no morir con "una rama llamada 'devclean/T-001' ya existe".
+// no morir con "una rama llamada 'loom/T-001' ya existe".
 func TestCreateTrasBorrarRooms(t *testing.T) {
 	root := repoConCommit(t)
 	ctx := context.Background()
@@ -200,7 +200,7 @@ func TestCreateTrasBorrarRooms(t *testing.T) {
 		t.Fatal(err)
 	}
 	// la rama y el worktree huérfano siguen registrados
-	if out, _ := gitOut(t, root, "branch", "--list", "devclean/T-001"); out == "" {
+	if out, _ := gitOut(t, root, "branch", "--list", "loom/T-001"); out == "" {
 		t.Fatal("preparación: la rama debía seguir existiendo")
 	}
 
@@ -531,7 +531,7 @@ func TestExtraQueNoInstalaNoTumbaLaInstalacion(t *testing.T) {
 		t.Skip("sin python3")
 	}
 	dir := t.TempDir()
-	toml := "[project]\nname = \"x\"\nversion = \"0\"\ndependencies = []\n[project.optional-dependencies]\njev = [\"noexiste @ file:///no/existe/devclean\"]\n"
+	toml := "[project]\nname = \"x\"\nversion = \"0\"\ndependencies = []\n[project.optional-dependencies]\njev = [\"noexiste @ file:///no/existe/loom\"]\n"
 	if err := os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte(toml), 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -15,18 +15,18 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/ship"
-	"github.com/Pastranauwu/devclean/internal/spec"
-	"github.com/Pastranauwu/devclean/internal/state"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/ship"
+	"github.com/Pastranauwu/loom/internal/spec"
+	"github.com/Pastranauwu/loom/internal/state"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Dir es la carpeta del historial; Index, la tabla con una línea por
 // feature archivado.
-func Dir(root string) string   { return filepath.Join(root, ".devclean", "historial") }
-func Index(root string) string { return filepath.Join(root, ".devclean", "index.md") }
+func Dir(root string) string   { return filepath.Join(root, ".loom", "historial") }
+func Index(root string) string { return filepath.Join(root, ".loom", "index.md") }
 
 const cabeceraIndex = "# Historial de features\n\n| fecha | id | feature | motivo | estado |\n|---|---|---|---|---|\n"
 
@@ -84,19 +84,19 @@ func Archivar(root, specPath string) (Entrada, error) {
 	}
 	a, hay := ship.LeerAceptacion(root)
 	if !hay {
-		return Entrada{}, errors.New("sin entrega conjunta registrada · corre devclean ship --todas y archiva cuando pase")
+		return Entrada{}, errors.New("sin entrega conjunta registrada · corre loom ship --todas y archiva cuando pase")
 	}
 	// la entrega probó un spec concreto: si lo editaron después, lo que
 	// se archivaría no es lo que pasó la aceptación
 	if a.Spec != spec.IntencionDe(s).Hash() {
-		return Entrada{}, errors.New("el spec cambió desde la última entrega · corre devclean ship --todas sobre este spec y archiva cuando pase")
+		return Entrada{}, errors.New("el spec cambió desde la última entrega · corre loom ship --todas sobre este spec y archiva cuando pase")
 	}
 	if !a.Aprobado {
-		return Entrada{}, fmt.Errorf("la última entrega no pasó · %s · arregla y corre devclean ship --todas", a.Motivo)
+		return Entrada{}, fmt.Errorf("la última entrega no pasó · %s · arregla y corre loom ship --todas", a.Motivo)
 	}
 	for _, c := range a.Criterios {
 		if !c.Corrio || !c.Paso {
-			return Entrada{}, fmt.Errorf("criterio de aceptación sin pasar · %s · arregla y corre devclean ship --todas", c.Comando)
+			return Entrada{}, fmt.Errorf("criterio de aceptación sin pasar · %s · arregla y corre loom ship --todas", c.Comando)
 		}
 	}
 
@@ -144,7 +144,7 @@ func Archivar(root, specPath string) (Entrada, error) {
 		rutas = append(rutas, filepath.Join(root, ".gitignore"))
 	}
 	for _, f := range []string{spec.IntencionFile, spec.FeatureStateFile, ship.AceptacionFile} {
-		p := filepath.Join(root, ".devclean", f)
+		p := filepath.Join(root, ".loom", f)
 		versionado := git(root, "ls-files", "--error-unmatch", p) == nil
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			return Entrada{}, err
@@ -156,20 +156,20 @@ func Archivar(root, specPath string) (Entrada, error) {
 	if err := git(root, append([]string{"add", "-A", "--"}, rutas...)...); err != nil {
 		return Entrada{}, fmt.Errorf("archivado en %s pero git no pudo agregarlo · %w", e.Dir, err)
 	}
-	if err := git(root, append([]string{"commit", "-q", "-m", "devclean: archiva " + e.Nombre, "--"}, rutas...)...); err != nil {
+	if err := git(root, append([]string{"commit", "-q", "-m", "loom: archiva " + e.Nombre, "--"}, rutas...)...); err != nil {
 		return Entrada{}, fmt.Errorf("archivado en %s pero el commit falló · %w", e.Dir, err)
 	}
 	return e, nil
 }
 
-// excepciones es lo que reemplaza a la línea que ignora `.devclean/`.
-var excepciones = []string{".devclean/*", "!.devclean/historial/", "!.devclean/index.md"}
+// excepciones es lo que reemplaza a la línea que ignora `.loom/`.
+var excepciones = []string{".loom/*", "!.loom/historial/", "!.loom/index.md"}
 
 // abrirGitignore deja pasar el historial en un proyecto que ignora
-// `.devclean/` entero: con la carpeta ignorada git no mira
+// `.loom/` entero: con la carpeta ignorada git no mira
 // adentro y ninguna excepción sirve, así que la línea pasa a ignorar su
-// contenido (`.devclean/*`) menos el historial y el índice. Todo lo demás
-// de .devclean sigue ignorado como estaba. Devuelve las líneas que puso.
+// contenido (`.loom/*`) menos el historial y el índice. Todo lo demás
+// de .loom sigue ignorado como estaba. Devuelve las líneas que puso.
 //
 // Si después de eso git sigue ignorando el historial, la regla está en un
 // lugar que no es del proyecto (el gitignore global o .git/info/exclude):
@@ -183,7 +183,7 @@ func abrirGitignore(root string) ([]string, error) {
 	if hay {
 		lineas := strings.Split(string(original), "\n")
 		for i, l := range lineas {
-			if strings.Trim(strings.TrimSpace(l), "/") == ".devclean" {
+			if strings.Trim(strings.TrimSpace(l), "/") == ".loom" {
 				lineas[i] = strings.Join(excepciones, "\n")
 				puestas = excepciones
 			}
@@ -196,7 +196,7 @@ func abrirGitignore(root string) ([]string, error) {
 	}
 	// check-ignore -v responde "<archivo>:<línea>:<patrón>\t<ruta>" por
 	// cada ruta ignorada, y sale con 1 si ninguna lo está
-	cmd := exec.Command("git", "check-ignore", "-v", "--no-index", ".devclean/historial/0000-x/spec.yml", ".devclean/index.md")
+	cmd := exec.Command("git", "check-ignore", "-v", "--no-index", ".loom/historial/0000-x/spec.yml", ".loom/index.md")
 	cmd.Dir = root
 	out, _ := cmd.Output()
 	// con -v también salen las rutas que una excepción ("!patrón") rescata
@@ -217,7 +217,7 @@ func abrirGitignore(root string) ([]string, error) {
 	if partes := strings.SplitN(regla, ":", 3); len(partes) == 3 {
 		fuente, patron = partes[0], partes[2]
 	}
-	return nil, fmt.Errorf("git ignora el historial por el patrón %q de %s · quítalo o agrega ahí %s y %s, y vuelve a correr devclean archive",
+	return nil, fmt.Errorf("git ignora el historial por el patrón %q de %s · quítalo o agrega ahí %s y %s, y vuelve a correr loom archive",
 		patron, fuente, excepciones[1], excepciones[2])
 }
 

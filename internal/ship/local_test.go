@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 func entregaLocal(t *testing.T, integrar bool) (string, Entrega) {
@@ -38,7 +38,7 @@ func entregaLocalEn(t *testing.T, root string, cfg config.Config, integrar bool)
 }
 
 // Sin remoto, la entrega no muere pidiendo origin: el PR queda en el repo,
-// la rama para revisar y mergear, y la descripción en .devclean/pr/.
+// la rama para revisar y mergear, y la descripción en .loom/pr/.
 func TestEntregarTodasSinRemotoDejaPRLocal(t *testing.T) {
 	root, e := entregaLocal(t, false)
 
@@ -90,7 +90,7 @@ func TestEntregarTodasLocalConRemotoNoSube(t *testing.T) {
 	if !strings.HasPrefix(e.PR, PRLocal) || !e.Integrado {
 		t.Fatalf("PR = %q, integrado = %v · debe ser local e integrado · pasos %+v", e.PR, e.Integrado, e.Pasos)
 	}
-	if ramas := gitCmd(t, remoto, "branch", "--list", "devclean/*"); strings.TrimSpace(ramas) != "" {
+	if ramas := gitCmd(t, remoto, "branch", "--list", "loom/*"); strings.TrimSpace(ramas) != "" {
 		t.Errorf("la rama de entrega llegó al remoto · %q", ramas)
 	}
 	if local, enRemoto := gitCmd(t, root, "rev-parse", "main"), gitCmd(t, remoto, "rev-parse", "main"); local == enRemoto {

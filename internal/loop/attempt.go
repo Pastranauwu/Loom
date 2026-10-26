@@ -1,6 +1,6 @@
 // Package loop implements the work loop and its instrumentation:
 // cada intento escribe una línea en
-// .devclean/runs/<id>/attempts.jsonl. Ese archivo es la única fuente de
+// .loom/runs/<id>/attempts.jsonl. Ese archivo es la única fuente de
 // las métricas y del parte de datos; nada se recalcula leyendo el
 // repo después.
 package loop
@@ -89,7 +89,7 @@ func (t Tokens) Gasto() int {
 }
 
 // RunsDir returns the runs directory of the repository at root.
-func RunsDir(root string) string { return filepath.Join(root, ".devclean", "runs") }
+func RunsDir(root string) string { return filepath.Join(root, ".loom", "runs") }
 
 // attemptsPath returns the attempts.jsonl path of a task.
 func attemptsPath(root, id string) string {

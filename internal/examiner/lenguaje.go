@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // timeoutSintaxis acota al validador externo. Si el intérprete se cuelga,
 // el examen degrada en vez de frenar al implementador.
 const timeoutSintaxis = 15 * time.Second
 
-// Soportado reporta si devclean sabe generar y validar una suite ciega
+// Soportado reporta si loom sabe generar y validar una suite ciega
 // para ese stack.
 //
 // Importa fuera de este paquete porque la veda de pruebas (el implementador
@@ -93,11 +93,11 @@ func lenguajeDeTarea(detectado string, t task.Task) string {
 func nombresSuite(lenguaje string) (visible, oculta string) {
 	switch lenguaje {
 	case "python":
-		return "test_devclean_visible.py", "test_devclean_hidden.py"
+		return "test_loom_visible.py", "test_loom_hidden.py"
 	case "typescript":
-		return "devclean_visible.test.ts", "devclean_hidden.test.ts"
+		return "loom_visible.test.ts", "loom_hidden.test.ts"
 	case "javascript":
-		return "devclean_visible.test.js", "devclean_hidden.test.js"
+		return "loom_visible.test.js", "loom_hidden.test.js"
 	default:
 		return VisibleFileName, HiddenFileName
 	}
@@ -105,7 +105,7 @@ func nombresSuite(lenguaje string) (visible, oculta string) {
 
 // RutasSuite devuelve dónde van la suite visible y la oculta dentro del
 // cuarto, relativas a su raíz. El examinador automático la usa al escribir
-// y `devclean task seal` al sellar a mano: un solo camino para los dos.
+// y `loom task seal` al sellar a mano: un solo camino para los dos.
 func RutasSuite(tocarSolo []string, lenguaje string) (visible, oculta string) {
 	_, relDir := inferDirFromTocarSolo(tocarSolo, "")
 	v, o := nombresSuite(lenguajeExamen(lenguaje))
@@ -170,7 +170,7 @@ func validarSintaxis(lenguaje, contenido string) error {
 	case "python":
 		return validarPython(contenido)
 	default:
-		_, err := parser.ParseFile(token.NewFileSet(), "devclean_test.go", contenido, parser.AllErrors)
+		_, err := parser.ParseFile(token.NewFileSet(), "loom_test.go", contenido, parser.AllErrors)
 		return err
 	}
 }
@@ -225,7 +225,7 @@ func validarPython(contenido string) error {
 	if _, err := exec.LookPath("python3"); err != nil {
 		return nil
 	}
-	f, err := os.CreateTemp("", "devclean-examen-*.py")
+	f, err := os.CreateTemp("", "loom-examen-*.py")
 	if err != nil {
 		return nil
 	}
@@ -279,7 +279,7 @@ Devuelve SOLO este JSON (sin markdown):
 		return `- Escribe pruebas de pytest: funciones ` + "`def test_xxx():`" + ` a nivel de módulo, aserciones con assert.
 - Usa solo la stdlib de Python y el módulo bajo prueba. Sin pip, sin dependencias externas.
 - En "imports" van líneas de import COMPLETAS, incluida la del módulo bajo prueba (ej. "from exportador import a_csv", "import json").
-- No pongas los imports dentro del cuerpo de las funciones: devclean los escribe arriba del archivo.
+- No pongas los imports dentro del cuerpo de las funciones: loom los escribe arriba del archivo.
 
 Devuelve SOLO este JSON (sin texto alrededor, sin markdown):
 {
@@ -290,7 +290,7 @@ Devuelve SOLO este JSON (sin texto alrededor, sin markdown):
 	}
 	return `- Usa solo la stdlib de Go. Sin imports externos.
 - En "imports" enumera TODO paquete de la stdlib que usen tus tests aparte de "testing" (ej. "net", "time", "bytes", "encoding/json"). Si olvidas uno, la suite no compila y se descarta.
-- No pongas el bloque import en el código: solo las funciones. devclean arma el archivo.
+- No pongas el bloque import en el código: solo las funciones. loom arma el archivo.
 
 Devuelve SOLO este JSON (sin texto alrededor, sin markdown):
 {

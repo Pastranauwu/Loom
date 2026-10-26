@@ -225,13 +225,13 @@ func TestVerificarExpone(t *testing.T) {
 // El planificador es un modelo y a veces escribe descripciones donde va
 // una firma. Eso no se puede buscar en un diff, y frenar la entrega por
 // ello dejaba la tarea muerta: el único arreglo era editar el contrato a
-// mano, justo lo que devclean evita.
+// mano, justo lo que loom evita.
 func TestVerificarExponeNoBloqueaPorProsa(t *testing.T) {
 	diff := `--- a/cmd/sum/main.go
 +++ b/cmd/sum/main.go
 +func main() {}
 `
-	prosa := []string{"cmd/sum main package", "devclean --mac <MAC>"}
+	prosa := []string{"cmd/sum main package", "loom --mac <MAC>"}
 	faltan, sinForma := verificarExpone(prosa, diff)
 	if len(faltan) != 0 {
 		t.Errorf("faltan = %v · la prosa no se puede verificar, no debe bloquear", faltan)

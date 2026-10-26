@@ -1,5 +1,5 @@
 #!/bin/sh
-# Demo reproducible de devclean, sin gastar tokens: un agente falso que
+# Demo reproducible de loom, sin gastar tokens: un agente falso que
 # resuelve las tareas. Para grabar el GIF:
 #   vhs docs/demo.tape
 # Para una demo con agentes reales, quita FAKE=1 y usa --ejecutor opencode.
@@ -7,29 +7,29 @@ set -e
 
 # ruta absoluta del binario: sobrevive al `cd "$repo"` de más abajo
 raiz="$(cd "$(dirname "$0")/.." && pwd)"
-bin="${DEVCLEAN_BIN:-$raiz/devclean}"
+bin="${LOOM_BIN:-$raiz/loom}"
 # siempre recompila: go build es incremental y un binario viejo grababa
 # una demo que ya no corresponde al código del repo
-if [ -z "$DEVCLEAN_BIN" ]; then
-  echo "compilando devclean..."
-  (cd "$raiz" && go build -o devclean ./cmd/devclean) || exit 1
+if [ -z "$LOOM_BIN" ]; then
+  echo "compilando loom..."
+  (cd "$raiz" && go build -o loom ./cmd/loom) || exit 1
 fi
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# HOME aislado: el ledger de gasto vive en $HOME/.devclean/ventanas.jsonl y
+# HOME aislado: el ledger de gasto vive en $HOME/.loom/ventanas.jsonl y
 # es global al usuario, no por repo. Sin esto la demo — agente falso, cero
 # tokens reales — escribía tokens inventados en el ledger de quien la corre,
-# y sobre ese ledger se calculan `devclean usage` y los topes de
+# y sobre ese ledger se calculan `loom usage` y los topes de
 # `presupuesto:` que deciden si el trabajo real puede seguir. Mismo aislamiento
 # que ya hacía scripts/demo-env.sh.
 export HOME="$tmp/home"
 mkdir -p "$HOME"
 cat > "$HOME/.gitconfig" <<'GITCFG'
 [user]
-	name = devclean demo
-	email = demo@devclean.local
+	name = loom demo
+	email = demo@loom.local
 [init]
 	defaultBranch = main
 GITCFG
@@ -48,7 +48,7 @@ fi
 dir="."; prev=""
 for a in "$@"; do [ "$prev" = "--dir" ] && dir="$a"; prev="$a"; done
 case "$2" in
-  *"planificador de devclean"*)
+  *"planificador de loom"*)
     printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"titulo\":\"exportar clientes a CSV\",\"listo_cuando\":\"test -f src/export.go\",\"tocar_solo\":[\"src/**\"]},{\"titulo\":\"documentar la API\",\"listo_cuando\":\"test -f docs/api.md\",\"tocar_solo\":[\"docs/**\"]}]"}}'
     printf '%s\n' '{"type":"step_finish","tokens":{"input":10,"output":5}}'
     ;;

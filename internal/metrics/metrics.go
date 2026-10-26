@@ -1,9 +1,9 @@
 package metrics
 
 import (
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/state"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/state"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Metricas es el reporte de las cinco métricas. Los punteros nulos (null) marcan lo que

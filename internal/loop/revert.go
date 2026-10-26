@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/config"
+	"github.com/Pastranauwu/loom/internal/config"
 )
 
 // revertFueraDeAlcance revierte los archivos que el agente tocó fuera de

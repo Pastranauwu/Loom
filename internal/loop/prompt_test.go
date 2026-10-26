@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/plan"
-	"github.com/Pastranauwu/devclean/internal/skills"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/skills"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 const arquitecturaPlan = `STACK: Go 1.22, sin dependencias.

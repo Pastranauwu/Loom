@@ -3,7 +3,7 @@ package ship
 import (
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // verificarExpone comprueba que la tarea entregó las firmas que su

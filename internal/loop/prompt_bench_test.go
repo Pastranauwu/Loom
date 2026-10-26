@@ -8,27 +8,27 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/constitution"
-	"github.com/Pastranauwu/devclean/internal/executor"
-	"github.com/Pastranauwu/devclean/internal/plan"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/constitution"
+	"github.com/Pastranauwu/loom/internal/executor"
+	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // TestBenchPrompts mide los prompts y los intentos de un proyecto real.
 // No corre en `go test ./...`: pide el tag y la ruta del proyecto.
 //
-//	DEVCLEAN_BENCH_DIR=../prueba go test -tags bench -run TestBenchPrompts -v ./internal/loop/
+//	LOOM_BENCH_DIR=../prueba go test -tags bench -run TestBenchPrompts -v ./internal/loop/
 //
 // Los prompts se arman con el código actual sobre los contratos del
 // proyecto, sin skills (dependen del rol) ni error previo. Los intentos
-// salen de .devclean/runs: son de la corrida que ya pasó, así que para
+// salen de .loom/runs: son de la corrida que ya pasó, así que para
 // comparar un cambio hay que correr el plan de nuevo con él.
-// DEVCLEAN_BENCH_TAREA=T-008 vuelca además el prompt de esa tarea.
+// LOOM_BENCH_TAREA=T-008 vuelca además el prompt de esa tarea.
 func TestBenchPrompts(t *testing.T) {
-	root := os.Getenv("DEVCLEAN_BENCH_DIR")
+	root := os.Getenv("LOOM_BENCH_DIR")
 	if root == "" {
-		t.Skip("DEVCLEAN_BENCH_DIR sin definir")
+		t.Skip("LOOM_BENCH_DIR sin definir")
 	}
 	tasks, err := task.List(config.TasksDir(root))
 	if err != nil || len(tasks) == 0 {
@@ -41,7 +41,7 @@ func TestBenchPrompts(t *testing.T) {
 	for _, tk := range tasks {
 		p := promptPara(tk, tk.Usa, constitucion, nil, "", "", false)
 		prompts = append(prompts, p)
-		if tk.ID == os.Getenv("DEVCLEAN_BENCH_TAREA") {
+		if tk.ID == os.Getenv("LOOM_BENCH_TAREA") {
 			t.Logf("prompt de %s:\n%s", tk.ID, p)
 		}
 		total += len(p)

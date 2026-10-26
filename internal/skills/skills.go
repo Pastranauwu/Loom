@@ -19,7 +19,7 @@ import (
 
 // Source es un paquete de skill instalable.
 type Source struct {
-	// Nombre es el slug con el que devclean identifica la skill en todos
+	// Nombre es el slug con el que loom identifica la skill en todos
 	// lados: config.yml, DefaultAgentes, y la carpeta instalada
 	// (.agents/skills/<Nombre>/).
 	Nombre string
@@ -40,7 +40,7 @@ func (s Source) arg() string {
 	return s.Nombre
 }
 
-// DefaultSources son los paquetes que devclean trae por defecto: el
+// DefaultSources son los paquetes que loom trae por defecto: el
 // catálogo del que el planificador elige por tarea (campo `skills` del
 // contrato) y el que usan los roles cuando el contrato no lo declara.
 func DefaultSources() []Source {

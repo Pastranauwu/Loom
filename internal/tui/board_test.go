@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/Pastranauwu/devclean/internal/state"
+	"github.com/Pastranauwu/loom/internal/state"
 )
 
 func TestArmarTableroColumnas(t *testing.T) {
@@ -150,7 +150,7 @@ func TestBoardJKMueve(t *testing.T) {
 
 func TestFondoPlasma(t *testing.T) {
 	frame := FondoPlasma(40, 10, 0, DefaultPlasma(), []lineaSticker{
-		{texto: "devclean", color: rgbPresion},
+		{texto: "loom", color: rgbPresion},
 	}, 1)
 	if !strings.Contains(frame, "▀") {
 		t.Error("el plasma debió renderizar medio bloque ▀")
@@ -161,7 +161,7 @@ func TestFondoPlasma(t *testing.T) {
 	if !strings.Contains(frame, "\x1b[48;2;") {
 		t.Error("el plasma debió usar truecolor bg")
 	}
-	if !strings.Contains(frame, "devclean") {
+	if !strings.Contains(frame, "loom") {
 		t.Error("el sticker debió tapar con el texto")
 	}
 }

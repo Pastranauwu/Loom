@@ -1,16 +1,16 @@
 #!/bin/sh
-# Prepara el entorno para grabar la TUI de devclean: agente falso con pausa
-# (para que se vea la animación) y un repo de demo en /tmp/devclean-demo.
-# No corre ningún comando de devclean; eso lo hace el tape con la TUI.
+# Prepara el entorno para grabar la TUI de loom: agente falso con pausa
+# (para que se vea la animación) y un repo de demo en /tmp/loom-demo.
+# No corre ningún comando de loom; eso lo hace el tape con la TUI.
 set -e
 
 raiz="$(cd "$(dirname "$0")/.." && pwd)"
-bin="${DEVCLEAN_BIN:-$raiz/devclean}"
+bin="${LOOM_BIN:-$raiz/loom}"
 # siempre recompila: go build es incremental y un binario viejo grababa
 # una demo que ya no corresponde al código del repo
-if [ -z "$DEVCLEAN_BIN" ]; then
-  echo "compilando devclean..."
-  (cd "$raiz" && go build -o devclean ./cmd/devclean) || exit 1
+if [ -z "$LOOM_BIN" ]; then
+  echo "compilando loom..."
+  (cd "$raiz" && go build -o loom ./cmd/loom) || exit 1
 fi
 
 # agente falso
@@ -27,7 +27,7 @@ fi
 dir="."; prev=""
 for a in "$@"; do [ "$prev" = "--dir" ] && dir="$a"; prev="$a"; done
 case "$2" in
-  *"planificador de devclean"*)
+  *"planificador de loom"*)
     printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"titulo\":\"exportador CSV\",\"listo_cuando\":\"test -f src/csv/export.go\",\"tocar_solo\":[\"src/csv/**\"]},{\"titulo\":\"exportador JSON\",\"listo_cuando\":\"test -f src/json/export.go\",\"tocar_solo\":[\"src/json/**\"]}]"}}'
     printf '%s\n' '{"type":"step_finish","tokens":{"input":10,"output":5}}'
     ;;
@@ -43,31 +43,31 @@ case "$2" in
 esac
 EOF
 chmod +x /tmp/fakebin/opencode
-cp "$bin" /tmp/fakebin/devclean
+cp "$bin" /tmp/fakebin/loom
 
-# HOME aislado: el ledger de consumo vive en $HOME/.devclean, y sin esto
+# HOME aislado: el ledger de consumo vive en $HOME/.loom, y sin esto
 # el GIF grabaria el gasto real de quien graba. El tape exporta este HOME.
-casa=/tmp/devclean-demo-home
+casa=/tmp/loom-demo-home
 rm -rf "$casa"
 mkdir -p "$casa"
 cat > "$casa/.gitconfig" <<'GITCFG'
 [user]
-	name = devclean demo
-	email = demo@devclean.local
+	name = loom demo
+	email = demo@loom.local
 [init]
 	defaultBranch = main
 GITCFG
 
 # repo de demo en ruta fija
-rm -rf /tmp/devclean-demo
-mkdir /tmp/devclean-demo
-cd /tmp/devclean-demo
+rm -rf /tmp/loom-demo
+mkdir /tmp/loom-demo
+cd /tmp/loom-demo
 git init -b main -q
 git -c user.email=t@t -c user.name=t commit --allow-empty -m init -q
-HOME="$casa" PATH="/tmp/fakebin:$PATH" /tmp/fakebin/devclean init --pruebas true --plain >/dev/null
-echo "recursion_max: 1" >> .devclean/config.yml
+HOME="$casa" PATH="/tmp/fakebin:$PATH" /tmp/fakebin/loom init --pruebas true --plain >/dev/null
+echo "recursion_max: 1" >> .loom/config.yml
 
-cat > .devclean/tasks/T-001.md <<'EOF'
+cat > .loom/tasks/T-001.md <<'EOF'
 ---
 version: 1
 id: T-001
@@ -78,7 +78,7 @@ limite_intentos: 3
 limite_lineas: 200
 ---
 EOF
-cat > .devclean/tasks/T-002.md <<'EOF'
+cat > .loom/tasks/T-002.md <<'EOF'
 ---
 version: 1
 id: T-002
@@ -94,7 +94,7 @@ EOF
 # de que T-001/T-002 ya corrieron — si entrara pendiente desde el arranque,
 # la esclusa de entrada la rechaza por cruce de tocar_solo con T-001/T-002
 # en la misma oleada, que es un chequeo real y correcto, no un bug.
-cat > .devclean/tasks/T-003.md.pendiente <<'EOF'
+cat > .loom/tasks/T-003.md.pendiente <<'EOF'
 ---
 version: 1
 id: T-003
@@ -107,4 +107,4 @@ recursivo: true
 limite_subtareas: 2
 ---
 EOF
-echo "demo lista en /tmp/devclean-demo"
+echo "demo lista en /tmp/loom-demo"

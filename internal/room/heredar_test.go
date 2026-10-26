@@ -27,7 +27,7 @@ func paqueteFalso(t *testing.T, dir, nombre string) {
 	for archivo, texto := range map[string]string{
 		filepath.Join(nombre, "__init__.py"):                "",
 		filepath.Join(nombre+"-1.0.dist-info", "METADATA"):  "Metadata-Version: 2.1\nName: " + nombre + "\nVersion: 1.0\n",
-		filepath.Join(nombre+"-1.0.dist-info", "INSTALLER"): "devclean\n",
+		filepath.Join(nombre+"-1.0.dist-info", "INSTALLER"): "loom\n",
 	} {
 		ruta := filepath.Join(base, archivo)
 		if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
@@ -114,16 +114,16 @@ func TestInstalacionFallidaConEntornoHeredadoNoEsFatal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requirements(t, esq.Path, "paquete-que-no-existe-devclean==9.9.9\n", "wip: T-001 esqueleto")
+	requirements(t, esq.Path, "paquete-que-no-existe-loom==9.9.9\n", "wip: T-001 esqueleto")
 
 	if _, err := Create(ctx, root, "T-002", esq.Rama); err != nil {
 		t.Fatalf("debía seguir con el entorno heredado · %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".devclean", "runs", "T-002", "entorno.log")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".loom", "runs", "T-002", "entorno.log")); err != nil {
 		t.Error("falta el rastro de la instalación fallida en runs/T-002/entorno.log")
 	}
 	// sin cuarto del que heredar sigue siendo un error
-	requirements(t, root, "paquete-que-no-existe-devclean==9.9.9\n", "roto")
+	requirements(t, root, "paquete-que-no-existe-loom==9.9.9\n", "roto")
 	if _, err := Create(ctx, root, "T-009", "main"); err == nil {
 		t.Error("sin entorno verificado del que heredar, la instalación fallida detiene el cuarto")
 	}

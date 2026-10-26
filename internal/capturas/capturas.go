@@ -239,7 +239,7 @@ func esperar(ctx context.Context, url string, tope time.Duration) error {
 }
 
 func capturar(ctx context.Context, nav, url, foto string, ancho, alto int) error {
-	perfil, err := os.MkdirTemp("", "devclean-nav-")
+	perfil, err := os.MkdirTemp("", "loom-nav-")
 	if err != nil {
 		return err
 	}

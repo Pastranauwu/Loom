@@ -1,7 +1,7 @@
-# devclean: contexto para agentes
+# loom: contexto para agentes
 
 > **Este archivo se carga entero en cada sesión. Tope: 200 líneas.**
-> - Una advertencia nueva va al `CLAUDE.md` de su paquete (`internal/<paquete>/`, `cmd/devclean/`), no aquí. Regla, función y una línea de por qué; la anécdota va en el commit.
+> - Una advertencia nueva va al `CLAUDE.md` de su paquete (`internal/<paquete>/`, `cmd/loom/`), no aquí. Regla, función y una línea de por qué; la anécdota va en el commit.
 > - Lo que trae una versión va a `CHANGELOG.md`; aquí solo cambia el número.
 > - Lo pendiente va a `docs/ROADMAP.md`. Cómo funciona cada pieza, a `docs/ARQUITECTURA.md`. Cómo llegó hasta aquí, a `docs/HISTORIA.md`.
 > - Aquí solo entra lo que, si se borra, hace que un agente rompa algo en cualquier parte del repo.
@@ -10,16 +10,16 @@
 
 ## 1. Qué es
 
-**devclean** es una herramienta de terminal en Go (1.22+, binario estático sin CGO) que convierte **requerimientos declarados como código** en cambios verificados: orquesta varios agentes de IA en paralelo sobre un mismo repositorio y garantiza que a la rama principal solo llegue código probado y con historial legible.
+**loom** es una herramienta de terminal en Go (1.22+, binario estático sin CGO) que convierte **requerimientos declarados como código** en cambios verificados: orquesta varios agentes de IA en paralelo sobre un mismo repositorio y garantiza que a la rama principal solo llegue código probado y con historial legible.
 
-La interfaz del producto es `devclean.spec.yml`, no el agente.
+La interfaz del producto es `loom.spec.yml`, no el agente.
 
 ```text
-devclean.spec.yml (QUÉ debe existir: requirements, rules, acceptance, constraints)
+loom.spec.yml (QUÉ debe existir: requirements, rules, acceptance, constraints)
         ↓
 Esqueleto (modelo grande: estructura, ARCHITECTURE.md, interfaces y stubs con Casos:)
         ↓
-Contratos de tarea (.devclean/tasks/*.md · una tarea de relleno por stub)
+Contratos de tarea (.loom/tasks/*.md · una tarea de relleno por stub)
         ↓
 Agentes en paralelo (cuartos aislados con git worktree)
         ↓
@@ -43,7 +43,7 @@ PR
 ## 2. Pila
 
 - **Go 1.22+**, `spf13/cobra`, `charmbracelet` (bubbletea, lipgloss, bubbles, huh). Estética sobria, acento único `#4FB3A2`, sin emojis. Toda salida soporta `--plain` y `--json`.
-- **`git` nativo** y `gh` para PRs; sin remoto `origin`, entrega local en la rama `devclean/_entrega`.
+- **`git` nativo** y `gh` para PRs; sin remoto `origin`, entrega local en la rama `loom/_entrega`.
 - **Ejecutores** (`internal/executor`): `claude`, `opencode` y `codex`, siempre en modo headless, con herramientas por rol (`executor.Rol`). Los comandos exactos están en el código de cada adaptador.
 - **Dependencias:** cero frameworks pesados, cero servidores escuchando en red. Una sola de parseo (`yaml.v3`); el resto, stdlib.
 
@@ -52,7 +52,7 @@ PR
 ## 3. Mapa del repo
 
 ```
-cmd/devclean/        # Comandos de la CLI (cobra)
+cmd/loom/        # Comandos de la CLI (cobra)
   up.go              #   orquestador: prepara → plan → run → ship
   esqueleto.go       #   planearEsqueleto: el arquitecto y su verificación
   plan.go apply.go completar.go   # plan, spec → contratos, spec incremental
@@ -73,7 +73,7 @@ internal/
   revisor/           # Modelo que juzga el diff contra el contrato
   capturas/          # Capturas para la revisión visual
   overlap/           # Colisiones: textual, semántico, funcional
-  historial/         # devclean archive
+  historial/         # loom archive
   constitution/ skills/   # Texto que se inyecta en el prompt
   budget/ ventanas/ metrics/ standup/   # Presupuesto, ledger, métricas, parte
   config/ kv/        # Configuración y parser del frontmatter
@@ -81,14 +81,14 @@ internal/
   tui/ ui/           # Vistas Bubble Tea y formateadores
 ```
 
-Casi todos los paquetes y `cmd/devclean` tienen su propio `CLAUDE.md` con sus advertencias. Léelo antes de tocar el paquete.
+Casi todos los paquetes y `cmd/loom` tienen su propio `CLAUDE.md` con sus advertencias. Léelo antes de tocar el paquete.
 
 ---
 
 ## 4. Conceptos (detalle en `docs/ARQUITECTURA.md`)
 
-- **Contrato de tarea** (`.devclean/tasks/T-00N.md`): `listo_cuando`, `tocar_solo`, `no_tocar`, `depende_de`, `expone`, `usa`, `peso`, límites. Es el IR; el spec humano es el source.
-- **Esqueleto:** el arquitecto escribe el plano en código (stubs con firma, `Idea:` y `Casos:`, cuerpo que lanza `devclean: sin implementar`) y `esqueleto.Problemas` lo verifica sin modelo. Sobre código existente no hay stubs: se cambia lo que ya funciona.
+- **Contrato de tarea** (`.loom/tasks/T-00N.md`): `listo_cuando`, `tocar_solo`, `no_tocar`, `depende_de`, `expone`, `usa`, `peso`, límites. Es el IR; el spec humano es el source.
+- **Esqueleto:** el arquitecto escribe el plano en código (stubs con firma, `Idea:` y `Casos:`, cuerpo que lanza `loom: sin implementar`) y `esqueleto.Problemas` lo verifica sin modelo. Sobre código existente no hay stubs: se cambia lo que ya funciona.
 - **`spec.ValidatePlan`:** análisis estático del grafo antes de gastar tokens. Errores abortan; advertencias solo se imprimen.
 - **Esclusa de entrada** (`gate`): 6 chequeos; el clave es que `listo_cuando` sea ejecutable y **falle hoy**.
 - **Esclusa de salida** (`ship`): base, historial, ruido, secretos, presupuesto, interfaces, dependencias, bisectable, handoff, pr. En `ship --todas` se suman `integradas` y `aceptación` sobre el conjunto.
@@ -103,7 +103,7 @@ Versión actual: **v1.11.5**. Historial por versión en `CHANGELOG.md`.
 
 `go test ./...` y `go vet ./...` pasan. Eso cubre pruebas unitarias; no significa que cada flujo esté probado con agentes reales.
 
-**Verificado de punta a punta con agentes reales (v1.0):** `devclean up "<petición>" --agentes 3 --ship` sobre un repo Go vacío, más `init`, `doctor`, `check`, `plan --aprobar`, `run`, `ship T-00N`, `ship --todas`, `board`, `report`, `standup`. El esqueleto con pruebas del arquitecto corrió en un monorepo Python + frontend.
+**Verificado de punta a punta con agentes reales (v1.0):** `loom up "<petición>" --agentes 3 --ship` sobre un repo Go vacío, más `init`, `doctor`, `check`, `plan --aprobar`, `run`, `ship T-00N`, `ship --todas`, `board`, `report`, `standup`. El esqueleto con pruebas del arquitecto corrió en un monorepo Python + frontend.
 
 **Solo con pruebas unitarias:** el esqueleto plano (cada tarea escribe su prueba desde `Casos:`), la mezcla opencode free + claude, el spec incremental, la revisión visual, `Idea:` y el prompt de sistema propio, codex con una tarea real, `archive` en un flujo completo, `Obsoleto:`, el examen ciego de tareas del esqueleto y TypeScript, `reparar`, `pruebaComplaciente`.
 

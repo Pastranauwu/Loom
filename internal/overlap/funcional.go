@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // TimeoutSuitePorDefecto es lo que se le da a cada suite sobre la fusión
@@ -92,7 +92,7 @@ func CheckFuncional(ctx context.Context, root string, res Resultado, a, b Suite,
 		return rf
 	}
 
-	dir, err := os.MkdirTemp("", "devclean-fusion-")
+	dir, err := os.MkdirTemp("", "loom-fusion-")
 	if err != nil {
 		rf.Motivo = err.Error()
 		return rf
@@ -140,8 +140,8 @@ func CheckFuncional(ctx context.Context, root string, res Resultado, a, b Suite,
 // configurada; es lo mismo que hace la esclusa de salida.
 func commitDeArbol(ctx context.Context, root, arbol, ramaA, ramaB string) (string, error) {
 	args := []string{
-		"-c", "user.name=devclean", "-c", "user.email=devclean@local",
-		"commit-tree", arbol, "-m", "devclean: fusión en seco para el nivel funcional",
+		"-c", "user.name=loom", "-c", "user.email=loom@local",
+		"commit-tree", arbol, "-m", "loom: fusión en seco para el nivel funcional",
 	}
 	for _, rama := range []string{ramaA, ramaB} {
 		sha, err := git(ctx, root, "rev-parse", "--verify", "--quiet", rama+"^{commit}")

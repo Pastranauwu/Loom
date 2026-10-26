@@ -297,7 +297,7 @@ func TestOpenCodeRunReportaAvances(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := strings.Join(avances, "\n")
-	for _, want := range []string{"$ ls -la", "lee devclean.spec.yml", "turno 1 ·", "respuesta escrita · 15 caracteres"} {
+	for _, want := range []string{"$ ls -la", "lee loom.spec.yml", "turno 1 ·", "respuesta escrita · 15 caracteres"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("falta %q en avances:\n%s", want, got)
 		}

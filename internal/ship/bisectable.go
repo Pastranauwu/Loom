@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // verificarBisectable corre el comando de pruebas del proyecto sobre el

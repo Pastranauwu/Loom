@@ -12,7 +12,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
+	"github.com/Pastranauwu/loom/internal/loop"
 )
 
 // Entrega es lo que ship deja escrito al terminar una esclusa de salida,

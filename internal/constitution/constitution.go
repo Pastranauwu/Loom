@@ -1,4 +1,4 @@
-// Package constitution manages .devclean/constitution.md:
+// Package constitution manages .loom/constitution.md:
 // project-wide conventions injected into every agent context so that
 // parallel agents make compatible design decisions.
 package constitution
@@ -14,7 +14,7 @@ const FileName = "constitution.md"
 
 // Path returns the constitution.md path for the repository at root.
 func Path(root string) string {
-	return filepath.Join(root, ".devclean", FileName)
+	return filepath.Join(root, ".loom", FileName)
 }
 
 // Exists reports whether the constitution file is present.
@@ -32,7 +32,7 @@ func Load(root string) (string, error) {
 	return string(data), err
 }
 
-// Save writes content to .devclean/constitution.md.
+// Save writes content to .loom/constitution.md.
 func Save(root, content string) error {
 	return os.WriteFile(Path(root), []byte(content), 0o644)
 }
@@ -41,7 +41,7 @@ func Save(root, content string) error {
 // lenguaje and pruebas come from config; arbol is git ls-files output (truncated).
 func Prompt(lenguaje, pruebas, arbol string) string {
 	var b strings.Builder
-	b.WriteString("Eres el arquitecto de devclean. Genera una constitución de proyecto corta y concreta.\n\n")
+	b.WriteString("Eres el arquitecto de loom. Genera una constitución de proyecto corta y concreta.\n\n")
 	b.WriteString("La constitución es un archivo markdown que todos los agentes recibirán como contexto antes de programar. Propósito: evitar que agentes en paralelo tomen decisiones de diseño incompatibles.\n\n")
 	if lenguaje != "" {
 		b.WriteString("Lenguaje del proyecto: " + lenguaje + "\n")

@@ -101,7 +101,7 @@ func recorte(s string) string {
 // al repo. attempts.jsonl sí se versiona (es la fuente de las métricas);
 // el stdout crudo del CLI son cientos de KB por intento y solo sirve para
 // depurar en caliente. Se escribe cada vez que hace falta, así los repos
-// que ya tienen .devclean/ también quedan cubiertos.
+// que ya tienen .loom/ también quedan cubiertos.
 func ignorarLogs(root string) {
 	p := filepath.Join(RunsDir(root), ".gitignore")
 	if _, err := os.Stat(p); err == nil {

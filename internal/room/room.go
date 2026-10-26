@@ -1,6 +1,6 @@
 // Package room manages the isolated workrooms: one git
 // worktree per active task under Dir(root)/<id>/ (outside the project tree), on branch
-// devclean/<id>, with its own dependencies and port. Rooms are
+// loom/<id>, with its own dependencies and port. Rooms are
 // destroyed when the task ends.
 package room
 
@@ -18,7 +18,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Pastranauwu/devclean/internal/state"
+	"github.com/Pastranauwu/loom/internal/state"
 )
 
 // Room is an isolated worktree for one task.
@@ -33,25 +33,25 @@ type Room struct {
 }
 
 // Dir es la carpeta de cuartos del repositorio en root. Vive FUERA del
-// árbol del proyecto (~/.devclean/rooms/<nombre>-<hash>): un cuarto es
+// árbol del proyecto (~/.loom/rooms/<nombre>-<hash>): un cuarto es
 // una copia entera del repo, y adentro cualquier herramienta que recorra
 // el directorio (vitest, jest, linters, buscadores) la toma por código
 // del proyecto. En una corrida real, `npx vitest run` en la raíz corría 305
 // archivos de 30 cuartos, tardaba 10 veces más y fallaba con pruebas
-// viejas. DEVCLEAN_ROOMS elige otra carpeta. Un repo que ya tiene
-// cuartos en .devclean/rooms los sigue usando hasta que se vacíen.
+// viejas. LOOM_ROOMS elige otra carpeta. Un repo que ya tiene
+// cuartos en .loom/rooms los sigue usando hasta que se vacíen.
 func Dir(root string) string {
-	viejo := filepath.Join(root, ".devclean", "rooms")
+	viejo := filepath.Join(root, ".loom", "rooms")
 	if es, _ := os.ReadDir(viejo); len(es) > 0 {
 		return viejo
 	}
-	base := os.Getenv("DEVCLEAN_ROOMS")
+	base := os.Getenv("LOOM_ROOMS")
 	if base == "" {
 		home, err := os.UserHomeDir()
 		if err != nil || home == "" {
 			return viejo
 		}
-		base = filepath.Join(home, ".devclean", "rooms")
+		base = filepath.Join(home, ".loom", "rooms")
 	}
 	abs, err := filepath.Abs(root)
 	if err != nil {
@@ -62,7 +62,7 @@ func Dir(root string) string {
 }
 
 // Branch returns the branch name of a task's room.
-func Branch(id string) string { return "devclean/" + id }
+func Branch(id string) string { return "loom/" + id }
 
 // RamaExiste reporta si la rama de un cuarto sigue en el repo. El
 // trabajo verde de una corrida anterior vive ahí hasta que `ship` lo
@@ -83,7 +83,7 @@ func VerificarBase(ctx context.Context, root, base string) error {
 		return nil
 	}
 	if _, err := git(ctx, root, "rev-parse", "--verify", "--quiet", "HEAD"); err == nil {
-		return fmt.Errorf("la rama base %s no existe en este repo · corrige `base:` en .devclean/config.yml", base)
+		return fmt.Errorf("la rama base %s no existe en este repo · corrige `base:` en .loom/config.yml", base)
 	}
 	return fmt.Errorf("no hay commits en %s · haz un commit inicial y reintenta", base)
 }
@@ -91,7 +91,7 @@ func VerificarBase(ctx context.Context, root, base string) error {
 // IntegrationBranch es la rama temporal donde se encadenan las oleadas:
 // el trabajo verde de una oleada se mergea aquí y la siguiente oleada
 // crea sus cuartos desde esta rama.
-const IntegrationBranch = "devclean/_integra"
+const IntegrationBranch = "loom/_integra"
 
 // ResetIntegration borra la rama y el worktree de integración previos y
 // los recrea desde base. Corre al inicio de una corrida por oleadas.
@@ -119,10 +119,10 @@ func ResetIntegration(ctx context.Context, root, base string) error {
 func Integrar(ctx context.Context, root, id string) (string, error) {
 	path := filepath.Join(Dir(root), "_integra")
 	if _, err := os.Stat(path); err != nil {
-		return "", errors.New("no hay rama de integración · vuelve a correr devclean run")
+		return "", errors.New("no hay rama de integración · vuelve a correr loom run")
 	}
-	msg := "devclean: integra " + id
-	cmd := exec.CommandContext(ctx, "git", "-c", "user.name=devclean", "-c", "user.email=devclean@local", "merge", "--no-ff", "-m", msg, Branch(id))
+	msg := "loom: integra " + id
+	cmd := exec.CommandContext(ctx, "git", "-c", "user.name=loom", "-c", "user.email=loom@local", "merge", "--no-ff", "-m", msg, Branch(id))
 	cmd.Dir = path
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -144,7 +144,7 @@ func Create(ctx context.Context, root, id, base string) (Room, error) {
 	// la carpeta del cuarto no está: limpia cualquier worktree o rama
 	// que dejó una corrida anterior con rooms/ borrado, para que el
 	// `worktree add` de abajo no choque. Create solo se llama sobre
-	// tareas pendientes, así que una rama devclean/<id> aquí es basura.
+	// tareas pendientes, así que una rama loom/<id> aquí es basura.
 	if err := Destroy(ctx, root, id); err != nil {
 		return Room{}, err
 	}
@@ -177,7 +177,7 @@ func Create(ctx context.Context, root, id, base string) (Room, error) {
 		if !heredaDeCuarto(ctx, r.Path) {
 			return fail(err)
 		}
-		rastro := filepath.Join(root, ".devclean", "runs", id)
+		rastro := filepath.Join(root, ".loom", "runs", id)
 		if os.MkdirAll(rastro, 0o755) == nil {
 			_ = os.WriteFile(filepath.Join(rastro, "entorno.log"), []byte(err.Error()+"\n"), 0o644)
 		}
@@ -218,7 +218,7 @@ func Ensure(ctx context.Context, root, id, base string) (Room, error) {
 		r.Commit = st.Commit
 	} else {
 		// sin estado (el esqueleto lo guarda al terminar, o se borró
-		// .devclean/state): el punto de partida es donde la rama se
+		// .loom/state): el punto de partida es donde la rama se
 		// separó de la base. Vacío, `git diff "" HEAD` salía con 128.
 		if base == "" {
 			base = "HEAD"
@@ -234,7 +234,7 @@ func Ensure(ctx context.Context, root, id, base string) (Room, error) {
 	// no aplica limpio ni aplanado, el cuarto sigue como estaba y se avisa.
 	if r.Commit != "" && base != "" {
 		if _, err := git(ctx, r.Path, "diff", "--quiet", r.Commit, base); err != nil {
-			_, err := git(ctx, r.Path, "-c", "user.name=devclean", "-c", "user.email=devclean@local", "rebase", "--onto", base, r.Commit)
+			_, err := git(ctx, r.Path, "-c", "user.name=loom", "-c", "user.email=loom@local", "rebase", "--onto", base, r.Commit)
 			if err != nil {
 				_, _ = git(ctx, r.Path, "rebase", "--abort")
 				err = aplanarSobre(ctx, r.Path, id, base, r.Commit)
@@ -271,7 +271,7 @@ func aplanarSobre(ctx context.Context, path, id, base, desde string) error {
 		return err
 	}
 	arbol, _, _ = strings.Cut(strings.TrimSpace(arbol), "\n")
-	commit, err := git(ctx, path, "-c", "user.name=devclean", "-c", "user.email=devclean@local",
+	commit, err := git(ctx, path, "-c", "user.name=loom", "-c", "user.email=loom@local",
 		"commit-tree", arbol, "-p", base, "-m", "wip: "+id+" sobre la base nueva")
 	if err != nil {
 		return err
@@ -285,7 +285,7 @@ func aplanarSobre(ctx context.Context, path, id, base, desde string) error {
 // directory was wiped out of band. rooms/ is gitignored, so a `git
 // clean -fdx` o un rm a mano dejan la registración del worktree y su
 // rama huérfanas; sin limpiarlas, el próximo `worktree add` choca con
-// "fatal: una rama llamada 'devclean/<id>' ya existe".
+// "fatal: una rama llamada 'loom/<id>' ya existe".
 func Destroy(ctx context.Context, root, id string) error {
 	path := filepath.Join(Dir(root), id)
 	// quita el worktree si su carpeta sigue ahí, luego poda las
@@ -596,7 +596,7 @@ func pythonDe(ctx context.Context, dir string) string {
 
 // pthHeredado es el archivo del .venv de un cuarto que suma los paquetes
 // de otros entornos. site lo lee al arrancar el intérprete.
-const pthHeredado = "_devclean_heredado.pth"
+const pthHeredado = "_loom_heredado.pth"
 
 // entornosBase lista los .venv de los que hereda el cuarto dir, del más
 // cercano al más lejano: los de los cuartos cuyo trabajo ya está en este
@@ -682,7 +682,7 @@ func heredar(ctx context.Context, dir, py string, heredarDe ...string) {
 }
 
 // heredaDeCuarto reporta si algún .venv del cuarto hereda de otro cuarto,
-// es decir, de un entorno que devclean ya verificó.
+// es decir, de un entorno que loom ya verificó.
 func heredaDeCuarto(ctx context.Context, path string) bool {
 	for _, dir := range dirsManifiesto(path) {
 		if cuartos, _ := entornosBase(ctx, dir); len(cuartos) > 0 && exists(filepath.Join(dir, ".venv", binVenv(), "python")) {
@@ -747,9 +747,9 @@ func bajoNode(path, dir string) bool {
 // artefactos son carpetas que se generan o se instalan, nunca código:
 // ni se versionan ni se buscan manifiestos adentro.
 var artefactos = []string{"node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "dist", "build", "target", ".next", ".nuxt", ".svelte-kit", "coverage", ".turbo", ".gradle", "vendor",
-	// lo de devclean que es de la máquina y no del plan: también para
+	// lo de loom que es de la máquina y no del plan: también para
 	// repos que se iniciaron antes de que init lo ignorara
-	".devclean/rooms", ".devclean/runs", ".devclean/corridas"}
+	".loom/rooms", ".loom/runs", ".loom/corridas"}
 
 // Artefacto reporta si name es una carpeta de dependencias o de build.
 func Artefacto(name string) bool {
@@ -803,7 +803,7 @@ func ExcluirArtefactos(ctx context.Context, root string) error {
 	if len(previo) > 0 && !strings.HasSuffix(string(previo), "\n") {
 		sep = "\n"
 	}
-	_, err = f.WriteString(sep + "# devclean: dependencias y artefactos de build\n" + strings.Join(faltan, "\n") + "\n")
+	_, err = f.WriteString(sep + "# loom: dependencias y artefactos de build\n" + strings.Join(faltan, "\n") + "\n")
 	return err
 }
 

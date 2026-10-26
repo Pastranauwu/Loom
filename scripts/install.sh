@@ -1,10 +1,10 @@
 #!/bin/sh
-# Instalador de una línea para devclean.
-#   curl -fsSL https://github.com/Pastranauwu/devclean/releases/latest/download/install.sh | sh
+# Instalador de una línea para loom.
+#   curl -fsSL https://github.com/Pastranauwu/loom/releases/latest/download/install.sh | sh
 set -e
 
-repo="Pastranauwu/devclean"
-bin="devclean"
+repo="Pastranauwu/loom"
+bin="loom"
 
 # detectar SO y arquitectura
 os=$(uname -s)
@@ -20,7 +20,7 @@ case "$arch" in
   *) echo "arquitectura no soportada: $arch" >&2; exit 1 ;;
 esac
 
-version="${DEVCLEAN_VERSION:-latest}"
+version="${LOOM_VERSION:-latest}"
 if [ "$version" = "latest" ]; then
   url="https://github.com/$repo/releases/latest/download/${bin}_${os}_${arch}.tar.gz"
 else
@@ -34,7 +34,7 @@ echo "descargando $url"
 curl -fsSL "$url" -o "$tmp/$bin.tar.gz"
 tar -xzf "$tmp/$bin.tar.gz" -C "$tmp"
 
-dest="${DEVCLEAN_INSTALL_DIR:-$HOME/.local/bin}"
+dest="${LOOM_INSTALL_DIR:-$HOME/.local/bin}"
 mkdir -p "$dest"
 install -m 0755 "$tmp/$bin" "$dest/$bin"
 
@@ -54,7 +54,7 @@ case ":$PATH:" in
       echo "$dest ya está en $rc, abre una terminal nueva"
     else
       mkdir -p "$(dirname "$rc")"
-      printf '\n# agregado por el instalador de devclean\n%s\n' "$linea" >> "$rc"
+      printf '\n# agregado por el instalador de loom\n%s\n' "$linea" >> "$rc"
       echo "agregado $dest a tu PATH en $rc · abre una terminal nueva (o corre: source $rc)"
     fi
     ;;

@@ -6,13 +6,13 @@ import (
 )
 
 // Los cuartos viven fuera del repo (room.Dir): en pruebas van a una
-// carpeta temporal, no al ~/.devclean/rooms de quien las corre.
+// carpeta temporal, no al ~/.loom/rooms de quien las corre.
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "devclean-rooms-")
+	dir, err := os.MkdirTemp("", "loom-rooms-")
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv("DEVCLEAN_ROOMS", dir)
+	os.Setenv("LOOM_ROOMS", dir)
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

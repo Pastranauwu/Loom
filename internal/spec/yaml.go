@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 	"gopkg.in/yaml.v3"
 )
 
@@ -13,10 +13,10 @@ import (
 // corta histórica de tasks ("- hacer algo") y permiten agrupar requirements
 // y acceptance por categorías sin cambiar el modelo interno.
 func Parse(data []byte) (Spec, error) {
-	// `devclean archive` deja el spec en 0 bytes; sin esto el decoder
+	// `loom archive` deja el spec en 0 bytes; sin esto el decoder
 	// respondía "EOF" y nada más
 	if strings.TrimSpace(string(data)) == "" {
-		return Spec{}, errors.New("el spec está vacío · escribe el siguiente feature (el anterior quedó en .devclean/historial)")
+		return Spec{}, errors.New("el spec está vacío · escribe el siguiente feature (el anterior quedó en .loom/historial)")
 	}
 	var root yaml.Node
 	dec := yaml.NewDecoder(strings.NewReader(string(data)))

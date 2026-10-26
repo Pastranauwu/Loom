@@ -1,5 +1,5 @@
 // Package state tracks the runtime state of each task in
-// .devclean/state/<id>.json. State files are machine-managed, so they
+// .loom/state/<id>.json. State files are machine-managed, so they
 // are JSON; the contract stays in yaml for humans.
 package state
 
@@ -40,7 +40,7 @@ type State struct {
 
 // Dir returns the state directory of the repository at root.
 func Dir(root string) string {
-	return filepath.Join(root, ".devclean", "state")
+	return filepath.Join(root, ".loom", "state")
 }
 
 func path(root, id string) string {

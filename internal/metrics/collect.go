@@ -1,10 +1,10 @@
 package metrics
 
 import (
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/state"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/state"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Recoger lee del disco todo lo que Calcular necesita: contratos,

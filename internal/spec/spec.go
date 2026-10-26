@@ -1,5 +1,5 @@
 // Package spec implementa el modelo declarativo "Requerimientos como Código":
-// un archivo YAML (ej. devclean.spec.yml) define la feature, reglas y la lista
+// un archivo YAML (ej. loom.spec.yml) define la feature, reglas y la lista
 // de tareas con sus criterios de aceptación y dependencias, permitiendo sincronizarlas
 // y ejecutarlas en paralelo al estilo Docker Compose.
 package spec
@@ -13,20 +13,20 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/kv"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/kv"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
-// DefaultSpecNames son los nombres por defecto que devclean busca en la raíz del repo.
+// DefaultSpecNames son los nombres por defecto que loom busca en la raíz del repo.
 var DefaultSpecNames = []string{
-	"devclean.spec.yml",
-	"devclean.spec.yaml",
-	"devclean.specs.yml",
-	"devclean.specs.yaml",
+	"loom.spec.yml",
+	"loom.spec.yaml",
+	"loom.specs.yml",
+	"loom.specs.yaml",
 	"spec.yml",
 	"spec.yaml",
-	".devclean/spec.yml",
-	".devclean/spec.yaml",
+	".loom/spec.yml",
+	".loom/spec.yaml",
 }
 
 // Limites define límites por defecto para todas las tareas de una especificación.
@@ -178,7 +178,7 @@ func appendUnique(dst []string, xs ...string) []string {
 	return out
 }
 
-// Apply valida y guarda las tareas de la especificación en tasksDir (.devclean/tasks/).
+// Apply valida y guarda las tareas de la especificación en tasksDir (.loom/tasks/).
 func Apply(tasksDir string, s Spec, dryRun bool) ([]task.Task, error) {
 	tasksWithIDs, err := AssignCorrelativeIDs(tasksDir, s.Tasks)
 	if err != nil {

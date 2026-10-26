@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/config"
+	"github.com/Pastranauwu/loom/internal/config"
 )
 
 // archivoPuntas guarda, mientras dura una entrega conjunta, la punta que

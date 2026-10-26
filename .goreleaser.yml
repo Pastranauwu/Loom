@@ -1,4 +1,4 @@
-# GoReleaser configuration for devclean.
+# GoReleaser configuration for loom.
 # Un solo binario estático por plataforma; checksums y firmas para GitHub
 # Releases.
 version: 2
@@ -9,8 +9,8 @@ before:
     - go test ./...
 
 builds:
-  - id: devclean
-    main: ./cmd/devclean
+  - id: loom
+    main: ./cmd/loom
     env:
       - CGO_ENABLED=0
     goos:

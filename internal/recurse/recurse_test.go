@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/plan"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 func gitCmd(t *testing.T, dir string, args ...string) string {
@@ -435,7 +435,7 @@ func TestListoPadreVerde(t *testing.T) {
 }
 
 // numeroDeSub saca el número de la subtarea del nombre de su cuarto:
-// ".devclean/rooms/T-100001" → "1" (el id de la subtarea es el del padre
+// ".loom/rooms/T-100001" → "1" (el id de la subtarea es el del padre
 // más el índice de 3 dígitos, que son los últimos caracteres).
 func numeroDeSub(req loop.Request) string {
 	base := filepath.Base(req.RoomPath)

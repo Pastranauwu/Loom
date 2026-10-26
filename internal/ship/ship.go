@@ -1,5 +1,5 @@
 // Package ship implements the exit gate: the deterministic
-// steps a task must pass before devclean opens a PR. Every check is pure
+// steps a task must pass before loom opens a PR. Every check is pure
 // code; no model is involved in verification.
 //
 // Los pasos corren en orden y la compuerta se detiene en el primero que
@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // DefaultTimeout is the fallback for the bisectable step's test run.

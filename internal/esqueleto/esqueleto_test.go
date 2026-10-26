@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/plan"
+	"github.com/Pastranauwu/loom/internal/plan"
 )
 
 func escribir(t *testing.T, dir, rel, contenido string) {

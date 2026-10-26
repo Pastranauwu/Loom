@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // agenteFalso simula un ejecutor: por defecto no hace nada; hacer puede
@@ -126,7 +126,7 @@ func TestRunNumeraIntentosTrasEscalar(t *testing.T) {
 	if err != nil || len(attempts) != 2 {
 		t.Fatalf("attempts = %v, %v", attempts, err)
 	}
-	if attempts[1].Intento != 2 || attempts[1].Log != ".devclean/runs/T-001/intento-2.log" {
+	if attempts[1].Intento != 2 || attempts[1].Log != ".loom/runs/T-001/intento-2.log" {
 		t.Errorf("el intento escalado no siguió la cuenta: %d %s", attempts[1].Intento, attempts[1].Log)
 	}
 	if b, err := os.ReadFile(LogPath(root, "T-001", 1)); err != nil || !strings.HasPrefix(string(b), "=== intento 1 ") {

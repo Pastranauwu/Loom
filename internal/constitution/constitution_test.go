@@ -25,7 +25,7 @@ func TestLoadSinArchivoDevuelveVacioSinError(t *testing.T) {
 
 func TestSaveYLoadDanLaVuelta(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, ".devclean"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".loom"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	const contenido = "# Constitución del proyecto\n\n## Estructura de capas\ncmd importa internal, nunca al revés.\n"
@@ -47,11 +47,11 @@ func TestSaveYLoadDanLaVuelta(t *testing.T) {
 // El prompt lleva las secciones exactas porque el resto del flujo asume
 // esa forma; si se reescriben los encabezados, esto avisa.
 func TestPromptLlevaLasSeccionesYElContexto(t *testing.T) {
-	p := Prompt("go", "go test ./...", "cmd/devclean/main.go")
+	p := Prompt("go", "go test ./...", "cmd/loom/main.go")
 	for _, quiero := range []string{
 		"Lenguaje del proyecto: go",
 		"Comando de pruebas: go test ./...",
-		"cmd/devclean/main.go",
+		"cmd/loom/main.go",
 		"## Estructura de capas",
 		"## Convenciones de estilo",
 		"## Patrones prohibidos",

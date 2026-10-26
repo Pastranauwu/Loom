@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Una aceptación que nombra una prueba inexistente solo puede fallar, y

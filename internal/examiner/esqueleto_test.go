@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/sealed"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 type agenteSuite struct{ pedido, cuarto string }
@@ -33,7 +33,7 @@ func TestContratoDelEsqueletoSoloFirmaYCasos(t *testing.T) {
  */
 export function doble(n: number): number {
   const secretoImplementacion = 77;
-  throw new Error("devclean: sin implementar");
+  throw new Error("loom: sin implementar");
 }`
 	path := filepath.Join(root, "src", "doble.ts")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -69,7 +69,7 @@ func TestExaminadorEsqueletoJavaScriptEscribeYSella(t *testing.T) {
  * - doble(0) -> 0
  */
 export function doble(n) {
-  throw new Error("devclean: sin implementar");
+  throw new Error("loom: sin implementar");
 }`
 	path := filepath.Join(root, "src", "doble.js")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -97,15 +97,15 @@ export function doble(n) {
 		t.Fatal(err)
 	}
 	s, err := sealed.Read(root, tk.ID)
-	if err != nil || s.Archivo != "tests/devclean_hidden.test.js" {
+	if err != nil || s.Archivo != "tests/loom_hidden.test.js" {
 		t.Fatalf("suite oculta=%+v err=%v", s, err)
 	}
 }
 
 func TestSintaxisTypeScriptConToolchainDelProyecto(t *testing.T) {
-	dir := os.Getenv("DEVCLEAN_TS_TOOLCHAIN")
+	dir := os.Getenv("LOOM_TS_TOOLCHAIN")
 	if dir == "" {
-		t.Skip("define DEVCLEAN_TS_TOOLCHAIN con un proyecto que tenga TypeScript instalado")
+		t.Skip("define LOOM_TS_TOOLCHAIN con un proyecto que tenga TypeScript instalado")
 	}
 	if err := validarSintaxisEnProyecto(dir, "typescript", "tests/caso.test.ts", "import { test } from 'vitest'; test('ok', () => {});\n"); err != nil {
 		t.Fatalf("suite válida: %v", err)
@@ -126,19 +126,19 @@ func TestCasosYFirmaPorTipoDeComentario(t *testing.T) {
 		nunca  []string
 	}{
 		"go en la misma línea": {
-			"// Suma a y b.\n// Idea: a+b.\n// Casos: Suma(2,3) -> 5; Suma(-1,1) -> 0\nfunc Suma(a, b int) int {\n\tpanic(\"devclean: sin implementar\")\n}\n",
+			"// Suma a y b.\n// Idea: a+b.\n// Casos: Suma(2,3) -> 5; Suma(-1,1) -> 0\nfunc Suma(a, b int) int {\n\tpanic(\"loom: sin implementar\")\n}\n",
 			[]string{"Firma: func Suma(a, b int) int", "Suma(2,3) -> 5"}, []string{"panic", "Idea"},
 		},
 		"python docstring": {
-			"def suma(a: int, b: int) -> int:\n    \"\"\"Suma a y b.\n\n    Idea: a + b.\n    Casos: suma(2, 3) -> 5; suma(-1, 1) -> 0\n    \"\"\"\n    raise NotImplementedError(\"devclean: sin implementar\")\n",
+			"def suma(a: int, b: int) -> int:\n    \"\"\"Suma a y b.\n\n    Idea: a + b.\n    Casos: suma(2, 3) -> 5; suma(-1, 1) -> 0\n    \"\"\"\n    raise NotImplementedError(\"loom: sin implementar\")\n",
 			[]string{"Firma: def suma(a: int, b: int) -> int", "suma(2, 3) -> 5"}, []string{"raise", "Idea"},
 		},
 		"comentario de línea con un bloque más abajo": {
-			"// Casos: a(1) -> 2\nexport function a(n: number): number {\n  throw new Error(\"devclean: sin implementar\");\n}\n\nconst SECRETO = 42;\n/** otra cosa */\nexport function b() {}\n",
+			"// Casos: a(1) -> 2\nexport function a(n: number): number {\n  throw new Error(\"loom: sin implementar\");\n}\n\nconst SECRETO = 42;\n/** otra cosa */\nexport function b() {}\n",
 			[]string{"Firma: export function a(n: number): number", "a(1) -> 2"}, []string{"SECRETO", "function b", "throw"},
 		},
 		"método de una clase": {
-			"export class Carrito {\n  /**\n   * Casos:\n   * - total([]) -> 0\n   */\n  total(items: Item[]): number {\n    throw new Error(\"devclean: sin implementar\");\n  }\n}\n",
+			"export class Carrito {\n  /**\n   * Casos:\n   * - total([]) -> 0\n   */\n  total(items: Item[]): number {\n    throw new Error(\"loom: sin implementar\");\n  }\n}\n",
 			[]string{"class Carrito · total(items: Item[]): number", "total([]) -> 0"}, []string{"throw"},
 		},
 	} {
@@ -178,7 +178,7 @@ func cuartoConStubJS(t *testing.T) (string, task.Task) {
 	if err := os.MkdirAll(filepath.Join(root, "src"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	src := "/**\n * Casos:\n * - doble(2) -> 4\n */\nexport function doble(n) {\n  throw new Error(\"devclean: sin implementar\");\n}\n"
+	src := "/**\n * Casos:\n * - doble(2) -> 4\n */\nexport function doble(n) {\n  throw new Error(\"loom: sin implementar\");\n}\n"
 	if err := os.WriteFile(filepath.Join(root, "src", "doble.js"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func TestExaminadorEsqueletoPythonEnMonorepo(t *testing.T) {
 			t.Fatalf("%v %s", err, out)
 		}
 	}
-	src := "def suma(a: int, b: int) -> int:\n    \"\"\"Suma a y b.\n\n    Idea: a + b.\n    Casos: suma(2, 3) -> 5; suma(-1, 1) -> 0\n    \"\"\"\n    raise NotImplementedError(\"devclean: sin implementar\")\n"
+	src := "def suma(a: int, b: int) -> int:\n    \"\"\"Suma a y b.\n\n    Idea: a + b.\n    Casos: suma(2, 3) -> 5; suma(-1, 1) -> 0\n    \"\"\"\n    raise NotImplementedError(\"loom: sin implementar\")\n"
 	if err := os.MkdirAll(filepath.Join(root, "backend", "calc"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestExaminadorEsqueletoPythonEnMonorepo(t *testing.T) {
 	if err != nil || !strings.Contains(string(visible), "def test_suma") || strings.Contains(string(visible), "package ") {
 		t.Fatalf("la visible debe ser pytest: %q err=%v", visible, err)
 	}
-	if s, err := sealed.Read(root, tk.ID); err != nil || s.Archivo != "backend/tests/test_devclean_hidden.py" {
+	if s, err := sealed.Read(root, tk.ID); err != nil || s.Archivo != "backend/tests/test_loom_hidden.py" {
 		t.Fatalf("suite oculta=%+v err=%v", s, err)
 	}
 }

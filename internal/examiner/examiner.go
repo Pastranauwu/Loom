@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/sealed"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 const (
-	VisibleFileName = "devclean_visible_test.go"
-	HiddenFileName  = "devclean_hidden_test.go"
+	VisibleFileName = "loom_visible_test.go"
+	HiddenFileName  = "loom_hidden_test.go"
 	DefaultTimeout  = 3 * time.Minute
 )
 
@@ -173,7 +173,7 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 	cuartoExamen := roomPath
 	if o.Task.ExamenEsqueleto {
 		var err error
-		cuartoExamen, err = os.MkdirTemp("", "devclean-examen-")
+		cuartoExamen, err = os.MkdirTemp("", "loom-examen-")
 		if err != nil {
 			return false, fmt.Errorf("no se pudo aislar al examinador · %w", err)
 		}
@@ -324,7 +324,7 @@ func importRelativoRoto(roomPath, visibleRel string, imports []string) string {
 // el proyecto no puede correr.
 func buildPrompt(t task.Task, pkg, lenguaje string) string {
 	var b strings.Builder
-	b.WriteString("Eres el examinador ciego de devclean. Escribes pruebas SIN ver la implementación.\n\n")
+	b.WriteString("Eres el examinador ciego de loom. Escribes pruebas SIN ver la implementación.\n\n")
 	fmt.Fprintf(&b, "Tarea: %s — %s\n", t.ID, t.Titulo)
 	if t.Porque != "" {
 		fmt.Fprintf(&b, "Por qué: %s\n", t.Porque)
@@ -398,7 +398,7 @@ func buildGoFile(pkg, importPath string, extra, funcs []string) string {
 	// paquete: la suite es externa (pkg_test) y, si él elige otro nombre,
 	// Go responde "found packages X and pkg (…_test.go)" — un error que
 	// no puede arreglar, porque esta ruta le está vedada.
-	fmt.Fprintf(&b, "// devclean · suite del examinador ciego: criterio de aceptación, no editable.\n")
+	fmt.Fprintf(&b, "// loom · suite del examinador ciego: criterio de aceptación, no editable.\n")
 	fmt.Fprintf(&b, "// El paquete de este directorio tiene que llamarse %q.\n\n", pkg)
 	fmt.Fprintf(&b, "package %s_test\n\nimport (\n\t\"testing\"\n", pkg)
 	if importPath != "" {
@@ -598,8 +598,8 @@ func commitVisible(roomPath, absPath string) {
 		cmd := exec.Command("git", append([]string{"-C", roomPath}, args...)...)
 		_ = cmd.Run()
 	}
-	git("-c", "user.name=devclean", "-c", "user.email=devclean@local", "add", rel)
-	git("-c", "user.name=devclean", "-c", "user.email=devclean@local", "commit", "-m", mensajeExamen)
+	git("-c", "user.name=loom", "-c", "user.email=loom@local", "add", rel)
+	git("-c", "user.name=loom", "-c", "user.email=loom@local", "commit", "-m", mensajeExamen)
 }
 
 // inferDirFromTocarSolo finds the best directory from tocar_solo:

@@ -37,14 +37,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/budget"
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/gate"
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/plan"
-	"github.com/Pastranauwu/devclean/internal/room"
-	"github.com/Pastranauwu/devclean/internal/task"
-	"github.com/Pastranauwu/devclean/internal/ventanas"
+	"github.com/Pastranauwu/loom/internal/budget"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/gate"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/task"
+	"github.com/Pastranauwu/loom/internal/ventanas"
 )
 
 // LimiteReplan topa cuántas veces el orquestador puede reescribir el
@@ -157,7 +157,7 @@ func (a Agent) Run(ctx context.Context, req loop.Request) (loop.Result, error) {
 	}
 
 	// esclusa de entrada en serie: la que no pasa se rechaza antes de
-	// gastar un token, mismo criterio que devclean run
+	// gastar un token, mismo criterio que loom run
 	roja := map[string]string{} // id -> motivo
 	aprobadas := make([]task.Task, 0, len(subs))
 	for _, s := range subs {
@@ -697,7 +697,7 @@ func recortar(s string, max int) string {
 }
 
 // descomponer pide al planificador que parta la tarea en subtareas
-// reales, reusando el mismo parser que `devclean plan` — la descomposición
+// reales, reusando el mismo parser que `loom plan` — la descomposición
 // no es más que un plan cuyo alcance ya viene acotado al `tocar_solo` de
 // la tarea padre.
 func (a Agent) descomponer(ctx context.Context) ([]plan.Borrador, error) {
@@ -735,7 +735,7 @@ func (a Agent) promptDescomposicion() string {
 		limite = task.DefaultLimiteSubtareas
 	}
 	var b strings.Builder
-	b.WriteString("Eres el planificador de devclean. Parte esta tarea en subtareas pequeñas y verificables.\n\n")
+	b.WriteString("Eres el planificador de loom. Parte esta tarea en subtareas pequeñas y verificables.\n\n")
 	fmt.Fprintf(&b, "Tarea %s: %s\n", t.ID, t.Titulo)
 	if t.Porque != "" {
 		fmt.Fprintf(&b, "Para qué importa: %s\n", t.Porque)
@@ -825,7 +825,7 @@ func dependenciaSibling(padreID, d string) string {
 // de lo que propuso el planificador. El id es determinístico y siempre
 // válido (`^T-\d{3,}$`): concatena el número de la tarea padre con el
 // índice, así que no colisiona ni necesita reservar nada en
-// .devclean/tasks/ — estas subtareas son efímeras, nunca se guardan en
+// .loom/tasks/ — estas subtareas son efímeras, nunca se guardan en
 // disco.
 //
 // El contexto del padre se propaga a la subtarea: no_tocar y riesgos se
@@ -905,8 +905,8 @@ func joinTexto(partes ...string) string {
 // cuarto padre (no a una rama de integración aparte: acá no hay oleada
 // paralela que encadenar, es una sola rama que va acumulando).
 func integrar(roomPath, rama, id string) error {
-	cmd := exec.Command("git", "-c", "user.name=devclean", "-c", "user.email=devclean@local",
-		"merge", "--no-ff", "-m", "devclean: integra "+id, rama)
+	cmd := exec.Command("git", "-c", "user.name=loom", "-c", "user.email=loom@local",
+		"merge", "--no-ff", "-m", "loom: integra "+id, rama)
 	cmd.Dir = roomPath
 	out, err := cmd.CombinedOutput()
 	if err == nil {

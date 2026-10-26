@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/sealed"
-	"github.com/Pastranauwu/devclean/internal/task"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // verificarSuiteOculta runs the hidden test suite against the task's worktree.
@@ -68,7 +68,7 @@ func verificarSuiteOculta(ctx context.Context, root, roomPath string, t task.Tas
 	if noCompila(salida, s.Archivo) {
 		detalle = fmt.Sprintf(
 			"la suite oculta no compila · %s · no juzga nada: borra %s y vuelve a correr la tarea",
-			tail(salida), filepath.ToSlash(filepath.Join(".devclean", "sealed", t.ID)),
+			tail(salida), filepath.ToSlash(filepath.Join(".loom", "sealed", t.ID)),
 		)
 	} else {
 		detalle = fmt.Sprintf(
@@ -100,7 +100,7 @@ func guardarSalidaOculta(root, id, pruebas, salida string) string {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return ""
 	}
-	rel := filepath.Join(".devclean", "runs", id, "suite-oculta.log")
+	rel := filepath.Join(".loom", "runs", id, "suite-oculta.log")
 	cuerpo := fmt.Sprintf("$ %s\n\n%s", pruebas, salida)
 	if err := os.WriteFile(filepath.Join(root, rel), []byte(cuerpo), 0o644); err != nil {
 		return ""

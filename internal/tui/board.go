@@ -7,14 +7,14 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 
-	"github.com/Pastranauwu/devclean/internal/budget"
-	"github.com/Pastranauwu/devclean/internal/config"
-	"github.com/Pastranauwu/devclean/internal/loop"
-	"github.com/Pastranauwu/devclean/internal/recurse"
-	"github.com/Pastranauwu/devclean/internal/standup"
-	"github.com/Pastranauwu/devclean/internal/state"
-	"github.com/Pastranauwu/devclean/internal/task"
-	"github.com/Pastranauwu/devclean/internal/ventanas"
+	"github.com/Pastranauwu/loom/internal/budget"
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/recurse"
+	"github.com/Pastranauwu/loom/internal/standup"
+	"github.com/Pastranauwu/loom/internal/state"
+	"github.com/Pastranauwu/loom/internal/task"
+	"github.com/Pastranauwu/loom/internal/ventanas"
 )
 
 // Fila es una tarea del tablero, con sus subtareas si viene de una tarea
@@ -233,7 +233,7 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 	cab = append(append(cab, gasto...), lineaSticker{})
 
 	if len(filas) == 0 && filtro == "" {
-		return recortarAncho(append(cab, lineaSticker{texto: "sin tareas · empieza con devclean plan \"lo que necesitas\"", color: rgbApagado}), ancho)
+		return recortarAncho(append(cab, lineaSticker{texto: "sin tareas · empieza con loom plan \"lo que necesitas\"", color: rgbApagado}), ancho)
 	}
 
 	var cuerpo []lineaSticker
@@ -273,7 +273,7 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 
 	libre := alto - 2*margenTablero
 	if alto > 0 && len(cab)+len(cuerpo)+len(pie) > libre {
-		cab = append([]lineaSticker{{texto: "devclean · " + strconv.Itoa(len(filas)) + " tareas", color: rgbPresion}}, gasto...)
+		cab = append([]lineaSticker{{texto: "loom · " + strconv.Itoa(len(filas)) + " tareas", color: rgbPresion}}, gasto...)
 		// dos líneas fijas para "más arriba / más abajo": si aparecieran
 		// y desaparecieran, la lista saltaría al mover el cursor
 		visibles := libre - len(cab) - len(pie) - 2

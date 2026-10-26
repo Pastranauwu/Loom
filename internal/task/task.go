@@ -1,5 +1,5 @@
 // Package task implements the task contract: one markdown file
-// per task under .devclean/tasks/, with a frontmatter block in the same
+// per task under .loom/tasks/, with a frontmatter block in the same
 // yaml subset as config.yml and a free notes body.
 package task
 
@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/kv"
+	"github.com/Pastranauwu/loom/internal/kv"
 )
 
 // Defaults for the optional contract fields.
@@ -59,7 +59,7 @@ type Task struct {
 	Skills []string `json:"skills,omitempty"`
 
 	// Cubre son los ids de los requerimientos del spec que esta tarea
-	// implementa. Cuando uno cambia o se quita, devclean le dice al
+	// implementa. Cuando uno cambia o se quita, loom le dice al
 	// arquitecto qué tareas y archivos lo implementaron.
 	Cubre []string `json:"cubre,omitempty"`
 	// ExamenEsqueleto indica que el arquitecto dejó stubs con Casos: y
@@ -83,7 +83,7 @@ type Task struct {
 	Notas string `json:"notas,omitempty"`
 
 	// Aviso carries the warning of a contract written by a newer
-	// devclean: it parsed, but fields were skipped.
+	// loom: it parsed, but fields were skipped.
 	Aviso string `json:"aviso,omitempty"`
 }
 
@@ -227,7 +227,7 @@ func Parse(data []byte) (Task, error) {
 		t.Version = n
 	}
 	if t.Version > Version {
-		t.Aviso = fmt.Sprintf("contrato versión %d, binario soporta %d · actualiza devclean", t.Version, Version)
+		t.Aviso = fmt.Sprintf("contrato versión %d, binario soporta %d · actualiza loom", t.Version, Version)
 	}
 
 	for _, p := range pares {
@@ -294,7 +294,7 @@ func Parse(data []byte) (Task, error) {
 			// campos desconocidos o del futuro: se toleran con aviso para
 			// que contratos con campos nuevos no rompan binarios existentes ni reportes.
 			if t.Aviso == "" {
-				t.Aviso = fmt.Sprintf("campo desconocido ignorado: %s · si es de una versión más nueva, actualiza devclean", p.Key)
+				t.Aviso = fmt.Sprintf("campo desconocido ignorado: %s · si es de una versión más nueva, actualiza loom", p.Key)
 			}
 			continue
 		}
@@ -444,10 +444,10 @@ func esDeclaracionExplicita(firma string) bool {
 // tiene forma de firma.
 //
 // El planificador es un modelo y a veces escribe descripciones en vez de
-// contratos ("cmd/sum main package", "devclean --mac <MAC>"). Eso no se
+// contratos ("cmd/sum main package", "loom --mac <MAC>"). Eso no se
 // puede comprobar contra un diff, y frenar la entrega por algo que el
 // código no sabe verificar deja la tarea muerta: el único arreglo sería
-// editar el contrato a mano, justo lo que devclean evita. Lo que no tiene
+// editar el contrato a mano, justo lo que loom evita. Lo que no tiene
 // forma de firma se reporta, no bloquea.
 func FirmaVerificable(firma string) (string, bool) {
 	s := strings.TrimSpace(firma)

@@ -1,5 +1,5 @@
-// Package config handles .devclean/config.yml, the project settings of
-// devclean, and the layout of the .devclean directory.
+// Package config handles .loom/config.yml, the project settings of
+// loom, and the layout of the .loom directory.
 //
 // The file uses a small yaml subset: flat `clave: valor` scalars and
 // inline lists `clave: ["a", "b"]`. Values with commas inside quotes are
@@ -17,18 +17,18 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Pastranauwu/devclean/internal/capturas"
-	"github.com/Pastranauwu/devclean/internal/kv"
-	"github.com/Pastranauwu/devclean/internal/skills"
+	"github.com/Pastranauwu/loom/internal/capturas"
+	"github.com/Pastranauwu/loom/internal/kv"
+	"github.com/Pastranauwu/loom/internal/skills"
 )
 
-// DirName is the directory devclean creates at the repository root.
-const DirName = ".devclean"
+// DirName is the directory loom creates at the repository root.
+const DirName = ".loom"
 
 // EntregaLocal es el valor de `entrega:` que deja el PR en el repo.
 const EntregaLocal = "local"
 
-// Config is the content of .devclean/config.yml.
+// Config is the content of .loom/config.yml.
 type Config struct {
 	Base    string `json:"base"`
 	Pruebas string `json:"pruebas"`
@@ -80,7 +80,7 @@ type Config struct {
 	PresupuestoTokens int `json:"presupuesto_tokens,omitempty"`
 	// PresupuestoVentanas es el bloque `presupuesto:`: por proveedor, por
 	// ventana rodante (5h/semanal/mensual), cuántos tokens puede quemar
-	// devclean. El ledger de internal/ventanas lo hace cumplir y lo
+	// loom. El ledger de internal/ventanas lo hace cumplir y lo
 	// muestra en barras; protege las ventanas reales de la cuenta sin
 	// depender de que el proveedor las exponga.
 	PresupuestoVentanas map[string]map[string]int `json:"presupuesto_ventanas,omitempty"`
@@ -115,7 +115,7 @@ type Agente struct {
 	KeyEnv   string   `json:"key_env,omitempty"`
 	Skills   []string `json:"skills,omitempty"`
 	// SkillPackages son nombres de paquetes de skill reales (traídos con
-	// `devclean skills sync`, ver internal/skills): a diferencia de
+	// `loom skills sync`, ver internal/skills): a diferencia de
 	// Skills, que son solo etiquetas descriptivas en el prompt, estos
 	// resuelven a un SKILL.md cuyo contenido completo se inyecta.
 	SkillPackages []string `json:"skill_packages,omitempty"`
@@ -186,7 +186,7 @@ func DefaultTestPatterns() []string {
 	}
 }
 
-// Dir returns the .devclean directory of the repository at root.
+// Dir returns the .loom directory of the repository at root.
 func Dir(root string) string { return filepath.Join(root, DirName) }
 
 // Path returns the config.yml path of the repository at root.
@@ -195,17 +195,17 @@ func Path(root string) string { return filepath.Join(Dir(root), "config.yml") }
 // TasksDir returns the tasks directory of the repository at root.
 func TasksDir(root string) string { return filepath.Join(Dir(root), "tasks") }
 
-// Exists reports whether root already holds a .devclean directory.
+// Exists reports whether root already holds a .loom directory.
 func Exists(root string) bool {
 	info, err := os.Stat(Dir(root))
 	return err == nil && info.IsDir()
 }
 
-// Load reads .devclean/config.yml under root.
+// Load reads .loom/config.yml under root.
 func Load(root string) (Config, error) {
 	data, err := os.ReadFile(Path(root))
 	if errors.Is(err, os.ErrNotExist) {
-		return Config{}, errors.New("sin configuración · corre devclean init primero")
+		return Config{}, errors.New("sin configuración · corre loom init primero")
 	}
 	if err != nil {
 		return Config{}, err
@@ -213,7 +213,7 @@ func Load(root string) (Config, error) {
 	return Parse(data)
 }
 
-// Save writes the config to .devclean/config.yml under root.
+// Save writes the config to .loom/config.yml under root.
 func (c Config) Save(root string) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base: %s\n", c.Base)
@@ -742,7 +742,7 @@ var Pesos = []string{"liviana", "media", "pesada"}
 
 // pistas de tamaño en los ids de modelo, por peso. El orden importa:
 // gana la primera que casa.
-// Clis son los CLIs de agente que devclean maneja: valen como `cli:`,
+// Clis son los CLIs de agente que loom maneja: valen como `cli:`,
 // como provider de un agente y como proveedor de ventanas de presupuesto.
 // Tiene que coincidir con executor.Todos (config no puede importarlo).
 var Clis = []string{"claude", "opencode", "codex"}
@@ -752,7 +752,7 @@ var pistasPeso = map[string][]string{
 	"pesada":  {"opus", "ultra", "-max", "-pro", "thinking"},
 }
 
-// preferidos son los modelos que devclean elige primero, por peso y en
+// preferidos son los modelos que loom elige primero, por peso y en
 // orden, cuando el catálogo del CLI los tiene. Se comparan contra el id
 // sin proveedor ("opencode-go/kimi-k3" casa con "kimi-k3"). Si ninguno
 // está, se cae a las pistas por nombre.
@@ -763,7 +763,7 @@ var preferidos = map[string][]string{
 }
 
 // ElegirModelos reparte un catálogo real de ids de modelo entre los tres
-// pesos, para que `devclean init` deje una configuración que funciona sin
+// pesos, para que `loom init` deje una configuración que funciona sin
 // que el usuario adivine ids. Es una heurística por nombre y el usuario
 // manda: `modelos:` en config.yml se edita a mano y gana siempre.
 //
@@ -826,7 +826,7 @@ func ElegirModelos(catalogo []string) map[string]string {
 }
 
 // ModelosValidos separa los modelos configurados que el CLI no reconoce.
-// `devclean doctor` lo usa para avisar antes de una corrida, no después
+// `loom doctor` lo usa para avisar antes de una corrida, no después
 // de quemarla.
 func ModelosValidos(configurados, catalogo []string) (desconocidos []string) {
 	if len(catalogo) == 0 {
@@ -867,7 +867,7 @@ func DefaultAgentes(cli string) map[string]Agente {
 	// invocación moría en dos segundos, la tarea agotaba sus intentos y
 	// la corrida entera se caía en cascada sin gastar un token. El
 	// modelo sale de `modelos:` en config.yml (por peso de tarea), que
-	// `devclean init` rellena con el catálogo real del CLI; vacío
+	// `loom init` rellena con el catálogo real del CLI; vacío
 	// significa "usa el modelo por defecto del CLI", que siempre existe.
 	const modeloDelCLI = ""
 

@@ -4,7 +4,7 @@ import "testing"
 
 // una regla o un requisito con dos puntos es prosa, no una categoría:
 // YAML lo lee como mapa y antes se perdía la mitad izquierda sin avisar.
-// Encontrado corriendo devclean de verdad: al planificador le llegó
+// Encontrado corriendo loom de verdad: al planificador le llegó
 // "eso vive solo en la capa de terminal" por regla completa.
 func TestParseNoPierdeLaMitadDeUnaReglaConDosPuntos(t *testing.T) {
 	yml := `feature: snake

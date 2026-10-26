@@ -136,7 +136,7 @@ func TestParseVersionFuturaTolera(t *testing.T) {
 	if err != nil {
 		t.Fatalf("un contrato de versión futura debió parsear: %v", err)
 	}
-	if task.Aviso != "contrato versión 2, binario soporta 1 · actualiza devclean" {
+	if task.Aviso != "contrato versión 2, binario soporta 1 · actualiza loom" {
 		t.Errorf("Aviso = %q", task.Aviso)
 	}
 	if task.Titulo != "x" {
@@ -275,7 +275,7 @@ func TestFirmaVerificable(t *testing.T) {
 		{"Ejecutar", "Ejecutar", true},
 		// prosa: no hay nada que buscar en un diff
 		{"cmd/sum main package", "", false},
-		{"devclean --mac <MAC>", "", false},
+		{"loom --mac <MAC>", "", false},
 		{"", "", false},
 	}
 	for _, c := range casos {
@@ -340,7 +340,7 @@ func TestFirmaVerificableTiposEInterfacesTS(t *testing.T) {
 		}
 	}
 
-	prosa := []string{"cmd/sum main package", "devclean --mac <MAC>", "notas explicativas"}
+	prosa := []string{"cmd/sum main package", "loom --mac <MAC>", "notas explicativas"}
 	for _, p := range prosa {
 		if got, ok := FirmaVerificable(p); ok {
 			t.Errorf("FirmaVerificable(%q) = (%q, true) · no debió ser verificable", p, got)

@@ -5,5 +5,5 @@ package executor
 import "syscall"
 
 // ponytail: fuera de Linux no hay Pdeathsig; el agente sobrevive a un
-// devclean matado. Un grupo de procesos con kill al salir lo cubriría.
+// loom matado. Un grupo de procesos con kill al salir lo cubriría.
 func morirConPadre() *syscall.SysProcAttr { return nil }

@@ -2,11 +2,11 @@
 // (5 horas, semanal, mensual) por proveedor. Es la contrapartida local
 // de las ventanas de uso reales de las cuentas: Anthropic no publica los
 // límites absolutos en tokens de sus ventanas de 5h/semanal, y el CLI no
-// los expone, así que devclean lleva la cuenta de lo que ÉL quema y lo
+// los expone, así que loom lleva la cuenta de lo que ÉL quema y lo
 // compara contra topes que el usuario declara por proveedor.
 //
-// El ledger es GLOBAL al usuario (en ~/.devclean/ventanas.jsonl), no por
-// proyecto: la ventana de 5 horas es de la cuenta, y si devclean corre en
+// El ledger es GLOBAL al usuario (en ~/.loom/ventanas.jsonl), no por
+// proyecto: la ventana de 5 horas es de la cuenta, y si loom corre en
 // varios repos, todos gastan del mismo plato.
 //
 // Registrar hace las dos cosas a la vez: registra el gasto y, si ese
@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Pastranauwu/devclean/internal/budget"
+	"github.com/Pastranauwu/loom/internal/budget"
 )
 
 // Ventanas soportadas, de menor a mayor.
@@ -73,7 +73,7 @@ func LedgerPath() string {
 	if err != nil || home == "" {
 		home = "."
 	}
-	return filepath.Join(home, ".devclean", "ventanas.jsonl")
+	return filepath.Join(home, ".loom", "ventanas.jsonl")
 }
 
 // Nuevo crea el registro. caps puede ser nil (sin topes: solo mide).
