@@ -1,8 +1,8 @@
 # Tape de vhs para grabar el GIF de loom CON la TUI.
 #   vhs docs/demo.tape
 #
-# Graba run (corrida en vivo), board (tablero), la recursion en subtareas
-# y ship (compuerta), sin --plain.
+# Graba dna (arquetipo zero-deps), run (corrida en vivo), board (tablero),
+# la recursion en subtareas y ship (compuerta con el paso dna), sin --plain.
 #
 # La preparacion va entre Hide/Show: compilar, entrar al repo de demo y
 # exportar el entorno no le dicen nada a quien mira el GIF, y ocupaban los
@@ -47,8 +47,18 @@ Type "clear"
 Enter
 Show
 
+# ---------- dna: el estilo del proyecto, ahora también una compuerta ----------
+Type "loom dna add zero-deps"
+Enter
+Sleep 2s
+
+Hide
+Type "clear"
+Enter
+Show
+
 # ---------- run: la corrida en vivo, sale sola ----------
-Type "loom run --agentes 2 --ejecutor opencode"
+Type "loom run --agents 2 --ejecutor opencode"
 Enter
 Wait+Screen /verde en/
 Sleep 2s
@@ -81,7 +91,7 @@ Type "clear"
 Enter
 Show
 
-Type "loom run --agentes 1 --ejecutor opencode"
+Type "loom run --agents 1 --ejecutor opencode"
 Enter
 Wait+Screen /verde en/
 Sleep 2s
@@ -105,7 +115,7 @@ Type "clear"
 Enter
 Show
 
-# ---------- ship: la compuerta, sale sola ----------
+# ---------- ship: la compuerta (incluye el paso dna), sale sola ----------
 Type "loom ship T-001 --dry-run"
 Enter
 Sleep 6s

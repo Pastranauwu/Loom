@@ -27,8 +27,8 @@ fi
 dir="."; prev=""
 for a in "$@"; do [ "$prev" = "--dir" ] && dir="$a"; prev="$a"; done
 case "$2" in
-  *"planificador de loom"*)
-    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"titulo\":\"exportador CSV\",\"listo_cuando\":\"test -f src/csv/export.go\",\"tocar_solo\":[\"src/csv/**\"]},{\"titulo\":\"exportador JSON\",\"listo_cuando\":\"test -f src/json/export.go\",\"tocar_solo\":[\"src/json/**\"]}]"}}'
+  *"loom's planner"*)
+    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"title\":\"exportador CSV\",\"done_when\":\"test -f src/csv/export.go\",\"only_touch\":[\"src/csv/**\"]},{\"title\":\"exportador JSON\",\"done_when\":\"test -f src/json/export.go\",\"only_touch\":[\"src/json/**\"]}]"}}'
     printf '%s\n' '{"type":"step_finish","tokens":{"input":10,"output":5}}'
     ;;
   *)
@@ -71,22 +71,22 @@ cat > .loom/tasks/T-001.md <<'EOF'
 ---
 version: 1
 id: T-001
-titulo: crear el módulo de exportación
-listo_cuando: test -f src/export.go
-tocar_solo: ["src/**"]
-limite_intentos: 3
-limite_lineas: 200
+title: crear el módulo de exportación
+done_when: test -f src/export.go
+only_touch: ["src/**"]
+max_retries: 3
+max_lines: 200
 ---
 EOF
 cat > .loom/tasks/T-002.md <<'EOF'
 ---
 version: 1
 id: T-002
-titulo: documentar la API
-listo_cuando: test -f docs/api.md
-tocar_solo: ["docs/**"]
-limite_intentos: 3
-limite_lineas: 200
+title: documentar la API
+done_when: test -f docs/api.md
+only_touch: ["docs/**"]
+max_retries: 3
+max_lines: 200
 ---
 EOF
 
@@ -98,11 +98,11 @@ cat > .loom/tasks/T-003.md.pendiente <<'EOF'
 ---
 version: 1
 id: T-003
-titulo: exportar en CSV y en JSON
-listo_cuando: test -f src/csv/export.go && test -f src/json/export.go
-tocar_solo: ["src/**"]
-limite_intentos: 3
-limite_lineas: 200
+title: exportar en CSV y en JSON
+done_when: test -f src/csv/export.go && test -f src/json/export.go
+only_touch: ["src/**"]
+max_retries: 3
+max_lines: 200
 recursivo: true
 limite_subtareas: 2
 ---

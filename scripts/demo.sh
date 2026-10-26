@@ -48,8 +48,8 @@ fi
 dir="."; prev=""
 for a in "$@"; do [ "$prev" = "--dir" ] && dir="$a"; prev="$a"; done
 case "$2" in
-  *"planificador de loom"*)
-    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"titulo\":\"exportar clientes a CSV\",\"listo_cuando\":\"test -f src/export.go\",\"tocar_solo\":[\"src/**\"]},{\"titulo\":\"documentar la API\",\"listo_cuando\":\"test -f docs/api.md\",\"tocar_solo\":[\"docs/**\"]}]"}}'
+  *"loom's planner"*)
+    printf '%s\n' '{"type":"message","part":{"type":"text","text":"[{\"title\":\"exportar clientes a CSV\",\"done_when\":\"test -f src/export.go\",\"only_touch\":[\"src/**\"]},{\"title\":\"documentar la API\",\"done_when\":\"test -f docs/api.md\",\"only_touch\":[\"docs/**\"]}]"}}'
     printf '%s\n' '{"type":"step_finish","tokens":{"input":10,"output":5}}'
     ;;
   *)
@@ -73,7 +73,7 @@ run() { echo "\$ $*"; "$@"; echo; sleep 1; }
 run "$bin" init --pruebas "true" --plain
 run "$bin" plan "necesito exportar clientes y documentar la API" --aprobar --plain
 run "$bin" board --plain
-run "$bin" run --agentes 2 --ejecutor opencode --plain
+run "$bin" run --agents 2 --ejecutor opencode --plain
 run "$bin" board --plain
 run "$bin" logs T-001 --plain
 run "$bin" ship T-001 --dry-run --plain
