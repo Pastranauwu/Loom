@@ -14,7 +14,7 @@ func newArchiveCmd() *cobra.Command {
 		Short: "archiva el spec probado en el historial y lo vacía",
 		Long: `Guarda el spec actual en .loom/historial/NNNN-<feature>/ junto a su
 resultado, agrega una línea a .loom/index.md, vacía el spec y hace un
-commit. Solo archiva si la última entrega conjunta (ship --todas) pasó
+commit. Solo archiva si la última entrega conjunta (ship --all) pasó
 todos los criterios de aceptación.
 
 Se corre en la rama del PR, antes del merge.`,

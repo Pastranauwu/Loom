@@ -619,3 +619,41 @@ func TestArquitectoEconomicoVaYVuelve(t *testing.T) {
 		t.Fatalf("economico=%v err=%v", leida.ArquitectoEconomico, err)
 	}
 }
+
+func TestLanguageYResumeBelowPct(t *testing.T) {
+	c, err := Parse([]byte("base: main\nlanguage: es\nresume_below_pct: 50\n"))
+	if err != nil || c.Language != "es" || c.ResumeBelowPct != 50 {
+		t.Fatalf("cfg = %+v, err = %v", c, err)
+	}
+	if d, _ := Parse([]byte("base: main\n")); d.ResumeBelowPct != DefaultResumeBelowPct || d.Language != "" {
+		t.Errorf("defaults = %+v", d)
+	}
+	if _, err := Parse([]byte("language: fr\n")); err == nil {
+		t.Error("language desconocido debe fallar")
+	}
+}
+
+func TestMigrarLegadoMueveDevcleanALoom(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".devclean", "tasks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".devclean", "config.yml"), []byte("base: main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !Exists(root) {
+		t.Fatal("Exists debe migrar .devclean a .loom")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".devclean")); !os.IsNotExist(err) {
+		t.Error(".devclean debe haberse movido")
+	}
+	if _, err := os.Stat(filepath.Join(Dir(root), "config.yml")); err != nil {
+		t.Errorf("config.yml no llegó a .loom: %v", err)
+	}
+	// con .loom ya presente, un .devclean suelto no se toca
+	_ = os.MkdirAll(filepath.Join(root, ".devclean"), 0o755)
+	MigrarLegado(root)
+	if _, err := os.Stat(filepath.Join(root, ".devclean")); err != nil {
+		t.Error("no debe pisar un .loom existente")
+	}
+}

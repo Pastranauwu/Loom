@@ -37,13 +37,13 @@ func Parse(data []byte) (Spec, error) {
 		switch key {
 		case "version":
 			err = val.Decode(&s.Version)
-		case "feature", "titulo":
+		case "feature", "title", "titulo":
 			err = val.Decode(&s.Feature)
-		case "motivo":
+		case "why", "motivo":
 			err = val.Decode(&s.Motivo)
-		case "agente":
+		case "agent", "agente":
 			err = val.Decode(&s.Agente)
-		case "agentes":
+		case "agents", "agentes":
 			err = val.Decode(&s.Agentes)
 			if err == nil && s.Agentes < 1 {
 				err = fmt.Errorf("agentes inválido: %d · mínimo 1", s.Agentes)
@@ -57,12 +57,24 @@ func Parse(data []byte) (Spec, error) {
 		case "acceptance", "aceptacion":
 			s.Acceptance, err = decodeAcceptance(val)
 		case "constraints", "restricciones":
-			err = val.Decode(&s.Constraints)
-		case "limites":
-			err = val.Decode(&s.Limites)
-		case "limite_intentos":
+			var c struct {
+				Es []string `yaml:"no_tocar"`
+				En []string `yaml:"dont_touch"`
+			}
+			if err = val.Decode(&c); err == nil {
+				s.Constraints.NoTocar = append(c.En, c.Es...)
+			}
+		case "limits", "limites":
+			var l struct {
+				Intentos, Retries int
+				Lineas, Lines     int
+			}
+			if err = val.Decode(&l); err == nil {
+				s.Limites = Limites{Intentos: l.Intentos + l.Retries, Lineas: l.Lineas + l.Lines}
+			}
+		case "max_retries", "limite_intentos":
 			err = val.Decode(&s.Limites.Intentos)
-		case "limite_lineas":
+		case "max_lines", "limite_lineas":
 			err = val.Decode(&s.Limites.Lineas)
 		case "tasks", "tareas":
 			s.Tasks, err = decodeTasks(val)
@@ -232,27 +244,62 @@ func decodeTasks(n *yaml.Node) ([]task.Task, error) {
 			continue
 		}
 		var raw struct {
-			ID       string   `yaml:"id"`
-			Titulo   string   `yaml:"titulo"`
-			Porque   string   `yaml:"porque"`
-			Listo    string   `yaml:"listo_cuando"`
-			Tocar    []string `yaml:"tocar_solo"`
-			NoTocar  []string `yaml:"no_tocar"`
-			Depende  []string `yaml:"depende_de"`
-			Expone   []string `yaml:"expone"`
-			Usa      []string `yaml:"usa"`
-			Riesgos  string   `yaml:"riesgos"`
-			Peso     string   `yaml:"peso"`
-			Agente   string   `yaml:"agente"`
-			Skills   []string `yaml:"skills"`
-			Intentos int      `yaml:"limite_intentos"`
-			Lineas   int      `yaml:"limite_lineas"`
-			Notas    string   `yaml:"notas"`
+			ID         string   `yaml:"id"`
+			Titulo     string   `yaml:"titulo"`
+			Porque     string   `yaml:"porque"`
+			Listo      string   `yaml:"listo_cuando"`
+			Tocar      []string `yaml:"tocar_solo"`
+			NoTocar    []string `yaml:"no_tocar"`
+			Depende    []string `yaml:"depende_de"`
+			Expone     []string `yaml:"expone"`
+			Usa        []string `yaml:"usa"`
+			Riesgos    string   `yaml:"riesgos"`
+			Peso       string   `yaml:"peso"`
+			Agente     string   `yaml:"agente"`
+			Skills     []string `yaml:"skills"`
+			Intentos   int      `yaml:"limite_intentos"`
+			Lineas     int      `yaml:"limite_lineas"`
+			Notas      string   `yaml:"notas"`
+			Title      string   `yaml:"title"`
+			Why        string   `yaml:"why"`
+			DoneWhen   string   `yaml:"done_when"`
+			OnlyTouch  []string `yaml:"only_touch"`
+			DontTouch  []string `yaml:"dont_touch"`
+			DependsOn  []string `yaml:"depends_on"`
+			Exposes    []string `yaml:"exposes"`
+			Uses       []string `yaml:"uses"`
+			Risks      string   `yaml:"risks"`
+			Weight     string   `yaml:"weight"`
+			Agent      string   `yaml:"agent"`
+			MaxRetries int      `yaml:"max_retries"`
+			MaxLines   int      `yaml:"max_lines"`
+			Notes      string   `yaml:"notes"`
 		}
 		if err := item.Decode(&raw); err != nil {
 			return nil, err
 		}
-		out = append(out, task.Task{Version: task.Version, ID: raw.ID, Titulo: raw.Titulo, Porque: raw.Porque, ListoCuando: raw.Listo, TocarSolo: raw.Tocar, NoTocar: raw.NoTocar, DependeDe: raw.Depende, Expone: raw.Expone, Usa: raw.Usa, Riesgos: raw.Riesgos, Peso: raw.Peso, Agente: raw.Agente, Skills: raw.Skills, LimiteIntentos: raw.Intentos, LimiteLineas: raw.Lineas, Notas: raw.Notas})
+		out = append(out, task.Task{
+			Version: task.Version, ID: raw.ID,
+			Titulo: primero(raw.Title, raw.Titulo), Porque: primero(raw.Why, raw.Porque), ListoCuando: primero(raw.DoneWhen, raw.Listo),
+			TocarSolo: primeros(raw.OnlyTouch, raw.Tocar), NoTocar: primeros(raw.DontTouch, raw.NoTocar), DependeDe: primeros(raw.DependsOn, raw.Depende),
+			Expone: primeros(raw.Exposes, raw.Expone), Usa: primeros(raw.Uses, raw.Usa), Riesgos: primero(raw.Risks, raw.Riesgos),
+			Peso: task.NormalizarPeso(primero(raw.Weight, raw.Peso)), Agente: primero(raw.Agent, raw.Agente), Skills: raw.Skills,
+			LimiteIntentos: max(raw.MaxRetries, raw.Intentos), LimiteLineas: max(raw.MaxLines, raw.Lineas), Notas: primero(raw.Notes, raw.Notas),
+		})
 	}
 	return out, nil
+}
+
+func primero(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+func primeros(a, b []string) []string {
+	if a != nil {
+		return a
+	}
+	return b
 }

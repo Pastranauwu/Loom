@@ -66,7 +66,7 @@ func TestRenderGateFreno(t *testing.T) {
 
 func TestLogo(t *testing.T) {
 	l := Logo(80)
-	for _, want := range []string{"▄", "▀", "█", "dirige agentes"} {
+	for _, want := range []string{"▄", "▀", "█", "teje el código"} {
 		if !strings.Contains(l, want) {
 			t.Errorf("logo sin %q:\n%s", want, l)
 		}

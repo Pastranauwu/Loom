@@ -409,7 +409,7 @@ func TestApplyInyectaReglasEnNotas(t *testing.T) {
 		t.Fatalf("Apply: %v", err)
 	}
 	n0 := applied[0].Notas
-	if !strings.Contains(n0, "Reglas de la especificación:") ||
+	if !strings.Contains(n0, "Spec rules:") ||
 		!strings.Contains(n0, "- tokens stateless") ||
 		!strings.Contains(n0, "- sin sesiones en memoria") ||
 		!strings.Contains(n0, "empieza por bcrypt") {

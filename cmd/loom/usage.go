@@ -129,6 +129,9 @@ type gastoTarea struct {
 	CacheLeida         int     `json:"cache_leida"`
 	CacheEscrita       int     `json:"cache_escrita"`
 	CostoUSD           float64 `json:"costo_usd"`
+	// PicoContexto is the largest context a session reached; Reanudados counts attempts that continued a session.
+	PicoContexto int `json:"pico_contexto"`
+	Reanudados   int `json:"reanudados"`
 }
 
 // mostrarGastoPorTarea lee .loom/runs/*/attempts.jsonl y muestra el
@@ -164,6 +167,10 @@ func mostrarGastoPorTarea(root string) error {
 			g.CacheLeida += a.Tokens.CacheLeida
 			g.CacheEscrita += a.Tokens.CacheEscrita
 			g.CostoUSD += a.Tokens.CostoUSD
+			g.PicoContexto = max(g.PicoContexto, a.Tokens.UltimoTurno)
+			if a.Reanudado {
+				g.Reanudados++
+			}
 		}
 		sort.Strings(modelos)
 		for _, m := range modelos {
@@ -237,16 +244,16 @@ func mostrarGastoPorTarea(root string) error {
 	if len(filas) == 0 {
 		return nil
 	}
-	const formato = "%-8s %-18s %4d %6d %9d %9d %9d %9d %11d %11d %8.3f"
+	const formato = "%-8s %-18s %4d %6d %9d %9d %9d %9d %11d %11d %8.3f %5s %6d"
 	out.Line("")
-	out.Line("%-8s %-18s %4s %6s %9s %9s %9s %9s %11s %11s %8s", "tarea", "modelo", "int", "turnos", "base 1er", "base escr", "entrada", "salida", "caché leída", "caché escr", "usd")
+	out.Line("%-8s %-18s %4s %6s %9s %9s %9s %9s %11s %11s %8s %5s %6s", "tarea", "modelo", "int", "turnos", "base 1er", "base escr", "entrada", "salida", "caché leída", "caché escr", "usd", "ctx%", "resume")
 	var total gastoTarea
 	for _, f := range filas {
 		modelo := f.Modelo
 		if modelo == "" {
 			modelo = "(por defecto)"
 		}
-		out.Line(formato, f.Tarea, modelo, f.Intentos, f.Turnos, f.PrimerTurno, f.PrimerTurnoEscrita, f.Entrada, f.Salida, f.CacheLeida, f.CacheEscrita, f.CostoUSD)
+		out.Line(formato, f.Tarea, modelo, f.Intentos, f.Turnos, f.PrimerTurno, f.PrimerTurnoEscrita, f.Entrada, f.Salida, f.CacheLeida, f.CacheEscrita, f.CostoUSD, pctContexto(f), f.Reanudados)
 		total.Intentos += f.Intentos
 		total.Turnos += f.Turnos
 		total.PrimerTurno += f.PrimerTurno
@@ -256,8 +263,17 @@ func mostrarGastoPorTarea(root string) error {
 		total.CacheLeida += f.CacheLeida
 		total.CacheEscrita += f.CacheEscrita
 		total.CostoUSD += f.CostoUSD
+		total.Reanudados += f.Reanudados
 	}
-	out.Line(formato, "total", "", total.Intentos, total.Turnos, total.PrimerTurno, total.PrimerTurnoEscrita, total.Entrada, total.Salida, total.CacheLeida, total.CacheEscrita, total.CostoUSD)
+	out.Line(formato, "total", "", total.Intentos, total.Turnos, total.PrimerTurno, total.PrimerTurnoEscrita, total.Entrada, total.Salida, total.CacheLeida, total.CacheEscrita, total.CostoUSD, "", total.Reanudados)
 	out.Line("usd = precio de lista informado por el CLI, no cargo de la suscripción · incluye implementación, arquitectura y examinador; otros roles pueden faltar")
 	return nil
+}
+
+// pctContexto is the session's peak context as a % of the model window.
+func pctContexto(g gastoTarea) string {
+	if g.PicoContexto == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%d%%", g.PicoContexto*100/executor.ContextWindow(g.Modelo))
 }

@@ -30,7 +30,7 @@ func prLocal(root string, cfg config.Config) bool {
 
 // archivoPRLocal devuelve dónde vive la descripción del PR local de una rama.
 func archivoPRLocal(root, rama string) string {
-	return filepath.Join(config.Dir(root), "pr", strings.TrimPrefix(rama, "loom/")+".md")
+	return filepath.Join(config.Dir(root), "pr", strings.TrimPrefix(strings.TrimPrefix(rama, "loom/"), "devclean/")+".md")
 }
 
 // abrirPRLocal escribe la descripción del PR junto a la rama, que se queda

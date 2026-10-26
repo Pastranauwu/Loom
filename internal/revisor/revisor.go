@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 	"time"
 
@@ -169,45 +170,46 @@ func Revisar(ctx context.Context, o Opciones) (Veredicto, error) {
 	return Parse(texto, o.Tareas)
 }
 
-// Prompt arma la instrucción del revisor: qué se pidió y qué se escribió.
+// Prompt builds the reviewer's instruction: what was asked and what was written.
 func Prompt(tareas []task.Task, diff string) string {
 	var b strings.Builder
-	b.WriteString("Eres el revisor de loom. Decides si esta entrega entra en la rama principal.\n\n")
-	b.WriteString("Ya se verificó por código, no lo repitas: la rama rebasea limpio, cada tarea es un commit, ")
-	b.WriteString("la suite del proyecto pasa sobre el conjunto, no hay secretos ni prints de debug, y cada tarea ")
-	b.WriteString("cabe en su presupuesto de líneas.\n\n")
-	b.WriteString("Lo que TÚ juzgas es lo que ninguna comprobación automática ve: si el código hace lo que la tarea pedía.\n\n")
+	b.WriteString("You are loom's reviewer. You decide whether this delivery enters the main branch.\n\n")
+	b.WriteString("Code already verified these, do not repeat them: the branch rebases cleanly, each task is one commit, ")
+	b.WriteString("the project suite passes on the whole set, there are no secrets or debug prints, and each task ")
+	b.WriteString("fits its line budget.\n\n")
+	b.WriteString("What YOU judge is what no automatic check sees: whether the code does what the task asked.\n\n")
 
-	b.WriteString("Lo que se pidió:\n")
+	b.WriteString("What was asked:\n")
 	for _, t := range tareas {
 		fmt.Fprintf(&b, "- %s: %s\n", t.ID, t.Titulo)
 		if t.Porque != "" {
-			fmt.Fprintf(&b, "  por qué: %s\n", t.Porque)
+			fmt.Fprintf(&b, "  why: %s\n", t.Porque)
 		}
-		fmt.Fprintf(&b, "  se da por hecha cuando pasa: %s\n", t.ListoCuando)
+		fmt.Fprintf(&b, "  considered done when this passes: %s\n", t.ListoCuando)
 		if len(t.Expone) > 0 {
-			fmt.Fprintf(&b, "  debía exponer: %s\n", strings.Join(t.Expone, "; "))
+			fmt.Fprintf(&b, "  was to expose: %s\n", strings.Join(t.Expone, "; "))
 		}
 	}
 
-	b.WriteString("\nEl diff completo:\n```diff\n")
+	b.WriteString("\nThe full diff:\n```diff\n")
 	b.WriteString(diff)
 	b.WriteString("\n```\n\n")
 
-	b.WriteString("Para CADA tarea di si su implementación funciona y clasifícala.\n\n")
-	b.WriteString("- \"tipo\": una de " + strings.Join(TiposCommit, ", ") + ", según lo que ENTREGA de verdad, no según cómo se titula. Empaquetado, Dockerfile o CI son chore; solo documentación es docs; corregir algo roto es fix; funcionalidad nueva es feat.\n")
-	b.WriteString("- \"descripcion\": una frase corta y concreta de lo que entrega, para que un humano sepa qué está aprobando sin leerse el diff.\n")
-	b.WriteString("- \"funciona\": false SOLO por defectos que puedas señalar en el diff:\n")
-	b.WriteString("  · el código no hace lo que su tarea decía, o solo funciona para el caso exacto que prueba el test\n")
-	b.WriteString("  · un fallo real: caso límite roto, error sin manejar que pierde datos, condición de carrera\n")
-	b.WriteString("  · un problema de seguridad: entrada sin validar en una frontera de confianza, secreto derivado, permiso de más\n")
-	b.WriteString("  · lo que entrega no encaja con lo que otra tarea consume\n")
-	b.WriteString("  · el diff borra, relaja o reescribe casos de una prueba que ya existía y la tarea no los declara en \"Obsoleto:\": una prueba vieja solo cambia en lo que el contrato dice que dejó de valer\n")
-	b.WriteString("- \"cambios\": si funciona es false, qué hay que corregir, una línea por cosa y con archivo:línea. Obligatorio: decir que algo está mal sin decir qué cambiar no le sirve a nadie.\n\n")
-	b.WriteString("NO marques funciona:false por estilo, nombres, formato, gustos de arquitectura, ni por falta de pruebas o documentación que nadie pidió. Si dudas y no puedes señalar la línea concreta, es que funciona.\n\n")
-	b.WriteString("En \"notas\" pon solo lo que se ve mirando el conjunto y no cabe en ninguna tarea suelta; vacío si no hay nada.\n\n")
-	b.WriteString("Devuelve SOLO este JSON, sin texto alrededor, con una entrada por cada tarea de arriba:\n")
-	b.WriteString(`{"tareas": [{"id": "T-001", "tipo": "feat", "funciona": true, "descripcion": "qué entrega", "cambios": []}], "notas": ""}`)
+	b.WriteString("For EACH task say whether its implementation works and classify it.\n\n")
+	b.WriteString("- \"type\": one of " + strings.Join(TiposCommit, ", ") + ", by what it truly DELIVERS, not by how it is titled. Packaging, Dockerfile or CI are chore; documentation only is docs; fixing something broken is fix; new functionality is feat.\n")
+	b.WriteString("- \"description\": one short, concrete sentence of what it delivers, so a human knows what they are approving without reading the diff.\n")
+	b.WriteString("- \"works\": false ONLY for defects you can point to in the diff:\n")
+	b.WriteString("  · the code does not do what its task said, or only works for the exact case the test checks\n")
+	b.WriteString("  · a real failure: broken edge case, unhandled error that loses data, race condition\n")
+	b.WriteString("  · a security problem: unvalidated input at a trust boundary, leaked secret, excess permission\n")
+	b.WriteString("  · what it delivers does not fit what another task consumes\n")
+	b.WriteString("  · the diff deletes, relaxes or rewrites cases of a test that already existed and the task does not declare them in \"Obsolete:\": an old test only changes in what the contract says stopped being valid\n")
+	b.WriteString("- \"changes\": if works is false, what to fix, one line per item with file:line. Mandatory: saying something is wrong without saying what to change helps nobody.\n\n")
+	b.WriteString("Do NOT mark works:false for style, names, formatting, architecture taste, or for missing tests or documentation nobody asked for. If you doubt and cannot point to the concrete line, it works.\n\n")
+	b.WriteString("In \"notes\" put only what is seen by looking at the whole set and fits no single task; empty if there is nothing.\n\n")
+	b.WriteString("Return ONLY this JSON, no text around it, with one entry per task above:\n")
+	b.WriteString(`{"tasks": [{"id": "T-001", "type": "feat", "works": true, "description": "what it delivers", "changes": []}], "notes": ""}`)
+	b.WriteString(idioma.Instruccion())
 	return b.String()
 }
 
@@ -226,7 +228,7 @@ func Parse(texto string, esperadas []task.Task) (Veredicto, error) {
 		return Veredicto{}, errors.New("el revisor no devolvió un informe legible")
 	}
 	var v Veredicto
-	if err := json.Unmarshal([]byte(t[ini:fin+1]), &v); err != nil {
+	if err := json.Unmarshal(normalizarInforme([]byte(t[ini:fin+1])), &v); err != nil {
 		return Veredicto{}, fmt.Errorf("el informe del revisor no es JSON válido · %s", err)
 	}
 	if len(v.Tareas) == 0 {
@@ -275,4 +277,26 @@ func tipoValido(tipo string) bool {
 		}
 	}
 	return false
+}
+
+// normalizarInforme lleva las llaves en inglés del informe a las canónicas.
+func normalizarInforme(data []byte) []byte {
+	data = idioma.NormalizarClaves(data, map[string]string{"tasks": "tareas", "notes": "notas"})
+	var m map[string]json.RawMessage
+	if json.Unmarshal(data, &m) != nil {
+		return data
+	}
+	var items []json.RawMessage
+	if json.Unmarshal(m["tareas"], &items) != nil {
+		return data
+	}
+	for i, it := range items {
+		items[i] = idioma.NormalizarClaves(it, map[string]string{"type": "tipo", "works": "funciona", "description": "descripcion", "changes": "cambios"})
+	}
+	m["tareas"], _ = json.Marshal(items)
+	out, err := json.Marshal(m)
+	if err != nil {
+		return data
+	}
+	return out
 }

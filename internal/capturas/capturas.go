@@ -118,6 +118,10 @@ func Tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 	return fotos, err
 }
 
+// ErrNoLevanta distingue la app que no arranca del script de flujos que
+// falla: lo primero puede ser del entorno y no del arquitecto.
+var ErrNoLevanta = errors.New("la app no respondió")
+
 // ProbarFlujos levanta la app y corre solo la semilla y el script de
 // flujos: el error del script, con la cola de su salida, es lo que el
 // arquitecto necesita para corregirlo antes de repartir tareas. Sus PNG
@@ -163,7 +167,7 @@ func tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 	defer apagar(app)
 
 	if err := esperar(ctx, base, Espera); err != nil {
-		return nil, nil, fmt.Errorf("la app no respondió en %s · %s · detalle en %s", base, err, registro.Name())
+		return nil, nil, fmt.Errorf("%w en %s · %s · detalle en %s", ErrNoLevanta, base, err, registro.Name())
 	}
 	envApp := append(append([]string{}, app.Env...), "BASE_URL="+base)
 	// la semilla falla en abierto: sin datos se captura igual, vacío

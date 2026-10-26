@@ -31,7 +31,6 @@ func TestEscanearRuidoCodigoComentado(t *testing.T) {
 	diff := `--- a/x.go
 +++ b/x.go
 +// x = y;
-+// TODO: revisar esto
 +// esto es una nota narrativa
 `
 	h := escanearRuido(diff, nil)

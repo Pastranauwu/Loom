@@ -35,7 +35,7 @@ Con --run (o -r), lanza inmediatamente la ejecución en paralelo (loom run).`,
 			if err != nil {
 				return err
 			}
-			_, err = runApply(root, file, runImmediately, dryRun)
+			_, err = runApplyTodos(root, file, runImmediately, dryRun)
 			return err
 		},
 	}
@@ -67,33 +67,58 @@ func runApply(root, filePath string, runImmediately, dryRun bool) (spec.Spec, er
 	// solo el modo requirements: ahí el plan entero lo genera el
 	// arquitecto, y replanear un spec igual es pagarlo dos veces
 	porRequirements := len(s.Tasks) == 0 && len(s.Requirements) > 0
-	intencion := spec.IntencionDe(s)
-	prev, ok := spec.LoadIntencion(root)
-	if !ok {
-		// planeado antes de que existiera intencion.json: feature.json
-		// tiene lo que el humano declaró, más la aceptación que agregó
-		// el esqueleto, así que la aceptación no se compara. Sin esto,
-		// un feature con 29 tareas listas se replaneó entero al actualizar
-		if f, err := spec.LoadFeatureState(root); err == nil && len(f.Requirements) > 0 {
-			prev, ok = spec.IntencionDe(f), true
-			prev.Acceptance = intencion.Acceptance
+	clave, _ := filepath.Rel(root, filePath)
+	clave = filepath.ToSlash(clave)
+	actual := spec.Snapshot(s)
+	prev, ok := spec.Previo(root, clave, s)
+	d := spec.Diff(prev, actual)
+	if dryRun && !d.Vacio() {
+		out.Line("%s", d)
+	}
+	if ok && d.Vacio() {
+		if !dryRun {
+			_ = spec.SaveEstadoSpec(root, clave, actual) // repo que venía de intencion.json o feature.json
 		}
+		out.Line("· %s sin cambios desde el último plan · sigo con las tareas pendientes (borra .loom/%s para replanear)", filepath.Base(filePath), spec.EstadoFile)
+		return s, nil
 	}
 	if ok && porRequirements {
-		if prev.Igual(intencion) {
-			if !dryRun {
-				_ = spec.SaveIntencion(root, intencion) // repo que venía de feature.json
-			}
-			out.Line("· %s sin cambios desde el último plan · sigo con las tareas pendientes (borra .loom/%s para replanear)", filepath.Base(filePath), spec.IntencionFile)
-			return s, nil
-		}
-		s.Previos, s.PreviosIDs = prev.Requirements, prev.TodosLosIDs()
+		s.Previos, s.PreviosIDs = prev.Requirements()
+		s.Delta = d
 	}
+	viejo, _ := spec.LoadFeatureState(root)
 	s, err = aplicarSpec(root, s, filepath.Base(filePath), runImmediately, dryRun)
-	if err == nil && porRequirements && !dryRun {
-		err = spec.SaveIntencion(root, intencion)
+	if err == nil && !dryRun {
+		if len(spec.FindAll(root)) > 1 {
+			err = spec.FusionarAceptacion(root, viejo, prev, s)
+		}
+		if err == nil {
+			err = spec.SaveEstadoSpec(root, clave, actual)
+		}
 	}
 	return s, err
+}
+
+// runApplyTodos aplica el spec de -f o, sin él, todos los specs vivos
+// (spec.FindAll) en orden. Devuelve el primero: de él salen `agentes` y `ship`.
+func runApplyTodos(root, filePath string, runImmediately, dryRun bool) (spec.Spec, error) {
+	archivos := []string{filePath}
+	if filePath == "" {
+		if archivos = spec.FindAll(root); len(archivos) == 0 {
+			archivos = []string{""}
+		}
+	}
+	var primero spec.Spec
+	for i, f := range archivos {
+		s, err := runApply(root, f, runImmediately, dryRun)
+		if err != nil {
+			return spec.Spec{}, err
+		}
+		if i == 0 {
+			primero = s
+		}
+	}
+	return primero, nil
 }
 
 // aplicarSpec completa, valida y escribe los contratos de un spec ya

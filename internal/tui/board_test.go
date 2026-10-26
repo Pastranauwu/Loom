@@ -21,7 +21,7 @@ func TestArmarTableroColumnas(t *testing.T) {
 	for _, l := range ls {
 		texto += l.texto + "\n"
 	}
-	for _, want := range []string{"LISTO PARA ENTREGAR", "T-001", "exportar", "EN CURSO", "T-002", "PENDIENTE", "T-003", "DETENIDO", "—", "dirige agentes"} {
+	for _, want := range []string{"LISTO PARA ENTREGAR", "T-001", "exportar", "EN CURSO", "T-002", "PENDIENTE", "T-003", "DETENIDO", "—", "teje el código"} {
 		if !strings.Contains(texto, want) {
 			t.Errorf("tablero sin %q:\n%s", want, texto)
 		}

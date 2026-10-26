@@ -12,7 +12,7 @@ func TestResumenFalloComandoSilencioso(t *testing.T) {
 	cmd := "go run . --help 2>&1 | grep -q -- --mac"
 	got := resumenFallo(cmd, &code, "")
 
-	for _, quiero := range []string{"código 1", cmd, "silencia su salida"} {
+	for _, quiero := range []string{"code 1", cmd, "silences its output"} {
 		if !strings.Contains(got, quiero) {
 			t.Errorf("resumen %q no menciona %q", got, quiero)
 		}

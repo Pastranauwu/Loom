@@ -43,6 +43,8 @@ type Attempt struct {
 	// quemaba los tres intentos contra un error de infraestructura.
 	AgenteSalidaCodigo *int   `json:"agente_salida_codigo"`
 	ErrorAgente        string `json:"error_agente,omitempty"`
+	// Reanudado marca el intento que continuó la sesión del anterior.
+	Reanudado bool `json:"reanudado,omitempty"`
 	// Log es la ruta relativa al volcado completo de la invocación
 	// (prompt, stdout y stderr del CLI).
 	Log string `json:"log,omitempty"`
@@ -78,6 +80,7 @@ type Tokens struct {
 	Turnos             int     `json:"turnos,omitempty"`
 	PrimerTurno        int     `json:"primer_turno,omitempty"`
 	PrimerTurnoEscrita int     `json:"primer_turno_escrita,omitempty"`
+	UltimoTurno        int     `json:"ultimo_turno,omitempty"`
 	CostoUSD           float64 `json:"costo_usd,omitempty"`
 }
 

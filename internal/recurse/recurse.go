@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os/exec"
 	"runtime"
 	"sort"
@@ -591,8 +592,11 @@ func parseDictamen(texto string) (dictamen, error) {
 	t = strings.TrimSuffix(t, "```")
 	t = strings.TrimSpace(t)
 	var d dictamen
-	if err := json.Unmarshal([]byte(t), &d); err != nil {
+	if err := json.Unmarshal(idioma.NormalizarClaves([]byte(t), map[string]string{"reason": "motivo", "contract": "contrato"}), &d); err != nil {
 		return d, err
+	}
+	if es, ok := map[string]string{"replan": "replanificar", "skip": "omitir", "stop": "detener"}[d.Decision]; ok {
+		d.Decision = es
 	}
 	if d.Decision == "" {
 		return d, errors.New("el orquestador no devolvió una decisión")
@@ -638,23 +642,23 @@ func (a Agent) replanDesdeContrato(sub task.Task, b plan.Borrador) (task.Task, e
 // final. Deliberadamente corto — se gasta solo cuando algo ya falló.
 func (a Agent) promptSupervisor(sub task.Task, motivo string) string {
 	var b strings.Builder
-	b.WriteString("Eres el supervisor de un equipo de agentes de código. Una subtarea falló tras agotar sus intentos y su modelo de escalado.\n\n")
-	fmt.Fprintf(&b, "Tarea padre %s: %s\n", a.Task.ID, a.Task.Titulo)
-	fmt.Fprintf(&b, "El padre estará listo cuando: %s\n", a.Task.ListoCuando)
-	fmt.Fprintf(&b, "\nSubtarea %s: %s\n", sub.ID, sub.Titulo)
+	b.WriteString("You are the supervisor of a team of coding agents. A subtask failed after exhausting its attempts and its escalation model.\n\n")
+	fmt.Fprintf(&b, "Parent task %s: %s\n", a.Task.ID, a.Task.Titulo)
+	fmt.Fprintf(&b, "The parent will be done when: %s\n", a.Task.ListoCuando)
+	fmt.Fprintf(&b, "\nSubtask %s: %s\n", sub.ID, sub.Titulo)
 	if sub.Porque != "" {
-		fmt.Fprintf(&b, "Por qué: %s\n", sub.Porque)
+		fmt.Fprintf(&b, "Why: %s\n", sub.Porque)
 	}
-	fmt.Fprintf(&b, "Listo cuando: %s\n", sub.ListoCuando)
+	fmt.Fprintf(&b, "Done when: %s\n", sub.ListoCuando)
 	if len(sub.TocarSolo) > 0 {
-		fmt.Fprintf(&b, "Alcance: %s\n", strings.Join(sub.TocarSolo, ", "))
+		fmt.Fprintf(&b, "Scope: %s\n", strings.Join(sub.TocarSolo, ", "))
 	}
-	fmt.Fprintf(&b, "Falló: %s\n", recortar(motivo, 500))
-	b.WriteString("\nDecidí qué hacer. Devuelve SOLO JSON, sin texto alrededor, una de estas tres:\n")
-	b.WriteString("{\"decision\":\"replanificar\",\"motivo\":\"...\",\"contrato\":{\"titulo\":\"...\",\"listo_cuando\":\"un comando que HOY FALLE\",\"tocar_solo\":[\"...\"],\"porque\":\"...\",\"como\":\"enfoque\"}}\n")
-	b.WriteString("{\"decision\":\"omitir\",\"motivo\":\"...\"}  · el padre puede quedar listo sin esta subtarea\n")
-	b.WriteString("{\"decision\":\"detener\",\"motivo\":\"...\"}  · sin esta subtarea el padre no puede quedar verde\n")
-	b.WriteString("Reglas: replanificar solo si el nuevo listo_cuando sigue dentro del alcance del padre y hoy falla; omitir solo si la subtarea es opcional para el listo_cuando del padre.")
+	fmt.Fprintf(&b, "It failed: %s\n", recortar(motivo, 500))
+	b.WriteString("\nDecide what to do. Return ONLY JSON, no text around it, one of these three:\n")
+	b.WriteString("{\"decision\":\"replan\",\"reason\":\"...\",\"contract\":{\"title\":\"...\",\"done_when\":\"a command that FAILS TODAY\",\"only_touch\":[\"...\"],\"why\":\"...\",\"how\":\"approach\"}}\n")
+	b.WriteString("{\"decision\":\"skip\",\"reason\":\"...\"}  · the parent can be done without this subtask\n")
+	b.WriteString("{\"decision\":\"stop\",\"reason\":\"...\"}  · without this subtask the parent cannot go green\n")
+	b.WriteString("Rules: replan only if the new done_when stays within the parent's scope and fails today; skip only if the subtask is optional for the parent's done_when.")
 	return b.String()
 }
 
@@ -735,41 +739,41 @@ func (a Agent) promptDescomposicion() string {
 		limite = task.DefaultLimiteSubtareas
 	}
 	var b strings.Builder
-	b.WriteString("Eres el planificador de loom. Parte esta tarea en subtareas pequeñas y verificables.\n\n")
-	fmt.Fprintf(&b, "Tarea %s: %s\n", t.ID, t.Titulo)
+	b.WriteString("You are loom's planner. Split this task into small, verifiable subtasks.\n\n")
+	fmt.Fprintf(&b, "Task %s: %s\n", t.ID, t.Titulo)
 	if t.Porque != "" {
-		fmt.Fprintf(&b, "Para qué importa: %s\n", t.Porque)
+		fmt.Fprintf(&b, "Why it matters: %s\n", t.Porque)
 	}
 	if t.Notas != "" {
-		fmt.Fprintf(&b, "Diseño e instrucciones del padre:\n%s\n\n", t.Notas)
+		fmt.Fprintf(&b, "Parent design and instructions:\n%s\n\n", t.Notas)
 	}
-	fmt.Fprintf(&b, "La tarea estará lista cuando: %s (lo decide el código, no un modelo)\n", t.ListoCuando)
+	fmt.Fprintf(&b, "The task will be done when: %s (code decides, not a model)\n", t.ListoCuando)
 	if t.Riesgos != "" {
-		fmt.Fprintf(&b, "Riesgos del padre: %s\n", t.Riesgos)
+		fmt.Fprintf(&b, "Parent risks: %s\n", t.Riesgos)
 	}
 	if len(t.Expone) > 0 {
-		fmt.Fprintf(&b, "El padre debe terminar exponiendo: %s\n", strings.Join(t.Expone, "; "))
+		fmt.Fprintf(&b, "The parent must end up exposing: %s\n", strings.Join(t.Expone, "; "))
 	}
 	if len(t.Usa) > 0 {
-		fmt.Fprintf(&b, "El padre consume de otras tareas: %s\n", strings.Join(t.Usa, "; "))
+		fmt.Fprintf(&b, "The parent consumes from other tasks: %s\n", strings.Join(t.Usa, "; "))
 	}
 	if len(t.NoTocar) > 0 {
 		fmt.Fprintf(&b, "Nadie toca: %s\n", strings.Join(t.NoTocar, ", "))
 	}
-	fmt.Fprintf(&b, "SOLO puedes declarar \"tocar_solo\" dentro de estas rutas (ninguna otra): %s. Máximo %d subtareas.\n\n",
+	fmt.Fprintf(&b, "You may declare \"only_touch\" ONLY within these paths (no others): %s. At most %d subtasks.\n\n",
 		strings.Join(t.TocarSolo, ", "), limite)
-	b.WriteString("Las subtareas corren EN PARALELO cuando pueden, con un modelo barato cada una. Están numeradas en orden: la primera es 1, la segunda 2, etc. Una subtarea que necesita ver el código de otra debe declarar \"depende_de\": [n] con el número de esa otra; sin depende_de se asume independiente y va en paralelo.\n\n")
-	b.WriteString("Devuelve SOLO un array JSON, sin texto alrededor. Cada subtarea:\n")
-	b.WriteString("- \"titulo\": frase corta\n")
-	b.WriteString("- \"porque\": por qué importa (una frase)\n")
-	b.WriteString("- \"listo_cuando\": comando ejecutable que HOY FALLE y pase cuando esa subtarea esté hecha. Si apunta a un archivo de prueba, ese archivo debe estar también en tocar_solo.\n")
-	b.WriteString("- \"tocar_solo\": array de globs dentro del alcance del padre; sin cruce con otras subtareas que corran en paralelo\n")
-	b.WriteString("- \"depende_de\": array de números de subtareas que deben estar verdes antes (ej. [1]); vacío si no depende de ninguna\n")
-	b.WriteString("- \"expone\" / \"usa\": firmas que esta subtarea produce/consume, si aplica\n")
-	b.WriteString("- \"como\": instrucciones concretas con archivos, pasos, entradas, salidas, errores y casos de prueba; conserva las decisiones de arquitectura del padre (obligatorio, sin límite de una línea)\n")
-	b.WriteString("- \"riesgos\": o \"\"\n")
-	b.WriteString("- \"peso\": \"liviana\", \"media\" o \"pesada\" según la complejidad (las hojas chicas van a \"liviana\")\n\n")
-	b.WriteString("El conjunto de subtareas debe lograr el listo_cuando del padre. Dividí por capas o archivos, no por pasos temporales: cada subtarea deja algo verde por su cuenta. Si una pieza es chica y bien definida, preferí \"liviana\" y un \"como\" claro — el modelo barato solo necesita seguir instrucciones precisas.\n")
+	b.WriteString("Subtasks run IN PARALLEL when they can, each with a cheap model. They are numbered in order: the first is 1, the second 2, etc. A subtask that needs to see another's code must declare \"depends_on\": [n] with that other's number; without depends_on it is assumed independent and runs in parallel.\n\n")
+	b.WriteString("Return ONLY a JSON array, no text around it. Each subtask:\n")
+	b.WriteString("- \"title\": short phrase\n")
+	b.WriteString("- \"why\": why it matters (one sentence)\n")
+	b.WriteString("- \"done_when\": executable command that FAILS TODAY and passes when that subtask is done. If it points to a test file, that file must also be in only_touch.\n")
+	b.WriteString("- \"only_touch\": array of globs within the parent's scope; no overlap with other subtasks running in parallel\n")
+	b.WriteString("- \"depends_on\": array of subtask numbers that must be green first (e.g. [1]); empty if it depends on none\n")
+	b.WriteString("- \"exposes\" / \"uses\": signatures this subtask produces/consumes, if any\n")
+	b.WriteString("- \"how\": concrete instructions with files, steps, inputs, outputs, errors and test cases; keep the parent's architecture decisions (mandatory, not limited to one line)\n")
+	b.WriteString("- \"risks\": or \"\"\n")
+	b.WriteString("- \"weight\": \"light\", \"medium\" or \"heavy\" by complexity (small leaves go to \"light\")\n\n")
+	b.WriteString("The set of subtasks must achieve the parent's done_when. Split by layers or files, not by temporal steps: each subtask leaves something green on its own. If a piece is small and well defined, prefer \"light\" and a clear \"how\" — the cheap model only needs to follow precise instructions.\n")
 	return b.String()
 }
 

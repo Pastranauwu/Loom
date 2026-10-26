@@ -21,7 +21,7 @@ func newUpCmd() *cobra.Command {
 
 Con una petición en lenguaje natural, la parte en tareas (loom plan),
 las ejecuta en paralelo en cuartos aislados (loom run) y, con --ship,
-las entrega en UN pull request limpio (loom ship --todas).
+las entrega en UN pull request limpio (loom ship --all).
 
 Sin petición, aplica la especificación del repo (loom.spec.yml) si
 existe y ejecuta las tareas pendientes.
@@ -30,8 +30,8 @@ No hace falta loom init: up configura lo que falte (repo git,
 .loom, commit inicial, ejecutor, modelos, comando de pruebas) y
 pregunta solo cuando no puede resolverlo solo.`,
 		Example: `  loom up "cli en go que despierta equipos por wake-on-lan" --ship
-  loom up "arreglar el login con tildes" --integrar
-  loom up --agentes 4 --ship
+  loom up "arreglar el login con tildes" --merge
+  loom up --agents 4 --ship
   loom up -f specs/auth.yml`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -63,15 +63,9 @@ pregunta solo cuando no puede resolverlo solo.`,
 					titulo = frase
 				}
 			} else {
-				specFile := file
-				if specFile == "" {
-					if found, err := spec.Find(root); err == nil {
-						specFile = found
-					}
-				}
-				if specFile != "" {
-					var err error
-					s, err = runApply(root, specFile, false, false)
+				var err error
+				if file != "" || len(spec.FindAll(root)) > 0 {
+					s, err = runApplyTodos(root, file, false, false)
 					if err != nil {
 						return err
 					}
@@ -80,9 +74,9 @@ pregunta solo cuando no puede resolverlo solo.`,
 			}
 
 			// el spec fija agentes y entrega cuando la línea de comandos
-			// no los pide: --agentes gana sobre `agentes:`, y `ship: true`
+			// no los pide: --agents gana sobre `agentes:`, y `ship: true`
 			// entrega aunque no se haya pasado --ship
-			if !cmd.Flags().Changed("agentes") && s.Agentes > 0 {
+			if !cmd.Flags().Changed("agents") && s.Agentes > 0 {
 				agentes = s.Agentes
 			}
 			if s.Ship {
@@ -103,16 +97,16 @@ pregunta solo cuando no puede resolverlo solo.`,
 	}
 
 	cmd.Flags().StringVarP(&file, "file", "f", "", "ruta al archivo de especificación (.yml)")
-	cmd.Flags().IntVar(&agentes, "agentes", 0, "número de trabajadores en paralelo (0 = automático, hasta 16 y 3 con modelo de pago)")
+	cmd.Flags().IntVar(&agentes, "agents", 0, "número de trabajadores en paralelo (0 = automático, hasta 16 y 3 con modelo de pago)")
 	cmd.Flags().StringVar(&modelo, "modelo", "", "fuerza un modelo para todas las tareas")
 	cmd.Flags().StringVar(&ejecutor, "ejecutor", "", "opencode o claude")
-	cmd.Flags().BoolVar(&reintentar, "reintentar", false, "vuelve a correr también las tareas detenidas")
+	cmd.Flags().BoolVar(&reintentar, "retry", false, "vuelve a correr también las tareas detenidas")
 	cmd.Flags().BoolVar(&entregar, "ship", false, "al terminar, entrega todas las tareas listas en un solo PR")
-	cmd.Flags().BoolVar(&revisar, "revisar", false, "además de entregar, un modelo revisa el diff y deja el informe en el PR")
-	cmd.Flags().BoolVar(&integrar, "integrar", false, "además de revisar, mergea el PR si el revisor no pide cambios")
+	cmd.Flags().BoolVar(&revisar, "review", false, "además de entregar, un modelo revisa el diff y deja el informe en el PR")
+	cmd.Flags().BoolVar(&integrar, "merge", false, "además de revisar, mergea el PR si el revisor no pide cambios")
 	cmd.Flags().BoolVar(&local, "local", false, "la entrega queda como PR local (rama y descripción en el repo) aunque haya remoto")
 	cmd.Flags().StringVar(&titulo, "titulo", "", "título del PR (por defecto, la petición)")
-	cmd.Flags().BoolVar(&fondo, "fondo", false, "desprende todo el encadenado de la terminal y devuelve el control; sigue corriendo si la cierras")
+	cmd.Flags().BoolVar(&fondo, "background", false, "desprende todo el encadenado de la terminal y devuelve el control; sigue corriendo si la cierras")
 
 	return cmd
 }

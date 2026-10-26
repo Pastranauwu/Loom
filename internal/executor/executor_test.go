@@ -193,7 +193,7 @@ func TestUsoConCache(t *testing.T) {
 {"type":"assistant","parent_tool_use_id":null,"message":{"id":"msg_2","usage":{"input_tokens":2,"cache_creation_input_tokens":300,"cache_read_input_tokens":23412,"output_tokens":40}}}
 {"type":"result","result":"listo","num_turns":2,"total_cost_usd":0.7855,"usage":{"input_tokens":129,"cache_creation_input_tokens":42631,"cache_read_input_tokens":789576,"output_tokens":11848},"modelUsage":{"claude-haiku-4-5":{"inputTokens":554,"outputTokens":28526,"cacheReadInputTokens":4579893,"cacheCreationInputTokens":121937}}}`
 	texto, u := parseClaudeStream(stream)
-	quiero := Usage{Input: 554, Output: 28526, CacheRead: 4579893, CacheWrite: 121937, Turns: 2, FirstTurn: 23422, FirstTurnWrite: 11106, CostUSD: 0.7855}
+	quiero := Usage{Input: 554, Output: 28526, CacheRead: 4579893, CacheWrite: 121937, Turns: 2, FirstTurn: 23422, FirstTurnWrite: 11106, LastTurn: 23714, CostUSD: 0.7855}
 	if texto != "listo" || u != quiero {
 		t.Errorf("claude: %q %+v\nquiero %+v", texto, u, quiero)
 	}

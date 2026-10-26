@@ -10,7 +10,7 @@ import (
 )
 
 // FlagFondo es la bandera que pide desprender la corrida de la terminal.
-const FlagFondo = "--fondo"
+const FlagFondo = "--background"
 
 // CorridasDir es donde viven los registros de las corridas desprendidas.
 // Aparte de runs/, que es por tarea: esto es la salida del comando entero.
@@ -69,25 +69,25 @@ func lanzarEnFondo(root string) error {
 	out.Line("corriendo en segundo plano · pid %d", pid)
 	out.Line("registro · %s", rel)
 	out.Line("avance · loom board · en vivo · tail -f %s", rel)
-	out.Line("parar · loom stop · retomar después · loom run --reintentar")
+	out.Line("parar · loom stop · retomar después · loom run --retry")
 	return nil
 }
 
 // sinFondo quita la bandera de la línea de argumentos con que se relanza
 // el comando. Sin esto el hijo se desprendería otra vez, y otra, para
-// siempre. Cubre las dos formas que acepta cobra: `--fondo` suelto y
-// `--fondo=true`.
+// siempre. Cubre las dos formas que acepta cobra: `--background` suelto y
+// `--background=true`.
 //
 // ponytail: filtro textual, no un parseo real de la línea. El caso que
-// se le escapa es `--titulo --fondo`, donde la bandera es en realidad el
-// VALOR de otra opción y no debería quitarse. Titular un PR "--fondo" es
+// se le escapa es `--titulo --background`, donde la bandera es en realidad el
+// VALOR de otra opción y no debería quitarse. Titular un PR "--background" es
 // bastante absurdo como para no pagar un parser completo; si algún día
 // hay una opción que reciba valores así, esto pasa a leer la definición
 // de banderas de cobra en vez de comparar texto.
 func sinFondo(args []string) []string {
 	fuera := make([]string, 0, len(args))
 	for _, a := range args {
-		if a == FlagFondo || strings.HasPrefix(a, FlagFondo+"=") {
+		if a == FlagFondo || strings.HasPrefix(a, FlagFondo+"=") || a == "--fondo" || strings.HasPrefix(a, "--fondo=") {
 			continue
 		}
 		fuera = append(fuera, a)

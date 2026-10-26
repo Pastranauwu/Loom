@@ -73,7 +73,7 @@ func LedgerPath() string {
 	if err != nil || home == "" {
 		home = "."
 	}
-	return filepath.Join(home, ".loom", "ventanas.jsonl")
+	return rutaCasa(home, "ventanas.jsonl")
 }
 
 // Nuevo crea el registro. caps puede ser nil (sin topes: solo mide).
@@ -241,4 +241,21 @@ func splitLines(s string) []string {
 		out = append(out, cur)
 	}
 	return out
+}
+
+// rutaCasa is a file under ~/.loom, or under ~/.devclean if that is where it already lives.
+func rutaCasa(home, nombre string) string {
+	nuevo := filepath.Join(home, ".loom", nombre)
+	if _, err := os.Stat(nuevo); err == nil {
+		return nuevo
+	}
+	if viejo := filepath.Join(home, ".devclean", nombre); fileExists(viejo) {
+		return viejo
+	}
+	return nuevo
+}
+
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }

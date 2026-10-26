@@ -39,13 +39,13 @@ var (
 	rgbApagado = [3]int{107, 111, 114}
 )
 
-// logoFilas es el logotipo de loom en arte de píxeles (fuente
-// unsciithin de bit), sin colores; el degradado se aplica aquí.
+// logoFilas es el logotipo de loom en arte de píxeles, sin colores;
+// el degradado se aplica aquí.
 var logoFilas = []string{
-	"    █                   ▀█",
-	"▄▀▀▀█ ▄▀▀▀▄ █   █ ▄▀▀▀▄  █ ▄▀▀▀▄  ▀▀▀▄ █▀▀▀▄",
-	"█   █ █▀▀▀▀ ▀▄ ▄▀ █   ▄  █ █▀▀▀▀ ▄▀▀▀█ █   █",
-	" ▀▀▀▀  ▀▀▀    ▀    ▀▀▀  ▀▀▀ ▀▀▀   ▀▀▀▀ ▀   ▀",
+	"▀█",
+	" █  ▄▀▀▀▄ ▄▀▀▀▄ █▀▄▀█",
+	" █  █   █ █   █ █ ▀ █",
+	"▀▀▀  ▀▀▀   ▀▀▀  ▀   ▀",
 }
 
 // mezclar interpola dos colores RGB y devuelve su hex.
@@ -85,7 +85,7 @@ func Logo(width int) string {
 		c := mezclar(inicio, final, float64(i)/float64(alto-1))
 		b.WriteString("  " + lipgloss.NewStyle().Foreground(lipgloss.Color(c)).Render(fila) + "\n")
 	}
-	b.WriteString("\n  " + estiloApagado.Render("dirige agentes · entrega código limpio") + "\n")
+	b.WriteString("\n  " + estiloApagado.Render("tú diseñas el patrón · loom teje el código") + "\n")
 	return b.String()
 }
 

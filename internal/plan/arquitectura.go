@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/Pastranauwu/loom/internal/task"
 )
 
@@ -12,13 +13,22 @@ import (
 // reglas de la spec, arquitectura del plan y lo propio de la tarea. El
 // bucle las vuelve a separar para armar el prompt con lo común primero.
 const (
-	MarcaReglas         = "Reglas de la especificación:\n"
-	MarcaArquitectura   = "Arquitectura del plan:\n"
-	MarcaImplementacion = "Implementación de esta tarea:\n"
+	MarcaReglas         = "Spec rules:\n"
+	MarcaArquitectura   = "Plan architecture:\n"
+	MarcaImplementacion = "Implementation of this task:\n"
 
 	// encabezados de las secciones que se recortan por tarea
-	SeccionArbol  = "ÁRBOL DE ARCHIVOS"
-	SeccionFirmas = "FIRMAS PÚBLICAS"
+	SeccionArbol  = "FILE TREE"
+	SeccionFirmas = "PUBLIC SIGNATURES"
+)
+
+// marcas y encabezados de contratos escritos antes del inglés
+const (
+	marcaReglasEs         = "Reglas de la especificación:\n"
+	marcaArquitecturaEs   = "Arquitectura del plan:\n"
+	marcaImplementacionEs = "Implementación de esta tarea:\n"
+	seccionArbolEs        = "ÁRBOL DE ARCHIVOS"
+	seccionFirmasEs       = "FIRMAS PÚBLICAS"
 )
 
 // Notas son las notas de un contrato separadas por origen.
@@ -33,17 +43,21 @@ type Notas struct {
 func SepararNotas(notas string) Notas {
 	var n Notas
 	resto := notas
-	if strings.HasPrefix(resto, MarcaReglas) {
+	if _, ok := idioma.Prefijo(resto, MarcaReglas, marcaReglasEs); ok {
 		fin := strings.Index(resto, "\n\n")
 		if fin == -1 {
 			return Notas{Reglas: resto}
 		}
 		n.Reglas, resto = resto[:fin], resto[fin+2:]
 	}
-	if strings.HasPrefix(resto, MarcaArquitectura) {
-		if fin := strings.Index(resto, "\n\n"+MarcaImplementacion); fin != -1 {
-			n.Arquitectura = resto[len(MarcaArquitectura):fin]
-			resto = resto[fin+2+len(MarcaImplementacion):]
+	if arq, ok := idioma.Prefijo(resto, MarcaArquitectura, marcaArquitecturaEs); ok {
+		impl := MarcaImplementacion
+		if arq == marcaArquitecturaEs {
+			impl = marcaImplementacionEs
+		}
+		if fin := strings.Index(resto, "\n\n"+impl); fin != -1 {
+			n.Arquitectura = resto[len(arq):fin]
+			resto = resto[fin+2+len(impl):]
 		}
 	}
 	n.Tarea = resto
@@ -67,14 +81,16 @@ func RecortarArquitectura(arq string, t task.Task) Arquitectura {
 	var rutasFirmas []string // dueñas de lo que t usa, para el árbol
 	parrafos := strings.Split(arq, "\n\n")
 	for _, p := range parrafos {
-		if strings.HasPrefix(p, SeccionFirmas) {
+		if _, ok := idioma.Prefijo(p, SeccionFirmas, seccionFirmasEs); ok {
 			a.Firmas, rutasFirmas = recortarFirmas(p, t)
 		}
 	}
 	for _, p := range parrafos {
+		_, esFirmas := idioma.Prefijo(p, SeccionFirmas, seccionFirmasEs)
+		_, esArbol := idioma.Prefijo(p, SeccionArbol, seccionArbolEs)
 		switch {
-		case strings.HasPrefix(p, SeccionFirmas):
-		case strings.HasPrefix(p, SeccionArbol):
+		case esFirmas:
+		case esArbol:
 			a.Arbol = recortarArbol(p, append(append([]string(nil), t.TocarSolo...), rutasFirmas...))
 		default:
 			comun = append(comun, p)

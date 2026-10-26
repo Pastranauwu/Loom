@@ -49,13 +49,13 @@ func TestSaveYLoadDanLaVuelta(t *testing.T) {
 func TestPromptLlevaLasSeccionesYElContexto(t *testing.T) {
 	p := Prompt("go", "go test ./...", "cmd/loom/main.go")
 	for _, quiero := range []string{
-		"Lenguaje del proyecto: go",
-		"Comando de pruebas: go test ./...",
+		"Project language: go",
+		"Test command: go test ./...",
 		"cmd/loom/main.go",
-		"## Estructura de capas",
-		"## Convenciones de estilo",
-		"## Patrones prohibidos",
-		"## Tamaño máximo por archivo",
+		"## Layer structure",
+		"## Style conventions",
+		"## Forbidden patterns",
+		"## Maximum file size",
 	} {
 		if !strings.Contains(p, quiero) {
 			t.Errorf("el prompt no menciona %q", quiero)
@@ -66,7 +66,7 @@ func TestPromptLlevaLasSeccionesYElContexto(t *testing.T) {
 // Sin datos de config no se inventan líneas vacías tipo "Lenguaje: ".
 func TestPromptSinContextoNoDejaCamposHuecos(t *testing.T) {
 	p := Prompt("", "", "")
-	for _, sobra := range []string{"Lenguaje del proyecto:", "Comando de pruebas:", "```"} {
+	for _, sobra := range []string{"Project language:", "Test command:", "```"} {
 		if strings.Contains(p, sobra) {
 			t.Errorf("el prompt sin contexto trae %q", sobra)
 		}

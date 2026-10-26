@@ -84,7 +84,7 @@ func runBoard() error {
 			if l, corriendo := loop.LeerLatido(root, t.ID); corriendo {
 				row.Detalle = l.Descripcion() + " · " + l.EnFaseDesde().Round(time.Second).String()
 			} else if l, muerta := loop.Interrumpida(root, t.ID); muerta {
-				row.Detalle = fmt.Sprintf("interrumpida · sin señal hace %s · loom run --reintentar", l.Silencio().Round(time.Second))
+				row.Detalle = fmt.Sprintf("interrumpida · sin señal hace %s · loom run --retry", l.Silencio().Round(time.Second))
 			}
 		}
 		switch s.Estado {
@@ -203,7 +203,7 @@ func imprimirHijos(rows []boardRow, profundidad int) {
 // reintentarTarea vuelve a correr una sola tarea detenida, reusando su
 // cuarto y el trabajo parcial que quedó dentro. Es la tecla r del
 // tablero: sin esto, revivir una tarea obligaba a correr `run
-// --reintentar` sobre todas.
+// --retry` sobre todas.
 func reintentarTarea(root, id string) error {
 	st, err := state.Get(root, id)
 	if err != nil {

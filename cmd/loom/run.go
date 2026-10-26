@@ -14,7 +14,6 @@ import (
 
 	"github.com/Pastranauwu/loom/internal/budget"
 	"github.com/Pastranauwu/loom/internal/config"
-	"github.com/Pastranauwu/loom/internal/constitution"
 	"github.com/Pastranauwu/loom/internal/examiner"
 	"github.com/Pastranauwu/loom/internal/executor"
 	"github.com/Pastranauwu/loom/internal/gate"
@@ -58,17 +57,17 @@ func newRunCmd() *cobra.Command {
 			return runCmd(agentes, ejecutor, modelo, reintentar, fondo)
 		},
 	}
-	cmd.Flags().IntVar(&agentes, "agentes", 0, "tareas en paralelo (0 = automático, hasta 16 y 3 con modelo de pago)")
+	cmd.Flags().IntVar(&agentes, "agents", 0, "tareas en paralelo (0 = automático, hasta 16 y 3 con modelo de pago)")
 	cmd.Flags().StringVar(&ejecutor, "ejecutor", "", "opencode o claude (por defecto, el primero disponible)")
 	cmd.Flags().StringVar(&modelo, "modelo", "", "modelo del ejecutor (por defecto, el suyo)")
-	cmd.Flags().BoolVar(&reintentar, "reintentar", false, "vuelve a correr también las tareas detenidas, reusando su cuarto")
-	cmd.Flags().BoolVar(&fondo, "fondo", false, "desprende la corrida de la terminal y devuelve el control; sigue corriendo si la cierras")
+	cmd.Flags().BoolVar(&reintentar, "retry", false, "vuelve a correr también las tareas detenidas, reusando su cuarto")
+	cmd.Flags().BoolVar(&fondo, "background", false, "desprende la corrida de la terminal y devuelve el control; sigue corriendo si la cierras")
 	return cmd
 }
 
 func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error {
 	if agentes < 0 {
-		return errors.New("--agentes inválido · mínimo 1")
+		return errors.New("--agents inválido · mínimo 1")
 	}
 	root, cfg, err := entornoListo(false)
 	if err != nil {
@@ -82,7 +81,7 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 		return lanzarEnFondo(root)
 	}
 	defer marcarCorrida(root)()
-	constitucion, err := constitution.Load(root)
+	constitucion, err := constitucionDe(root)
 	if err != nil {
 		return err
 	}
@@ -113,7 +112,7 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 			// `en_curso` con la corrida muerta encima (SIGKILL: la laptop
 			// suspende, se cae el ssh) quedaba atascada para siempre —
 			// `run` la mandaba a `existentes`, que solo sirve para el
-			// cruce, y ni --reintentar la miraba. Se reconoce por el
+			// cruce, y ni --retry la miraba. Se reconoce por el
 			// latido rancio y se revive por el mismo camino que una
 			// detenida. No es automático a propósito: si otra corrida la
 			// está trabajando de verdad su latido está fresco, y revivirla
@@ -153,11 +152,11 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 		// las huérfanas van primero: son las que el humano no sabe que
 		// tiene, porque el tablero las pintaba corriendo
 		if len(huerfanas) > 0 {
-			out.Line("sin tareas pendientes · %s quedó de una corrida que murió · retómala con loom run --reintentar", strings.Join(huerfanas, ", "))
+			out.Line("sin tareas pendientes · %s quedó de una corrida que murió · retómala con loom run --retry", strings.Join(huerfanas, ", "))
 			return nil
 		}
 		if len(detenidas) == 0 && tieneDetenidas(root, tareas) {
-			out.Line("sin tareas pendientes · hay tareas detenidas · revíveles con loom run --reintentar")
+			out.Line("sin tareas pendientes · hay tareas detenidas · revíveles con loom run --retry")
 			return nil
 		}
 		if len(enOtraCorrida) > 0 {
@@ -177,7 +176,7 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 		out.Line("· retomando %s · su corrida anterior murió a media tarea", strings.Join(interrumpidas, ", "))
 	}
 	if len(huerfanas) > 0 {
-		out.Line("· %s quedó de una corrida que murió · retómala con loom run --reintentar", strings.Join(huerfanas, ", "))
+		out.Line("· %s quedó de una corrida que murió · retómala con loom run --retry", strings.Join(huerfanas, ", "))
 	}
 
 	timeout := gate.DefaultTimeout
@@ -361,7 +360,7 @@ func ejecutarOlas(ctx context.Context, root string, cfg config.Config, ex execut
 		var verdes []runResult
 		sinSaldo := false
 		if len(asignadas) > 0 {
-			// --agentes explícito manda sobre el tope de pagados
+			// --agents explícito manda sobre el tope de pagados
 			workers, pagados := agentes, agentes
 			if workers < 1 {
 				workers, pagados = autoAgentes(len(asignadas)), topePagados
@@ -641,8 +640,10 @@ func (a agenteExecutor) Run(ctx context.Context, req loop.Request) (loop.Result,
 		Model:        req.Model,
 		Timeout:      req.Timeout,
 		Env:          req.Env,
+		Sesion:       req.Sesion,
 	})
 	return loop.Result{
+		Sesion:   res.Sesion,
 		Stdout:   res.Stdout,
 		Stderr:   res.Stderr,
 		Text:     res.Text,
@@ -654,10 +655,10 @@ func (a agenteExecutor) Run(ctx context.Context, req loop.Request) (loop.Result,
 // tokensDe traduce el gasto del adaptador al del bucle, caché incluida.
 func tokensDe(u executor.Usage) loop.Tokens {
 	return loop.Tokens{Entrada: u.Input, Salida: u.Output, CacheLeida: u.CacheRead, CacheEscrita: u.CacheWrite,
-		Turnos: u.Turns, PrimerTurno: u.FirstTurn, PrimerTurnoEscrita: u.FirstTurnWrite, CostoUSD: u.CostUSD}
+		Turnos: u.Turns, PrimerTurno: u.FirstTurn, PrimerTurnoEscrita: u.FirstTurnWrite, UltimoTurno: u.LastTurn, CostoUSD: u.CostUSD}
 }
 
-// autoAgentes resuelve el paralelismo cuando --agentes no se pasa: tantos
+// autoAgentes resuelve el paralelismo cuando --agents no se pasa: tantos
 // trabajadores como tareas en la oleada, topado a 16. De esos, solo
 // topePagados corren a la vez con un modelo que gasta cuota (correr); el
 // resto del cupo es para modelos gratis.
@@ -672,7 +673,7 @@ func autoAgentes(tareas int) int {
 }
 
 // topePagados es cuántas tareas con modelo de pago corren a la vez sin
-// --agentes: todas gastan la misma ventana de 5 h, y en paralelo solo la
+// --agents: todas gastan la misma ventana de 5 h, y en paralelo solo la
 // vacían antes (una corrida perdió 3 de 18 intentos por 429).
 //
 // Se cambia con `agentes_pagados:` en config.yml.
@@ -1090,6 +1091,8 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 		Skills:          skillsTarea,
 		SkillsContenido: skillsContenido,
 		Examinador:      exam,
+		Ventana:         executor.ContextWindow(modeloTarea),
+		ResumeBelowPct:  cfg.ResumeBelowPct,
 	}
 	if !recursiva {
 		opts.Presupuesto = presupuesto
@@ -1245,7 +1248,7 @@ func emitirResultados(results []runResult) error {
 }
 
 // tieneDetenidas reporta si alguna tarea quedó detenida, para poder
-// sugerir --reintentar en vez de dejar al usuario sin salida.
+// sugerir --retry en vez de dejar al usuario sin salida.
 func tieneDetenidas(root string, tareas []task.Task) bool {
 	for _, t := range tareas {
 		if s, err := state.Get(root, t.ID); err == nil && s.Estado == state.Detenida {

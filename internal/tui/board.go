@@ -225,7 +225,7 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 		c := mezclarRGB([3]int{79, 179, 162}, [3]int{44, 110, 99}, float64(i)/float64(n-1))
 		cab = append(cab, lineaSticker{texto: fila, color: c})
 	}
-	cab = append(cab, lineaSticker{}, lineaSticker{texto: "dirige agentes · entrega código limpio", color: rgbApagado})
+	cab = append(cab, lineaSticker{}, lineaSticker{texto: "tú diseñas el patrón · loom teje el código", color: rgbApagado})
 	var gasto []lineaSticker
 	for _, l := range presupuesto {
 		gasto = append(gasto, lineaSticker{texto: "presupuesto " + l, color: rgbApagado})

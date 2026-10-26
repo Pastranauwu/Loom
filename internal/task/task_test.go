@@ -107,7 +107,7 @@ func TestMarshalOmiteVacios(t *testing.T) {
 	if strings.Contains(out, "porque") || strings.Contains(out, "riesgos") {
 		t.Errorf("Marshal incluyó campos vacíos:\n%s", out)
 	}
-	if !strings.Contains(out, "tocar_solo: []") {
+	if !strings.Contains(out, "only_touch: []") {
 		t.Errorf("Marshal debió escribir listas vacías:\n%s", out)
 	}
 }
@@ -162,7 +162,7 @@ func TestParseDependeDe(t *testing.T) {
 	if len(task.DependeDe) != 1 || task.DependeDe[0] != "T-001" {
 		t.Errorf("DependeDe = %v, quiero [T-001]", task.DependeDe)
 	}
-	if !strings.Contains(string(task.Marshal()), "depende_de: [\"T-001\"]") {
+	if !strings.Contains(string(task.Marshal()), "depends_on: [\"T-001\"]") {
 		t.Errorf("Marshal no escribió depende_de:\n%s", task.Marshal())
 	}
 }
@@ -189,7 +189,7 @@ func TestPeso(t *testing.T) {
 	if task.Peso != "pesada" {
 		t.Errorf("Peso = %q, quiero pesada", task.Peso)
 	}
-	if !strings.Contains(string(task.Marshal()), "peso: pesada") {
+	if !strings.Contains(string(task.Marshal()), "weight: heavy") {
 		t.Errorf("Marshal no escribió peso:\n%s", task.Marshal())
 	}
 
@@ -246,7 +246,7 @@ func TestAgenteIdaYVuelta(t *testing.T) {
 		Agente:         "architect",
 	}
 	raw := orig.Marshal()
-	if !strings.Contains(string(raw), "agente: architect") {
+	if !strings.Contains(string(raw), "agent: architect") {
 		t.Fatalf("Marshal no incluyó agente:\n%s", raw)
 	}
 	got, err := Parse(raw)
@@ -397,5 +397,21 @@ func TestSinTerminal(t *testing.T) {
 		if got := SinTerminal(cmd); got != quiero {
 			t.Errorf("SinTerminal(%q) = %q, quiero %q", cmd, got, quiero)
 		}
+	}
+}
+
+func TestParseAceptaLlavesEnEspanolYEnIngles(t *testing.T) {
+	es := "---\nversion: 1\nid: T-001\ntitulo: x\nlisto_cuando: true\ntocar_solo: [\"a/**\"]\nno_tocar: []\ndepende_de: [\"T-000\"]\nlimite_intentos: 3\nlimite_lineas: 200\npeso: media\n---\n"
+	en := "---\nversion: 1\nid: T-001\ntitle: x\ndone_when: true\nonly_touch: [\"a/**\"]\ndont_touch: []\ndepends_on: [\"T-000\"]\nmax_retries: 3\nmax_lines: 200\nweight: medium\n---\n"
+	a, err := Parse([]byte(es))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Parse([]byte(en))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Aviso != "" || b.Aviso != "" || string(a.Marshal()) != string(b.Marshal()) || b.Peso != "media" {
+		t.Errorf("español:\n%s\ninglés:\n%s", a.Marshal(), b.Marshal())
 	}
 }

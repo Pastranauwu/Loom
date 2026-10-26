@@ -31,7 +31,7 @@ func RepoRoot(dir string) (string, error) {
 // feature los agentes partían de otro código que el que se veía, y un
 // arreglo commiteado en la rama actual nunca les llegaba.
 func DetectBaseBranch(root string) string {
-	if branch, err := gitOut(root, "symbolic-ref", "--quiet", "--short", "HEAD"); err == nil && branch != "" && !strings.HasPrefix(branch, "loom/") {
+	if branch, err := gitOut(root, "symbolic-ref", "--quiet", "--short", "HEAD"); err == nil && branch != "" && !strings.HasPrefix(branch, "loom/") && !strings.HasPrefix(branch, "devclean/") {
 		return branch
 	}
 	if ref, err := gitOut(root, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"); err == nil {
@@ -96,10 +96,14 @@ var scaffoldNames = map[string]bool{
 	"CONTRIBUTING.md":     true,
 	"CODE_OF_CONDUCT.md":  true,
 	".gitignore":          true,
-	"loom.spec.yml":   true,
-	"loom.spec.yaml":  true,
-	"loom.specs.yml":  true,
-	"loom.specs.yaml": true,
+	"loom.spec.yml":       true,
+	"loom.spec.yaml":      true,
+	"loom.specs.yml":      true,
+	"loom.specs.yaml":     true,
+	"devclean.spec.yml":   true,
+	"devclean.spec.yaml":  true,
+	"devclean.specs.yml":  true,
+	"devclean.specs.yaml": true,
 	"spec.yml":            true,
 	"spec.yaml":           true,
 	"skills-lock.json":    true, // lo deja loom skills sync, no es código

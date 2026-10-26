@@ -74,12 +74,12 @@ func TestProblemasDetectaCadaFormaDePlanoMalo(t *testing.T) {
 	}
 	todo := strings.Join(Problemas(context.Background(), Verificacion{Dir: dir, Timeout: time.Minute}, r), "\n")
 	for _, quiero := range []string{
-		"\"verificar\"",
-		"calc/div.py no existe",
-		"calc/resta.py es nuevo y no tiene ningún stub",
-		"no trae \"Casos:\"",
-		"no trae \"Idea:\"",
-		"falta la tarea final",
+		"\"verify\"",
+		"calc/div.py does not exist",
+		"calc/resta.py is new and has no stub",
+		"has no \"Cases:\"",
+		"has no \"Idea:\"",
+		"the final task",
 	} {
 		if !strings.Contains(todo, quiero) {
 			t.Errorf("falta %q en:\n%s", quiero, todo)
@@ -120,7 +120,7 @@ func TestProblemasAceptaCambiosACodigoExistente(t *testing.T) {
 		t.Fatalf("un cambio con casos fue rechazado: %v", ps)
 	}
 	r.Tareas[0].Como = "resta acepta negativos"
-	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); !strings.Contains(ps, "ya existe") {
+	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); !strings.Contains(ps, "already exists") {
 		t.Errorf("un cambio sin casos pasó: %q", ps)
 	}
 }
@@ -138,7 +138,7 @@ func TestProblemasExigeObsoletoParaTocarUnaPruebaExistente(t *testing.T) {
 	cambio.Como = "resta acepta y devuelve negativos. Casos: resta(1, 3) -> -2"
 	r := Resultado{Verificar: "python3 -m compileall -q calc", Tareas: []plan.Borrador{cambio}}
 	v := Verificacion{Dir: dir, Base: "HEAD", Timeout: time.Minute}
-	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); !strings.Contains(ps, "Obsoleto:") || !strings.Contains(ps, "tests/test_resta.py") {
+	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); !strings.Contains(ps, "Obsolete:") || !strings.Contains(ps, "tests/test_resta.py") {
 		t.Errorf("dejó tocar una prueba existente sin decir qué queda obsoleto: %q", ps)
 	}
 	r.Tareas[0].Como += " Obsoleto: test_resta_rechaza_negativos ya no aplica, ahora devuelve el negativo."
@@ -167,11 +167,11 @@ func TestIntegracionQueYaPasaEsRegresionNoTareaFinal(t *testing.T) {
 		Tareas:      []plan.Borrador{tarea("punta a punta", "true", "tests/test_e2e.py")},
 	}
 	v := Verificacion{Dir: dir, Timeout: time.Minute}
-	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); !strings.Contains(ps, "ya pasa hoy") {
+	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); !strings.Contains(ps, "already passes today") {
 		t.Errorf("una tarea final con una integración que ya pasa no se rechazó: %q", ps)
 	}
 	r.Tareas = []plan.Borrador{tarea("suma", "python3 -m unittest tests/test_suma.py", "calc/suma.py", "tests/test_suma.py")}
-	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); strings.Contains(ps, "integracion") {
+	if ps := strings.Join(Problemas(context.Background(), v, r), "\n"); strings.Contains(ps, "integration") {
 		t.Errorf("una integración que ya pasa, sin tarea final, es regresión válida: %q", ps)
 	}
 }
@@ -181,5 +181,11 @@ func TestParseAceptaUnPlanSinTareas(t *testing.T) {
 	r, err := Parse(`{"verificar": "true", "arquitectura": "igual", "tareas": []}`)
 	if err != nil || len(r.Tareas) != 0 || r.Verificar != "true" {
 		t.Fatalf("%+v %v", r, err)
+	}
+}
+
+func TestTieneMarcaAceptaLaAnterior(t *testing.T) {
+	if !TieneMarca("raise NotImplementedError(\""+Marca+"\")") || !TieneMarca("throw new Error('devclean: sin implementar')") || TieneMarca("return 1") {
+		t.Error("TieneMarca debe aceptar ambos nombres")
 	}
 }

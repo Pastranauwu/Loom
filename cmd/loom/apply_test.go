@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/spec"
 	"github.com/Pastranauwu/loom/internal/task"
 	"github.com/Pastranauwu/loom/internal/ui"
 )
@@ -119,5 +120,51 @@ func TestRunPs(t *testing.T) {
 	}
 	if !strings.Contains(b.String(), "T-001") || !strings.Contains(b.String(), "pendiente") || !strings.Contains(b.String(), "[backend]") {
 		t.Errorf("salida runPs inesperada:\n%s", b.String())
+	}
+}
+
+// reaplicar un spec de tasks sin cambios no se vuelve a ejecutar; uno
+// editado muestra solo el delta en dry-run
+func TestApplyTasksSinCambiosYDelta(t *testing.T) {
+	root := repoTemporal(t)
+	out = ui.New(io.Discard, false)
+	if err := runInit(root, "", "", "", nil, true); err != nil {
+		t.Fatal(err)
+	}
+	specFile := filepath.Join(root, "loom.spec.yml")
+	os.WriteFile(specFile, []byte(specPrueba), 0o644)
+	if _, err := runApply(root, "", false, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".loom", "state.json")); err != nil {
+		t.Fatalf("no guardó state.json: %v", err)
+	}
+	var b strings.Builder
+	out = ui.New(&b, false)
+	if _, err := runApply(root, "", false, false); err != nil || !strings.Contains(b.String(), "sin cambios") {
+		t.Fatalf("err=%v salida:\n%s", err, b.String())
+	}
+	if ts, _ := task.List(config.TasksDir(root)); len(ts) != 2 {
+		t.Errorf("tareas = %d, quiero 2", len(ts))
+	}
+	os.WriteFile(specFile, []byte(strings.Replace(specPrueba, "generador csv", "generador csv v2", 1)), 0o644)
+	b.Reset()
+	if _, err := runApply(root, "", false, true); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "~ task T-001") || strings.Contains(b.String(), "task T-002 ·") {
+		t.Errorf("delta inesperado:\n%s", b.String())
+	}
+}
+
+func TestDeltaDeclaradoSoloLoQueCambio(t *testing.T) {
+	prev := spec.Snapshot(spec.Spec{Reglas: []string{"a", "b"}, Acceptance: []spec.Acceptance{{Criterion: "x", Command: "c"}}})
+	cur := spec.Snapshot(spec.Spec{Reglas: []string{"a", "nueva"}, Acceptance: []spec.Acceptance{{Criterion: "x", Command: "c"}}})
+	got := deltaDeclarado(spec.Diff(prev, cur))
+	if !strings.Contains(got, "Nueva en reglas: nueva") || !strings.Contains(got, "Ya no está en reglas: b") || strings.Contains(got, "aceptación") || strings.Contains(got, ": a\n") {
+		t.Errorf("delta:\n%s", got)
+	}
+	if deltaDeclarado(spec.Delta{}) != "" {
+		t.Error("sin cambios no dice nada")
 	}
 }

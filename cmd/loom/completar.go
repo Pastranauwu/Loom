@@ -53,7 +53,7 @@ func completarSpec(root string, s *spec.Spec) error {
 		return err
 	}
 	modelo := config.ModeloRol(cfg, "planificador")
-	pctx, zonas, patrones, err := contextoPlan(root, cfg)
+	pctx, zonas, patrones, err := contextoPlan(root, cfg, "")
 	if err != nil {
 		return err
 	}
@@ -135,20 +135,23 @@ func planearRequirements(root string, s *spec.Spec) error {
 	} else if len(d.cambiados) == 0 {
 		pedido.WriteString("Los requerimientos no cambiaron: cambiaron las reglas, la aceptación o las restricciones. Ajusta solo lo que eso exige.\n")
 	}
-	if len(s.Reglas) > 0 {
-		pedido.WriteString("Reglas obligatorias:\n")
-		for _, r := range s.Reglas {
-			fmt.Fprintf(&pedido, "- %s\n", r)
-		}
-	}
-	if len(s.Acceptance) > 0 {
-		pedido.WriteString("Aceptación global (la prueba de integración tiene que cubrirla):\n")
-		for _, a := range s.Acceptance {
-			fmt.Fprintf(&pedido, "- %s", a.Criterion)
-			if a.Command != "" {
-				fmt.Fprintf(&pedido, " · comando: %s", a.Command)
+	if len(s.Previos) > 0 {
+		pedido.WriteString(deltaDeclarado(s.Delta))
+	} else {
+		if len(s.Reglas) > 0 {
+			pedido.WriteString("Reglas obligatorias:\n")
+			for _, r := range s.Reglas {
+				fmt.Fprintf(&pedido, "- %s\n", r)
 			}
-			pedido.WriteByte('\n')
+		}
+		if len(s.Acceptance) > 0 {
+			pedido.WriteString("Aceptación global (la prueba de integración tiene que cubrirla):\n")
+			for _, a := range s.Acceptance {
+				fmt.Fprintf(&pedido, "- %s\n", textoAceptacion(a))
+			}
+		}
+		if len(s.Constraints.NoTocar) > 0 {
+			fmt.Fprintf(&pedido, "No tocar: %s\n", strings.Join(s.Constraints.NoTocar, ", "))
 		}
 	}
 	return planearEsqueleto(root, s, pedido.String())
@@ -289,4 +292,37 @@ func dependenciasDelModelo(deps, ids []string, previas map[string]bool) []string
 		out = append(out, d)
 	}
 	return out
+}
+
+func textoAceptacion(a spec.Acceptance) string {
+	if a.Command == "" {
+		return a.Criterion
+	}
+	return a.Criterion + " · comando: " + a.Command
+}
+
+// deltaDeclarado lista solo lo que cambió en reglas, aceptación y
+// restricciones desde el último plan: lo demás ya está construido.
+func deltaDeclarado(d spec.Delta) string {
+	var b strings.Builder
+	for _, g := range []struct{ clase, titulo string }{
+		{spec.ClaseRegla, "reglas"},
+		{spec.ClaseAceptacion, "aceptación global"},
+		{spec.ClaseRestriccion, "no tocar"},
+	} {
+		x := d.De(g.clase)
+		for _, c := range x.Agregado {
+			fmt.Fprintf(&b, "Nueva en %s: %s\n", g.titulo, c.Ahora)
+		}
+		for _, c := range x.Modificado {
+			fmt.Fprintf(&b, "Cambió en %s: antes «%s», ahora «%s»\n", g.titulo, c.Antes, c.Ahora)
+		}
+		for _, c := range x.Eliminado {
+			fmt.Fprintf(&b, "Ya no está en %s: %s\n", g.titulo, c.Antes)
+		}
+	}
+	if b.Len() > 0 {
+		return "Cambios en lo declarado (solo ajusta los módulos que esto afecta):\n" + b.String()
+	}
+	return ""
 }

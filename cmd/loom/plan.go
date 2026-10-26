@@ -16,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/config"
-	"github.com/Pastranauwu/loom/internal/constitution"
 	"github.com/Pastranauwu/loom/internal/examiner"
 	"github.com/Pastranauwu/loom/internal/executor"
 	"github.com/Pastranauwu/loom/internal/gate"
@@ -81,7 +80,7 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 		return err
 	}
 
-	ctx, zonas, patrones, err := contextoPlan(root, cfg)
+	ctx, zonas, patrones, err := contextoPlan(root, cfg, frase)
 	if err != nil {
 		return err
 	}
@@ -290,8 +289,8 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 
 // contextoPlan reúne lo que el planificador sabe del repo, y las zonas y
 // patrones con los que después se sanea lo que proponga.
-func contextoPlan(root string, cfg config.Config) (ctx plan.Contexto, zonas, patrones []string, err error) {
-	constitucion, err := constitution.Load(root)
+func contextoPlan(root string, cfg config.Config, consulta string) (ctx plan.Contexto, zonas, patrones []string, err error) {
+	constitucion, err := constitucionDe(root)
 	if err != nil {
 		return ctx, nil, nil, err
 	}
@@ -313,6 +312,7 @@ func contextoPlan(root string, cfg config.Config) (ctx plan.Contexto, zonas, pat
 		Expuestas:      firmasExpuestas(root),
 		PrimerID:       primer,
 		Skills:         skills.Catalogo(root),
+		Grafo:          resumenGrafo(root, consulta),
 	}
 	return ctx, zonas, patrones, nil
 }

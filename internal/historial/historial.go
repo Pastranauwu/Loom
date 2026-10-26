@@ -143,6 +143,14 @@ func Archivar(root, specPath string) (Entrada, error) {
 	if len(e.Gitignore) > 0 {
 		rutas = append(rutas, filepath.Join(root, ".gitignore"))
 	}
+	estado := filepath.Join(root, ".loom", spec.EstadoFile)
+	if git(root, "ls-files", "--error-unmatch", estado) == nil {
+		rutas = append(rutas, estado)
+	}
+	clave, _ := filepath.Rel(root, specPath)
+	if err := spec.QuitarEstado(root, filepath.ToSlash(clave)); err != nil {
+		return Entrada{}, err
+	}
 	for _, f := range []string{spec.IntencionFile, spec.FeatureStateFile, ship.AceptacionFile} {
 		p := filepath.Join(root, ".loom", f)
 		versionado := git(root, "ls-files", "--error-unmatch", p) == nil

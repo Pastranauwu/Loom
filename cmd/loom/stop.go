@@ -13,7 +13,7 @@ import (
 
 // corridaPath guarda el pid de la corrida viva (run o up), para que
 // `loom stop` sepa a quién parar desde otra terminal o con la
-// corrida en --fondo.
+// corrida en --background.
 func corridaPath(root string) string {
 	return filepath.Join(root, ".loom", "corrida.pid")
 }
@@ -98,7 +98,7 @@ func newStopCmd() *cobra.Command {
 			}
 			out.Line("corrida %d parada", pid)
 			if len(paradas) > 0 {
-				out.Line("detenidas · %s · retómalas con loom run --reintentar", strings.Join(paradas, ", "))
+				out.Line("detenidas · %s · retómalas con loom run --retry", strings.Join(paradas, ", "))
 			}
 			return nil
 		},

@@ -9,7 +9,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
@@ -42,7 +44,9 @@ type Config struct {
 	// cuando hay origin.
 	Entrega         string   `json:"entrega,omitempty"`
 	ZonasProhibidas []string `json:"zonas_prohibidas"`
-	TimeoutEsclusa  int      `json:"timeout_esclusa"` // segundos para el chequeo "falla hoy"
+	// DNA names the design archetypes (internal/dna) injected into prompts.
+	DNA            []string `json:"dna,omitempty"`
+	TimeoutEsclusa int      `json:"timeout_esclusa"` // segundos para el chequeo "falla hoy"
 	// TimeoutAgente y TimeoutPruebas cubren el bucle real y la esclusa de
 	// salida, no la de entrada. Sin esto, ambos caían en el default de 5
 	// minutos: corto para una tarea real de agente y causa habitual de
@@ -78,6 +82,12 @@ type Config struct {
 	// corta con un motivo legible; board/run muestran cuánto va y cuánto
 	// queda.
 	PresupuestoTokens int `json:"presupuesto_tokens,omitempty"`
+	// ResumeBelowPct: while a claude session uses less than this % of its
+	// context window, the next attempt continues it with a short prompt
+	// (default 70, 0 = never resume).
+	ResumeBelowPct int `json:"resume_below_pct"`
+	// Language is the language of prose written for people: "en" (default) or "es".
+	Language string `json:"language,omitempty"`
 	// PresupuestoVentanas es el bloque `presupuesto:`: por proveedor, por
 	// ventana rodante (5h/semanal/mensual), cuántos tokens puede quemar
 	// loom. El ledger de internal/ventanas lo hace cumplir y lo
@@ -197,8 +207,38 @@ func TasksDir(root string) string { return filepath.Join(Dir(root), "tasks") }
 
 // Exists reports whether root already holds a .loom directory.
 func Exists(root string) bool {
+	MigrarLegado(root)
 	info, err := os.Stat(Dir(root))
 	return err == nil && info.IsDir()
+}
+
+// LegacyDirName is the directory devclean used before the rename to loom.
+const LegacyDirName = ".devclean"
+
+// MigrarLegado moves a project's .devclean/ to .loom/ the first time loom
+// sees it. Rooms created inside it are git worktrees, so their links are
+// repaired afterwards. It does nothing if .loom/ exists or there is no
+// .devclean/, and reports nothing on failure: Exists then says no.
+func MigrarLegado(root string) {
+	if _, err := os.Stat(Dir(root)); err == nil {
+		return
+	}
+	viejo := filepath.Join(root, LegacyDirName)
+	if info, err := os.Stat(viejo); err != nil || !info.IsDir() {
+		return
+	}
+	if os.Rename(viejo, Dir(root)) != nil {
+		return
+	}
+	cuartos, _ := os.ReadDir(filepath.Join(Dir(root), "rooms"))
+	if len(cuartos) == 0 {
+		return
+	}
+	args := []string{"-C", root, "worktree", "repair"}
+	for _, c := range cuartos {
+		args = append(args, filepath.Join(Dir(root), "rooms", c.Name()))
+	}
+	_ = exec.Command("git", args...).Run()
 }
 
 // Load reads .loom/config.yml under root.
@@ -210,7 +250,11 @@ func Load(root string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return Parse(data)
+	cfg, err := Parse(data)
+	if err == nil {
+		idioma.Set(cfg.Language)
+	}
+	return cfg, err
 }
 
 // Save writes the config to .loom/config.yml under root.
@@ -236,6 +280,9 @@ func (c Config) Save(root string) error {
 		fmt.Fprintf(&b, "entrega: %s\n", c.Entrega)
 	}
 	fmt.Fprintf(&b, "zonas_prohibidas: %s\n", kv.MarshalList(c.ZonasProhibidas))
+	if len(c.DNA) > 0 {
+		fmt.Fprintf(&b, "dna: %s\n", kv.MarshalList(c.DNA))
+	}
 	if len(c.PatronesPrueba) > 0 {
 		fmt.Fprintf(&b, "patrones_prueba: %s\n", kv.MarshalList(c.PatronesPrueba))
 	}
@@ -265,6 +312,12 @@ func (c Config) Save(root string) error {
 	}
 	if c.PresupuestoTokens > 0 {
 		fmt.Fprintf(&b, "presupuesto_tokens: %d\n", c.PresupuestoTokens)
+	}
+	if c.Language == "es" {
+		b.WriteString("language: es\n")
+	}
+	if c.ResumeBelowPct != DefaultResumeBelowPct {
+		fmt.Fprintf(&b, "resume_below_pct: %d\n", c.ResumeBelowPct)
 	}
 	if len(c.Proveedores) > 0 {
 		fmt.Fprintf(&b, "proveedores:\n")
@@ -477,7 +530,7 @@ func (c Config) ModeloEscalado(peso, actual string) string {
 
 // Parse reads the config yaml subset. Unknown keys are ignored.
 func Parse(data []byte) (Config, error) {
-	var cfg Config
+	cfg := Config{ResumeBelowPct: DefaultResumeBelowPct}
 	pares, err := kv.Pairs(strings.Split(string(data), "\n"), 1)
 	if err != nil {
 		return cfg, fmt.Errorf("config.yml: %s", err)
@@ -495,6 +548,8 @@ func Parse(data []byte) (Config, error) {
 			if cfg.Entrega != EntregaLocal && cfg.Entrega != "remoto" {
 				return cfg, fmt.Errorf("config.yml: línea %d · entrega es local o remoto, no %q", p.Line, cfg.Entrega)
 			}
+		case "dna":
+			cfg.DNA = listaFlexible(p.Value)
 		case "zonas_prohibidas":
 			list, err := kv.ParseList(p.Value)
 			if err != nil {
@@ -578,6 +633,18 @@ func Parse(data []byte) (Config, error) {
 				return cfg, fmt.Errorf("config.yml: línea %d · presupuesto_tokens inválido: %s · entero, mínimo 0 (0 = sin tope)", p.Line, p.Value)
 			}
 			cfg.PresupuestoTokens = n
+		case "language":
+			l := kv.Unquote(p.Value)
+			if l != "en" && l != "es" {
+				return cfg, fmt.Errorf("config.yml: línea %d · language inválido: %s · usa en o es", p.Line, p.Value)
+			}
+			cfg.Language = l
+		case "resume_below_pct":
+			n, err := kv.ParseInt(p.Value)
+			if err != nil || n < 0 || n > 100 {
+				return cfg, fmt.Errorf("config.yml: línea %d · resume_below_pct inválido: %s · entero de 0 a 100 (0 = nunca reanudar)", p.Line, p.Value)
+			}
+			cfg.ResumeBelowPct = n
 		case "estrategia":
 			cfg.Estrategia = kv.Unquote(p.Value)
 		case "reglas_import":
@@ -962,4 +1029,18 @@ func (c Config) TodosLosAgentes() map[string]Agente {
 		res[k] = v
 	}
 	return res
+}
+
+// DefaultResumeBelowPct is the context % under which attempts resume the claude session.
+const DefaultResumeBelowPct = 70
+
+// listaFlexible reads ["a", "b"] or [a, b]: dna names are plain words.
+func listaFlexible(v string) []string {
+	var out []string
+	for _, x := range strings.Split(strings.Trim(strings.TrimSpace(v), "[]"), ",") {
+		if x = strings.Trim(strings.TrimSpace(x), `"'`); x != "" {
+			out = append(out, x)
+		}
+	}
+	return out
 }

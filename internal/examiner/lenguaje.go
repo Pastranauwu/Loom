@@ -267,32 +267,32 @@ func ultimaLinea(s string) string {
 // buildPrompt.
 func reglasDe(lenguaje string) string {
 	if lenguaje == "typescript" || lenguaje == "javascript" {
-		return `- Usa el runner de pruebas del proyecto (Vitest/Jest/node:test según package.json). Importa únicamente la API pública del módulo.
-- En "imports" escribe líneas import completas; la ruta relativa se calcula desde el archivo de prueba visible indicado.
-- En "visible" y "hidden" devuelve bloques de test completos (it/test) independientes, sin imports dentro del bloque.
-- No copies cuerpos de implementación ni pruebes detalles privados.
+		return `- Use the project's test runner (Vitest/Jest/node:test per package.json). Import only the module's public API.
+- In "imports" write complete import lines; the relative path is computed from the indicated visible test file.
+- In "visible" and "hidden" return complete, independent test blocks (it/test), with no imports inside the block.
+- Do not copy implementation bodies or test private details.
 
-Devuelve SOLO este JSON (sin markdown):
+Return ONLY this JSON (no markdown):
 {"imports":["import { describe, it, expect } from 'vitest';", "import { funcion } from '../../src/modulo';"], "visible":["it('caso', () => { expect(funcion(1)).toBe(2); });"], "hidden":["it('borde', () => { expect(funcion(0)).toBe(0); });"]}`
 	}
 	if lenguaje == "python" {
-		return `- Escribe pruebas de pytest: funciones ` + "`def test_xxx():`" + ` a nivel de módulo, aserciones con assert.
-- Usa solo la stdlib de Python y el módulo bajo prueba. Sin pip, sin dependencias externas.
-- En "imports" van líneas de import COMPLETAS, incluida la del módulo bajo prueba (ej. "from exportador import a_csv", "import json").
-- No pongas los imports dentro del cuerpo de las funciones: loom los escribe arriba del archivo.
+		return `- Write pytest tests: module-level functions ` + "`def test_xxx():`" + `, assertions with assert.
+- Use only the Python stdlib and the module under test. No pip, no external dependencies.
+- "imports" holds COMPLETE import lines, including the one for the module under test (e.g. "from exportador import a_csv", "import json").
+- Do not put imports inside function bodies: loom writes them at the top of the file.
 
-Devuelve SOLO este JSON (sin texto alrededor, sin markdown):
+Return ONLY this JSON (no text around it, no markdown):
 {
   "imports": ["import json", "from exportador import a_csv"],
   "visible": ["def test_xxx():\n    assert a_csv([]) == \"\"", "..."],
   "hidden":  ["def test_yyy():\n    assert a_csv(None) == \"\"", "..."]
 }`
 	}
-	return `- Usa solo la stdlib de Go. Sin imports externos.
-- En "imports" enumera TODO paquete de la stdlib que usen tus tests aparte de "testing" (ej. "net", "time", "bytes", "encoding/json"). Si olvidas uno, la suite no compila y se descarta.
-- No pongas el bloque import en el código: solo las funciones. loom arma el archivo.
+	return `- Use only the Go stdlib. No external imports.
+- In "imports" list EVERY stdlib package your tests use besides "testing" (e.g. "net", "time", "bytes", "encoding/json"). If you forget one, the suite does not compile and is discarded.
+- Do not put the import block in the code: only the functions. loom builds the file.
 
-Devuelve SOLO este JSON (sin texto alrededor, sin markdown):
+Return ONLY this JSON (no text around it, no markdown):
 {
   "imports": ["net", "time", "bytes"],
   "visible": ["func TestXxx(t *testing.T) {\n\t// ...\n}", "..."],

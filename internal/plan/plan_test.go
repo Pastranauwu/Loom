@@ -21,7 +21,7 @@ func (g generadorFijo) Generar(_ context.Context, _ string) (string, error) {
 
 func TestPromptPideJSON(t *testing.T) {
 	p := Prompt("exportar clientes", Contexto{Lenguaje: "go", Pruebas: "go test ./..."})
-	for _, want := range []string{"exportar clientes", "listo_cuando", "tocar_solo", "objeto JSON", "arquitectura"} {
+	for _, want := range []string{"exportar clientes", "done_when", "only_touch", "JSON object", "architecture"} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt sin %q", want)
 		}
@@ -30,7 +30,7 @@ func TestPromptPideJSON(t *testing.T) {
 
 func TestPromptDivideYVenceras(t *testing.T) {
 	p := Prompt("clonar repo", Contexto{Lenguaje: "go", Pruebas: "go test ./..."})
-	for _, want := range []string{"Divide y vencerás", "ARQUITECTO", "no escribes código", "mismo nombre, mismos tipos"} {
+	for _, want := range []string{"Divide and conquer", "ARCHITECT", "you write no code", "same name, same types"} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt sin %q:\n%s", want, p)
 		}
@@ -53,7 +53,7 @@ func TestPromptInyectaLenguaje(t *testing.T) {
 
 func TestPromptRepoVacio(t *testing.T) {
 	p := Prompt("crear wakeonlan", Contexto{EsVacio: true})
-	for _, want := range []string{"vacío", "stack", "depende_de"} {
+	for _, want := range []string{"empty", "stack", "depends_on"} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt greenfield sin %q:\n%s", want, p)
 		}
@@ -119,7 +119,7 @@ func TestPromptInyectaAgentes(t *testing.T) {
 		},
 	}
 	p := Prompt("crear módulo", ctx)
-	for _, want := range []string{"architect (habilidades: diseno, arquitectura)", "tester", `"agente"`} {
+	for _, want := range []string{"architect (skills: diseno, arquitectura)", "tester", `"agent"`} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt sin %q:\n%s", want, p)
 		}
@@ -162,7 +162,7 @@ func TestParseLeeLimiteLineas(t *testing.T) {
 // la esclusa de entrada rechaza TODAS las tareas antes de gastar un token.
 func TestPromptExigeQueListoCuandoFalleHoy(t *testing.T) {
 	p := Prompt("lo que sea", Contexto{Lenguaje: "node", Pruebas: "npm test"})
-	for _, quiero := range []string{"HOY FALLE", "rechaza la tarea si ya pasa", "NO copies ese comando tal cual"} {
+	for _, quiero := range []string{"FAILS TODAY", "rejects the task if it already passes", "do NOT copy that command as is"} {
 		if !strings.Contains(p, quiero) {
 			t.Errorf("el prompt no dice %q", quiero)
 		}
@@ -178,7 +178,7 @@ func TestPromptExigeQueListoCuandoFalleHoy(t *testing.T) {
 // En greenfield el aviso ya estaba; que no se pierda.
 func TestPromptGreenfieldSigueExigiendoloTambien(t *testing.T) {
 	p := Prompt("algo", Contexto{EsVacio: true})
-	if !strings.Contains(p, "HOY FALLE") {
+	if !strings.Contains(p, "FAILS TODAY") {
 		t.Error("el requisito vale igual en un repo vacío")
 	}
 }
@@ -189,12 +189,12 @@ func TestPromptGreenfieldSigueExigiendoloTambien(t *testing.T) {
 // nadie puede crear: la tarea agota los intentos con "Could not find".
 func TestPromptPideLasPruebasEnAlcanceSinExaminador(t *testing.T) {
 	con := Prompt("algo", Contexto{Lenguaje: "node", PruebasPropias: true})
-	if !strings.Contains(con, "ESE archivo tiene que estar también en \"tocar_solo\"") {
+	if !strings.Contains(con, "THAT file must also be in \"only_touch\"") {
 		t.Error("el prompt no pide meter el archivo de prueba en tocar_solo")
 	}
 	// con examinador la regla es la contraria y no debe aparecer
 	sin := Prompt("algo", Contexto{Lenguaje: "go"})
-	if strings.Contains(sin, "las pruebas las escribe la propia tarea") {
+	if strings.Contains(sin, "the task writes its own tests") {
 		t.Error("con examinador ciego el implementador NO escribe las pruebas")
 	}
 }
@@ -213,7 +213,7 @@ func TestCompletarExigeUnoPorTarea(t *testing.T) {
 		t.Fatalf("Completar = %v, %v", bs, err)
 	}
 	p := PromptCompletar("wol", []string{"sin dependencias"}, tareas, Contexto{})
-	for _, want := range []string{"exactamente 2", "1. T-003 · a", "2. T-004 · b", "sin dependencias", "\"T-003\""} {
+	for _, want := range []string{"exactly 2", "1. T-003 · a", "2. T-004 · b", "sin dependencias", "\"T-003\""} {
 		if !strings.Contains(p, want) {
 			t.Errorf("el prompt no contiene %q", want)
 		}
@@ -225,7 +225,7 @@ func TestCompletarExigeUnoPorTarea(t *testing.T) {
 // verdes. Es la costura que dejaba `-2^2` roto con cinco tareas en verde.
 func TestPromptProhibePrometerDeMas(t *testing.T) {
 	p := Prompt("una calculadora", Contexto{Lenguaje: "go", Pruebas: "go test ./..."})
-	for _, quiero := range []string{"no prometas de más", "nunca pide no lo prueba nadie", "tiene que cubrirlo"} {
+	for _, quiero := range []string{"do not promise more than needed", "its consumer never asks for is tested by nobody", "must cover it"} {
 		if !strings.Contains(p, quiero) {
 			t.Errorf("el prompt no dice %q", quiero)
 		}
@@ -255,7 +255,7 @@ func TestParseObjetoSinArquitectura(t *testing.T) {
 
 func TestEjemploDelPromptEsUnPlanValido(t *testing.T) {
 	p := Prompt("feature", Contexto{})
-	_, ejemplo, ok := strings.Cut(p, "Ejemplo:\n")
+	_, ejemplo, ok := strings.Cut(p, "Example:\n")
 	if !ok {
 		t.Fatal("falta ejemplo")
 	}
@@ -291,5 +291,15 @@ func TestParseToleraSaltosCrudosEnStrings(t *testing.T) {
 	}
 	if len(bs) == 0 || !strings.Contains(bs[0].Como, "ESTILO:") {
 		t.Errorf("plan sin tareas o sin arquitectura: %d tareas", len(bs))
+	}
+}
+
+func TestPromptInyectaGrafoSoloSiHay(t *testing.T) {
+	con := Prompt("x", Contexto{Grafo: "Mapa del repo: a.go: func A()"})
+	if !strings.Contains(con, "Mapa del repo: a.go: func A()") {
+		t.Error("el grafo no entró al prompt")
+	}
+	if strings.Contains(Prompt("x", Contexto{}), "Mapa del repo") {
+		t.Error("sin grafo no debe haber sección")
 	}
 }

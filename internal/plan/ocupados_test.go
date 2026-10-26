@@ -22,7 +22,7 @@ func TestPromptDeclaraAlcancesOcupados(t *testing.T) {
 			t.Errorf("el prompt no menciona %q", quiero)
 		}
 	}
-	if !strings.Contains(p, "en curso") {
+	if !strings.Contains(p, "running task") {
 		t.Error("el prompt no explica por qué esas rutas están vedadas")
 	}
 }
@@ -30,7 +30,7 @@ func TestPromptDeclaraAlcancesOcupados(t *testing.T) {
 // Sin tareas activas el prompt no debe cargar con una sección vacía.
 func TestPromptSinOcupadosNoDiceNada(t *testing.T) {
 	p := Prompt("algo", Contexto{Lenguaje: "go"})
-	if strings.Contains(p, "YA la está tocando") || strings.Contains(p, "en curso;") {
+	if strings.Contains(p, "ALREADY being touched") || strings.Contains(p, "running task;") {
 		t.Error("sección de ocupados con el mapa vacío")
 	}
 }

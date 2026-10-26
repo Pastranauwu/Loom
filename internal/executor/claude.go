@@ -57,7 +57,7 @@ func (Claude) Models(context.Context) ([]string, error) {
 // (y medido no ahorra nada).
 var contextoLimpio = []string{"--setting-sources", "project,local", "--strict-mcp-config", "--exclude-dynamic-system-prompt-sections", "--system-prompt", sistemaClaude}
 
-const sistemaClaude = "Eres un agente de programación que trabaja sin supervisión en el directorio actual, un repositorio git. Si tienes herramientas, úsalas para leer, editar y correr comandos; edita los archivos existentes con Edit en vez de reescribirlos. No pidas confirmación ni hagas preguntas: nadie responde. No expliques lo que vas a hacer: actúa y responde al final solo lo que se te pide."
+const sistemaClaude = "You are a coding agent working unsupervised in the current directory, a git repository. If you have tools, use them to read, edit and run commands; edit existing files with Edit instead of rewriting them. Do not ask for confirmation or questions: nobody answers. Do not explain what you are going to do: act and answer at the end only what is asked."
 
 // herramientasClaude es el --tools de cada rol. Sin Glob ni Grep: Bash
 // los cubre. "" apaga todas: medido, un "responde ok" arranca con 6,5k
@@ -183,6 +183,9 @@ func sumarUso(a, b Usage) Usage {
 	if a.FirstTurn == 0 {
 		a.FirstTurn, a.FirstTurnWrite = b.FirstTurn, b.FirstTurnWrite
 	}
+	if b.LastTurn > 0 {
+		a.LastTurn = b.LastTurn
+	}
 	return a
 }
 
@@ -276,9 +279,10 @@ func parseClaudeStream(stdout string) (string, Usage) {
 				continue
 			}
 			vistos[ev.Message.ID] = true
+			m := ev.Message.Usage
+			u.LastTurn = m.Input + m.CacheRead + m.CacheWrite
 			if len(vistos) == 1 {
-				m := ev.Message.Usage
-				u.FirstTurn, u.FirstTurnWrite = m.Input+m.CacheRead+m.CacheWrite, m.CacheWrite
+				u.FirstTurn, u.FirstTurnWrite = u.LastTurn, m.CacheWrite
 			}
 		case "result":
 			texto, numTurns, u.CostUSD = ev.Result, ev.NumTurns, ev.CostUSD

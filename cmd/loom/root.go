@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/Pastranauwu/loom/internal/ui"
 )
@@ -22,7 +23,7 @@ func newRootCmd() *cobra.Command {
 
 	root := &cobra.Command{
 		Use:           "loom",
-		Short:         "dirige agentes de IA y entrega solo código limpio",
+		Short:         "tú diseñas el patrón, loom teje el código con agentes de IA",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -36,6 +37,13 @@ func newRootCmd() *cobra.Command {
 
 	root.PersistentFlags().BoolVar(&plain, "plain", false, "salida en texto plano, una línea por evento")
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "salida estructurada en JSON")
+
+	root.SetGlobalNormalizationFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
+		if en, ok := aliasBanderas[name]; ok {
+			name = en
+		}
+		return pflag.NormalizedName(name)
+	})
 
 	root.AddCommand(
 		newInitCmd(),
@@ -60,6 +68,10 @@ func newRootCmd() *cobra.Command {
 		newArchiveCmd(),
 		newRepararCmd(),
 		newLimpiarCmd(),
+		newGraphCmd(),
+		newDNACmd(),
+		newSketchCmd(),
+		newHealCmd(),
 	)
 
 	return root
@@ -74,4 +86,15 @@ func esTUI() bool {
 func isTerminal(f *os.File) bool {
 	fi, err := f.Stat()
 	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
+// aliasBanderas son los nombres en español de las banderas, que siguen
+// funcionando aunque la ayuda muestre solo el nombre en inglés.
+var aliasBanderas = map[string]string{
+	"agentes":    "agents",
+	"revisar":    "review",
+	"integrar":   "merge",
+	"fondo":      "background",
+	"reintentar": "retry",
+	"todas":      "all",
 }

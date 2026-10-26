@@ -2,6 +2,7 @@ package examiner
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ func contratoDelEsqueleto(roomPath string, t task.Task) (string, error) {
 			return "", fmt.Errorf("%s: %w", rel, err)
 		}
 		src := string(b)
-		if !strings.Contains(src, esqueleto.Marca) {
+		if !esqueleto.TieneMarca(src) {
 			continue
 		}
 		for _, c := range casosYFirma(src) {
@@ -56,7 +57,7 @@ func casosYFirma(src string) []string {
 	lineas := strings.Split(src, "\n")
 	var out []string
 	for i := 0; i < len(lineas); i++ {
-		_, resto, hay := strings.Cut(lineas[i], "Casos:")
+		_, resto, hay := idioma.Cortar(lineas[i], idioma.Casos)
 		if !hay {
 			continue
 		}

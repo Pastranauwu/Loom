@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"path/filepath"
 	"strings"
 	"time"
@@ -85,29 +86,30 @@ func (r revisorVisualEnBucle) juzgar(ctx context.Context, dir string, fotos []st
 
 func promptVisual(pide string, fotos []string) string {
 	var b strings.Builder
-	b.WriteString("Eres el REVISOR VISUAL de loom. Abre estas capturas de la app en tamaño celular con tu herramienta para leer archivos. Son de ahora, del código actual:\n")
+	b.WriteString("You are loom's VISUAL REVIEWER. Open these phone-size screenshots of the app with your file-reading tool. They are from now, of the current code:\n")
 	for _, f := range fotos {
 		b.WriteString("- " + f + "\n")
 	}
-	fmt.Fprintf(&b, "\nLo que se pidió:\n%s\n", pide)
-	b.WriteString("\nCriterios de la interfaz:\n" + skills.UI + "\n")
+	fmt.Fprintf(&b, "\nWhat was asked:\n%s\n", pide)
+	b.WriteString("\nInterface criteria:\n" + skills.UI + "\n")
 	b.WriteString(`
-Juzga SOLO lo que se ve en las capturas, no el código:
-- ¿Se nota a simple vista lo que la tarea pide? Un efecto que casi no se ve cuenta como no hecho.
-- ¿Algo se ve roto o sin terminar? Texto encimado o cortado, controles sin estilo, contraste ilegible, espacios descuadrados.
-No pidas nada fuera de esta tarea ni cambios de gusto menores.
+Judge ONLY what shows in the screenshots, not the code:
+- Is what the task asks for visible at a glance? An effect that is barely visible counts as not done.
+- Does anything look broken or unfinished? Overlapping or clipped text, unstyled controls, unreadable contrast, misaligned spacing.
+Do not ask for anything outside this task or for minor taste changes.
 
-Responde al final solo con este JSON:
-{"cumple": true, "cambios": []}
-o, si no cumple, con cambios concretos y visuales (qué elemento, qué se ve hoy, cómo debe verse):
-{"cumple": false, "cambios": ["..."]}
+Answer at the end with only this JSON:
+{"complies": true, "changes": []}
+or, if it does not comply, with concrete visual changes (which element, what it looks like today, how it should look):
+{"complies": false, "changes": ["..."]}
 `)
+	b.WriteString(idioma.Instruccion())
 	return b.String()
 }
 
-// parseVisual lee el último JSON con "cumple" de la respuesta.
+// parseVisual reads the last JSON with "complies" (or "cumple") from the response.
 func parseVisual(texto string) (cumple bool, cambios []string, ok bool) {
-	i := strings.LastIndex(texto, `"cumple"`)
+	i := max(strings.LastIndex(texto, `"complies"`), strings.LastIndex(texto, `"cumple"`))
 	if i < 0 {
 		return false, nil, false
 	}
@@ -115,11 +117,15 @@ func parseVisual(texto string) (cumple bool, cambios []string, ok bool) {
 	if j < 0 {
 		return false, nil, false
 	}
+	var crudo json.RawMessage
+	if err := json.NewDecoder(strings.NewReader(texto[j:])).Decode(&crudo); err != nil {
+		return false, nil, false
+	}
 	var v struct {
 		Cumple  bool     `json:"cumple"`
 		Cambios []string `json:"cambios"`
 	}
-	if err := json.NewDecoder(strings.NewReader(texto[j:])).Decode(&v); err != nil {
+	if json.Unmarshal(idioma.NormalizarClaves(crudo, map[string]string{"complies": "cumple", "changes": "cambios"}), &v) != nil {
 		return false, nil, false
 	}
 	return v.Cumple, v.Cambios, true

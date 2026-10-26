@@ -47,18 +47,30 @@ func Dir(root string) string {
 	}
 	base := os.Getenv("LOOM_ROOMS")
 	if base == "" {
+		base = os.Getenv("DEVCLEAN_ROOMS")
+	}
+	legado := ""
+	if base == "" {
 		home, err := os.UserHomeDir()
 		if err != nil || home == "" {
 			return viejo
 		}
 		base = filepath.Join(home, ".loom", "rooms")
+		legado = filepath.Join(home, ".devclean", "rooms")
 	}
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		abs = root
 	}
 	hash := sha1.Sum([]byte(abs))
-	return filepath.Join(base, fmt.Sprintf("%s-%x", filepath.Base(abs), hash[:4]))
+	nombre := fmt.Sprintf("%s-%x", filepath.Base(abs), hash[:4])
+	// rooms made before the rename keep living where they were
+	if legado != "" {
+		if es, _ := os.ReadDir(filepath.Join(legado, nombre)); len(es) > 0 {
+			return filepath.Join(legado, nombre)
+		}
+	}
+	return filepath.Join(base, nombre)
 }
 
 // Branch returns the branch name of a task's room.

@@ -33,32 +33,32 @@ func newShipCmd() *cobra.Command {
 		Short: "esclusa de salida y PR",
 		Long: `Con un id entrega esa tarea en su propio PR.
 
-Con --todas entrega en UN solo PR todas las tareas que quedaron listas:
+Con --all entrega en UN solo PR todas las tareas que quedaron listas:
 cada una pasa su esclusa de salida por separado y aporta exactamente un
 commit, en orden de dependencia. Es la forma de no terminar con N pull
 requests que se pisan entre sí.`,
 		Example: `  loom ship T-001
-  loom ship --todas
-  loom ship --todas --dry-run`,
+  loom ship --all
+  loom ship --all --dry-run`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if todas {
 				if len(args) > 0 {
-					return errors.New("--todas entrega todas las tareas listas · no lleva id")
+					return errors.New("--all entrega todas las tareas listas · no lleva id")
 				}
 				return runShipTodas(dryRun, titulo, integrar, revisar, local)
 			}
 			if len(args) == 0 {
-				return errors.New("falta el id · usa loom ship T-001 o loom ship --todas")
+				return errors.New("falta el id · usa loom ship T-001 o loom ship --all")
 			}
 			return runShip(args[0], dryRun, local)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "corre la esclusa sin abrir el PR")
-	cmd.Flags().BoolVar(&todas, "todas", false, "entrega todas las tareas listas en un solo PR")
+	cmd.Flags().BoolVar(&todas, "all", false, "entrega todas las tareas listas en un solo PR")
 	cmd.Flags().StringVar(&titulo, "titulo", "", "título del PR conjunto (por defecto, el de la primera tarea)")
-	cmd.Flags().BoolVar(&revisar, "revisar", false, "un modelo revisa el diff y deja el informe en el PR; apruebas tú")
-	cmd.Flags().BoolVar(&integrar, "integrar", false, "revisa y, si no pide cambios, mergea el PR por rebase sin esperarte")
+	cmd.Flags().BoolVar(&revisar, "review", false, "un modelo revisa el diff y deja el informe en el PR; apruebas tú")
+	cmd.Flags().BoolVar(&integrar, "merge", false, "revisa y, si no pide cambios, mergea el PR por rebase sin esperarte")
 	cmd.Flags().BoolVar(&local, "local", false, "deja el PR en el repo (rama y descripción) aunque haya remoto; igual que entrega: local en config.yml")
 	return cmd
 }
@@ -148,7 +148,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 	if len(detenidas) > 0 || len(pendientes) > 0 {
 		var partes []string
 		if len(detenidas) > 0 {
-			partes = append(partes, "detenidas: "+strings.Join(detenidas, ", ")+" (revívelas con loom run --reintentar)")
+			partes = append(partes, "detenidas: "+strings.Join(detenidas, ", ")+" (revívelas con loom run --retry)")
 		}
 		if len(pendientes) > 0 {
 			partes = append(partes, "sin correr: "+strings.Join(pendientes, ", "))
@@ -187,7 +187,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 	}
 	if integrar || revisar {
 		if dryRun {
-			return errors.New("--revisar e --integrar necesitan un PR donde dejar el informe · quita --dry-run")
+			return errors.New("--review e --merge necesitan un PR donde dejar el informe · quita --dry-run")
 		}
 		rev, err := revisorDelProyecto(root, cfg)
 		if err != nil {
@@ -323,7 +323,7 @@ func runShip(id string, dryRun, local bool) error {
 		}
 	}
 	if len(faltan) > 0 {
-		return fmt.Errorf("%s depende de %s, que todavía no se entregó · entrégalas juntas con loom ship --todas", id, strings.Join(faltan, ", "))
+		return fmt.Errorf("%s depende de %s, que todavía no se entregó · entrégalas juntas con loom ship --all", id, strings.Join(faltan, ", "))
 	}
 
 	r := room.Room{ID: id, Path: filepath.Join(room.Dir(root), id), Rama: room.Branch(id)}

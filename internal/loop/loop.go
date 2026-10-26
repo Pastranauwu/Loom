@@ -105,6 +105,8 @@ type Request struct {
 	// Texto pide un agente sin herramientas que solo responde (el
 	// examinador); el implementador las necesita.
 	Texto bool
+	// Sesion continues a previous agent session (claude only).
+	Sesion string
 }
 
 // Result es lo que devolvió una invocación.
@@ -114,6 +116,7 @@ type Result struct {
 	Text     string // respuesta textual del agente (campo "result" del JSON de claude)
 	ExitCode int
 	Tokens   Tokens
+	Sesion   string
 }
 
 // Options lleva las dependencias del bucle.
@@ -128,6 +131,10 @@ type Options struct {
 	AgentTimeout   time.Duration // timeout de cada invocación del agente
 	PruebaTimeout  time.Duration // timeout de cada listo_cuando
 	Env            []string      // variables propias del cuarto (PORT, ...)
+	// Ventana es el contexto del modelo y ResumeBelowPct el porcentaje bajo
+	// el cual el siguiente intento continúa la sesión en vez de reenviar el prompt.
+	Ventana        int
+	ResumeBelowPct int
 
 	// Interfaces son las firmas congeladas de las tareas hermanas que
 	// esta consume, ya resueltas por el que llama. Sin esto el
@@ -366,9 +373,11 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 
 	var prevErr string
 	if o.Task.ExamenEsqueleto && len(o.PatronesPrueba) == 0 {
-		prevErr = "El examen ciego no se pudo preparar. Escribe la prueba en " + o.Task.ExamenVisible + " desde Casos: y hazla pasar. " + fallaExamen
+		prevErr = "The blind exam could not be prepared. Write the test in " + o.Task.ExamenVisible + " from Cases: and make it pass. " + fallaExamen
 	}
 	var noCorrio bool
+	var sesion string
+	var ultimoTurno int
 	for intento := 1; intento <= limite; intento++ {
 		inicio := time.Now().UTC()
 		avisar(intento, FaseAgente)
@@ -382,15 +391,29 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 			antes = h
 		}
 
+		completo := promptPara(o.Task, o.Interfaces, o.Constitucion, o.Skills, o.SkillsContenido, prevErr, len(o.PatronesPrueba) == 0) + alcancePara(o.Room.Path)
 		req := Request{
 			RoomPath:     o.Room.Path,
-			Prompt:       promptPara(o.Task, o.Interfaces, o.Constitucion, o.Skills, o.SkillsContenido, prevErr, len(o.PatronesPrueba) == 0) + alcancePara(o.Room.Path),
+			Prompt:       completo,
 			AllowedGlobs: o.Task.TocarSolo,
 			Model:        o.Model,
 			Timeout:      o.AgentTimeout,
 			Env:          o.Env,
 		}
+		reanudado := puedeReanudar(o, sesion, ultimoTurno)
+		if reanudado {
+			req.Sesion, req.Prompt = sesion, promptContinuar(prevErr)
+		}
 		res, agentErr := o.Agent.Run(ctx, req)
+		if reanudado && res.Tokens.Turnos == 0 {
+			// sesión muerta: sin turnos no hubo modelo, se repite entero
+			reanudado, req.Sesion, req.Prompt = false, "", completo
+			res, agentErr = o.Agent.Run(ctx, req)
+		}
+		if res.Sesion != "" {
+			sesion = res.Sesion
+		}
+		ultimoTurno = res.Tokens.UltimoTurno
 		numero := len(previos) + intento
 		logRel := guardarLog(o.Root, o.Task.ID, numero, req.Prompt, res, agentErr)
 
@@ -446,11 +469,11 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 				if f := task.PruebaSinEscribir(o.Room.Path, o.Task.ListoCuando); f != "" {
 					uno := 1
 					code = &uno
-					salida = "listo_cuando pasó sin la prueba de esta tarea: " + f + " no existe. Escríbela con los casos del contrato; las otras pruebas del comando ya pasaban antes de tu cambio."
+					salida = "done_when passed without this task's test: " + f + " does not exist. Write it with the contract cases; the command's other tests already passed before your change."
 				} else if len(o.PatronesPrueba) == 0 && pruebaComplaciente(ctx, o, base) {
 					uno := 1
 					code = &uno
-					salida = "La prueba que escribiste pasa igual SIN tu implementación: se devolvió el código a como estaba antes de la tarea, se dejó tu prueba y listo_cuando siguió verde. Así no prueba nada de lo que pide el contrato. Reescríbela para que ejercite el código nuevo y falle sin él (llama a lo que implementaste y compara con los Casos: del contrato)."
+					salida = "The test you wrote passes WITHOUT your implementation: the code was restored to how it was before the task, your test was kept and done_when stayed green. That proves nothing the contract asks for. Rewrite it so it exercises the new code and fails without it (call what you implemented and compare with the contract's Cases:)."
 				}
 			}
 		}
@@ -491,6 +514,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 			LineasMenos:              menos,
 			RevertidosFueraDeAlcance: revertidos,
 			Tokens:                   res.Tokens,
+			Reanudado:                reanudado,
 			Modelo:                   o.Model,
 			AgenteSalidaCodigo:       &codigoAgente,
 			Log:                      logRel,
@@ -579,7 +603,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 				aprobada, cambios, tk = o.Revisor.Revisar(ctx, o.Room.Path, o.Task, diffClaro, intento)
 				a.Revision = &Revision{Aprobada: aprobada, Cambios: cambios}
 				gastar(tk)
-				motivo = "el revisor pide cambios sobre tests verdes:\n" + cambios
+				motivo = "the reviewer asks for changes on green tests:\n" + cambios
 			}
 			// el código está bien: falta que se vea. Solo lo mira quien ve
 			// capturas; las pruebas de UI no saben si un efecto se nota
@@ -590,7 +614,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 					rechazosVisuales++
 					aprobada = false
 					a.Revision = &Revision{Aprobada: false, Visual: cambiosV}
-					motivo = "la revisión visual (capturas de tu pantalla en el celular) pide cambios:\n" + cambiosV
+					motivo = "the visual review (phone-size screenshots of your screen) asks for changes:\n" + cambiosV
 				}
 			}
 			if err := s.Append(a); err != nil {
@@ -884,7 +908,7 @@ func promptPara(t task.Task, interfaces []string, constitucion string, etiquetas
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n\n", skills.Base)
 	if constitucion != "" {
-		fmt.Fprintf(&b, "Constitución del proyecto (convenciones que todos los agentes deben seguir):\n%s\n\n", constitucion)
+		fmt.Fprintf(&b, "Project constitution (conventions every agent must follow):\n%s\n\n", constitucion)
 	}
 	if notas.Reglas != "" {
 		fmt.Fprintf(&b, "%s\n\n", notas.Reglas)
@@ -894,43 +918,43 @@ func promptPara(t task.Task, interfaces []string, constitucion string, etiquetas
 	}
 
 	if len(etiquetas) > 0 {
-		fmt.Fprintf(&b, "Habilidades de este rol: %s\n\n", strings.Join(etiquetas, ", "))
+		fmt.Fprintf(&b, "Skills of this role: %s\n\n", strings.Join(etiquetas, ", "))
 	}
 	if skillsContenido != "" {
-		fmt.Fprintf(&b, "Skills de esta tarea — sigue sus instrucciones:\n%s\n\n", skillsContenido)
+		fmt.Fprintf(&b, "Skills for this task — follow their instructions:\n%s\n\n", skillsContenido)
 	}
 	if skills.TocaUI(t.TocarSolo) {
 		fmt.Fprintf(&b, "%s\n\n", skills.UI)
 	}
-	fmt.Fprintf(&b, "Tarea %s: %s\n", t.ID, t.Titulo)
+	fmt.Fprintf(&b, "Task %s: %s\n", t.ID, t.Titulo)
 	if t.Porque != "" {
-		fmt.Fprintf(&b, "Por qué: %s\n", t.Porque)
+		fmt.Fprintf(&b, "Why: %s\n", t.Porque)
 	}
-	fmt.Fprintf(&b, "Listo cuando: %s\n", t.ListoCuando)
+	fmt.Fprintf(&b, "Done when: %s\n", t.ListoCuando)
 	if pruebasPropias {
-		fmt.Fprintf(&b, "Este proyecto no tiene examinador ciego: la suite de pruebas que verifica tu trabajo la escribes TÚ. Si el listo_cuando apunta a un archivo de prueba (p. ej. src/core/types.test.ts), créalo además del código.\n")
+		fmt.Fprintf(&b, "This project has no blind examiner: YOU write the test suite that verifies your work. If done_when points to a test file (e.g. src/core/types.test.ts), create it besides the code.\n")
 	}
 	if len(t.TocarSolo) > 0 {
-		fmt.Fprintf(&b, "Solo puedes tocar: %s\n", strings.Join(t.TocarSolo, ", "))
+		fmt.Fprintf(&b, "You may only touch: %s\n", strings.Join(t.TocarSolo, ", "))
 	}
 	// la costura: lo que esta tarea debe exponer y lo que otras ya le
 	// garantizan. Son contrato, no sugerencia: la esclusa de salida
 	// verifica que `expone` aparezca en el diff.
 	if len(t.Expone) > 0 {
-		fmt.Fprintf(&b, "Debes exponer estas firmas exactas (otras tareas ya las consumen): %s\n", strings.Join(t.Expone, "; "))
+		fmt.Fprintf(&b, "You must expose these exact signatures (other tasks already consume them): %s\n", strings.Join(t.Expone, "; "))
 	}
 	if len(interfaces) > 0 {
-		fmt.Fprintf(&b, "Otras tareas exponen esto; úsalo tal cual, no lo redefinas: %s\n", strings.Join(interfaces, "; "))
+		fmt.Fprintf(&b, "Other tasks expose this; use it as is, do not redefine it: %s\n", strings.Join(interfaces, "; "))
 	}
 	// El presupuesto se verifica al entregar, pero el agente nunca se
 	// enteraba de que existía: lo estima el planificador antes de que
 	// haya código y se hace cumplir cuando el trabajo ya está verde.
 	// Decirlo aquí es lo único que le da la chance de cumplirlo.
 	if t.LimiteLineas > 0 {
-		fmt.Fprintf(&b, "Presupuesto: unas %d líneas añadidas. Ve al grano y no infles el cambio. Si la tarea de verdad no cabe, dilo al terminar en vez de recortar la solución.\n", t.LimiteLineas)
+		fmt.Fprintf(&b, "Budget: about %d added lines. Be direct and do not inflate the change. If the task truly does not fit, say so at the end instead of cutting the solution.\n", t.LimiteLineas)
 	}
 	if t.Riesgos != "" {
-		fmt.Fprintf(&b, "Riesgos: %s\n", t.Riesgos)
+		fmt.Fprintf(&b, "Risks: %s\n", t.Riesgos)
 	}
 	// árbol y firmas recortados a lo que la tarea toca, usa o expone
 	if arq.Arbol != "" {
@@ -940,14 +964,14 @@ func promptPara(t task.Task, interfaces []string, constitucion string, etiquetas
 		fmt.Fprintf(&b, "\n%s\n", arq.Firmas)
 	}
 	if notas.Tarea != "" {
-		etiqueta := "Notas:"
+		etiqueta := "Notes:"
 		if notas.Arquitectura != "" {
 			etiqueta = strings.TrimSuffix(plan.MarcaImplementacion, "\n")
 		}
 		fmt.Fprintf(&b, "\n%s\n%s\n", etiqueta, notas.Tarea)
 	}
 	if prevErr != "" {
-		fmt.Fprintf(&b, "\nEl intento anterior falló:\n%s\n", prevErr)
+		fmt.Fprintf(&b, "\nThe previous attempt failed:\n%s\n", prevErr)
 	}
 	return b.String()
 }
@@ -965,13 +989,13 @@ func resumenFallo(listoCuando string, code *int, salida string) string {
 	if cuerpo := ultimasLineas(sinMarcos(salida), 8, 800); cuerpo != "" {
 		return cuerpo
 	}
-	estado := "falló"
+	estado := "failed"
 	if code != nil {
-		estado = fmt.Sprintf("salió con código %d", *code)
+		estado = fmt.Sprintf("exited with code %d", *code)
 	}
-	msg := fmt.Sprintf("listo_cuando %s sin imprimir nada · comando: %s", estado, strings.TrimSpace(listoCuando))
+	msg := fmt.Sprintf("done_when %s printing nothing · command: %s", estado, strings.TrimSpace(listoCuando))
 	if silencioso(listoCuando) {
-		msg += " · el comando silencia su salida, así que no hay pista del fallo: córrelo a mano sin -q para ver qué falta"
+		msg += " · the command silences its output, so there is no hint of the failure: run it by hand without -q to see what is missing"
 	}
 	return msg
 }
@@ -1034,4 +1058,24 @@ func valorSalida(code *int) string {
 		return "sin código"
 	}
 	return fmt.Sprint(*code)
+}
+
+// puedeReanudar decide si el intento continúa la sesión previa: solo
+// claude, con sesión viva y contexto por debajo del umbral. Por encima, la
+// sesión ya está llena y un intento nuevo con el prompt entero sale más sano.
+func puedeReanudar(o Options, sesion string, ultimoTurno int) bool {
+	return sesion != "" && o.ResumeBelowPct > 0 && o.Ventana > 0 &&
+		ultimoTurno*100 < o.ResumeBelowPct*o.Ventana && o.Agent.Name() == "claude"
+}
+
+// promptContinuar es el mensaje corto con que se continúa una sesión: el
+// agente ya tiene el contrato, el alcance y su propio trabajo.
+func promptContinuar(prevErr string) string {
+	var b strings.Builder
+	b.WriteString("Continue the task: the last attempt did not pass.\n")
+	if prevErr != "" {
+		b.WriteString("\n" + prevErr + "\n")
+	}
+	b.WriteString("\nAnything you changed outside your scope was reverted: re-read a file before editing it. Fix it and commit.")
+	return b.String()
 }

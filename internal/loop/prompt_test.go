@@ -47,7 +47,7 @@ func TestPromptsDeUnPlanCompartenElPrefijoComun(t *testing.T) {
 	for _, tk := range tareasPlan() {
 		prompts = append(prompts, promptPara(tk, tk.Usa, "usa gofmt", nil, "", "", false))
 	}
-	comun := skills.Base + "\n\n" + "Constitución del proyecto (convenciones que todos los agentes deben seguir):\nusa gofmt\n\n" +
+	comun := skills.Base + "\n\n" + "Project constitution (conventions every agent must follow):\nusa gofmt\n\n" +
 		plan.MarcaReglas + "- sin dependencias nuevas\n\n" +
 		plan.MarcaArquitectura + "STACK: Go 1.22, sin dependencias.\n\nTIPOS COMPARTIDOS:\n Token = {Kind string, Text string}\n\n"
 	for i, p := range prompts {
@@ -62,7 +62,7 @@ func TestPromptsDeUnPlanCompartenElPrefijoComun(t *testing.T) {
 		}
 	}
 	// y el prefijo común termina justo ahí: lo que sigue ya es de la tarea
-	if prompts[0][len(comun):len(comun)+len("Tarea T-001")] != "Tarea T-001" {
+	if prompts[0][len(comun):len(comun)+len("Task T-001")] != "Task T-001" {
 		t.Errorf("después de lo común viene la tarea:\n%s", prompts[0][len(comun):])
 	}
 }
@@ -78,7 +78,7 @@ func TestPromptRecortaFirmasQueLaTareaNoUsa(t *testing.T) {
 			t.Errorf("el evaluador no usa %q y lo recibió:\n%s", falta, p)
 		}
 	}
-	for _, quiero := range []string{"[T-002 internal/parser/parser.go] parser.Parse", " Node = {Op string", "[T-003 internal/eval/eval.go]", " internal/parser/parser.go (T-002)", " internal/eval/eval.go (T-003)", "Cada paquete lleva sus pruebas", "Riesgos: división por cero", "Implementación de esta tarea:\nescribe el evaluador"} {
+	for _, quiero := range []string{"[T-002 internal/parser/parser.go] parser.Parse", " Node = {Op string", "[T-003 internal/eval/eval.go]", " internal/parser/parser.go (T-002)", " internal/eval/eval.go (T-003)", "Cada paquete lleva sus pruebas", "Risks: división por cero", "Implementation of this task:\nescribe el evaluador"} {
 		if !strings.Contains(p, quiero) {
 			t.Errorf("falta %q en el prompt:\n%s", quiero, p)
 		}
@@ -88,7 +88,7 @@ func TestPromptRecortaFirmasQueLaTareaNoUsa(t *testing.T) {
 // Un contrato escrito a mano, sin marcas, llega igual que antes.
 func TestPromptSinMarcasConservaLasNotas(t *testing.T) {
 	tk := task.Task{ID: "T-001", Titulo: "x", ListoCuando: "true", Notas: "enfoque libre"}
-	if p := promptPara(tk, nil, "", nil, "", "", false); !strings.HasSuffix(p, "\nNotas:\nenfoque libre\n") || !strings.HasPrefix(p, skills.Base+"\n\nTarea T-001") {
+	if p := promptPara(tk, nil, "", nil, "", "", false); !strings.HasSuffix(p, "\nNotes:\nenfoque libre\n") || !strings.HasPrefix(p, skills.Base+"\n\nTask T-001") {
 		t.Errorf("prompt:\n%s", p)
 	}
 }
@@ -97,11 +97,11 @@ func TestPromptSinMarcasConservaLasNotas(t *testing.T) {
 // las tareas del esqueleto no traen agente
 func TestPromptConGuiaDeUISoloSiTocaInterfaz(t *testing.T) {
 	ui := task.Task{ID: "T-002", Titulo: "página de inicio", ListoCuando: "npx vitest run", TocarSolo: []string{"frontend/src/pages/HomePage.tsx"}}
-	if !strings.Contains(promptPara(ui, nil, "", nil, "", "", false), "Interfaz:") {
+	if !strings.Contains(promptPara(ui, nil, "", nil, "", "", false), "Interface:") {
 		t.Error("una tarea de .tsx no recibió la guía de UI")
 	}
 	api := task.Task{ID: "T-003", Titulo: "paleta", ListoCuando: "pytest", TocarSolo: []string{"backend/app/palette.py"}}
-	if strings.Contains(promptPara(api, nil, "", nil, "", "", false), "Interfaz:") {
+	if strings.Contains(promptPara(api, nil, "", nil, "", "", false), "Interface:") {
 		t.Error("una tarea de backend recibió la guía de UI")
 	}
 }

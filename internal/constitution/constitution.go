@@ -5,6 +5,7 @@ package constitution
 
 import (
 	"errors"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,37 +42,38 @@ func Save(root, content string) error {
 // lenguaje and pruebas come from config; arbol is git ls-files output (truncated).
 func Prompt(lenguaje, pruebas, arbol string) string {
 	var b strings.Builder
-	b.WriteString("Eres el arquitecto de loom. Genera una constitución de proyecto corta y concreta.\n\n")
-	b.WriteString("La constitución es un archivo markdown que todos los agentes recibirán como contexto antes de programar. Propósito: evitar que agentes en paralelo tomen decisiones de diseño incompatibles.\n\n")
+	b.WriteString("You are loom's architect. Generate a short, concrete project constitution.\n\n")
+	b.WriteString("The constitution is a markdown file every agent will receive as context before coding. Purpose: keep parallel agents from making incompatible design decisions.\n\n")
 	if lenguaje != "" {
-		b.WriteString("Lenguaje del proyecto: " + lenguaje + "\n")
+		b.WriteString("Project language: " + lenguaje + "\n")
 	}
 	if pruebas != "" {
-		b.WriteString("Comando de pruebas: " + pruebas + "\n")
+		b.WriteString("Test command: " + pruebas + "\n")
 	}
 	if arbol != "" {
-		b.WriteString("Estructura del proyecto:\n```\n" + arbol + "\n```\n\n")
+		b.WriteString("Project structure:\n```\n" + arbol + "\n```\n\n")
 	}
-	b.WriteString(`Genera un documento markdown con estas secciones EXACTAS, sin añadir más:
+	b.WriteString(`Generate a markdown document with these EXACT sections, adding no more:
 
-# Constitución del proyecto
+# Project constitution
 
-## Estructura de capas
-[Arquitectura en capas: qué paquete puede importar a cuál. Máximo 3 líneas.]
+## Layer structure
+[Layered architecture: which package may import which. At most 3 lines.]
 
-## Convenciones de estilo
-[Convenciones del lenguaje. Nombres, formato, errores. Máximo 5 puntos concretos.]
+## Style conventions
+[Language conventions. Names, formatting, errors. At most 5 concrete points.]
 
-## Patrones prohibidos
-[Qué NO hacer. Máximo 3 ítems concretos y verificables.]
+## Forbidden patterns
+[What NOT to do. At most 3 concrete, verifiable items. Always include: agents, not people, maintain the code; no comments for humans, no commented-out code and no wrappers just for readability.]
 
-## Tamaño máximo por archivo
-[Máximo de líneas, cuándo partir. Máximo 2 líneas.]
+## Maximum file size
+[Maximum lines, when to split. At most 2 lines.]
 
-Reglas:
-- Concreto y verificable. Nada de platitudes.
-- Máximo 300 palabras en total.
-- No añadas secciones extra.
-- Devuelve SOLO el markdown, sin texto alrededor.`)
+Rules:
+- Concrete and verifiable. No platitudes.
+- At most 300 words in total.
+- Do not add extra sections.
+- Return ONLY the markdown, no text around it.`)
+	b.WriteString(idioma.Instruccion())
 	return b.String()
 }

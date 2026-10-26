@@ -125,7 +125,7 @@ func prepararEntornoConCLI(cwd string, in io.Reader, entregar bool, cliPreferido
 	// los cuartos salen de la base y la entrega va a ella: en otra rama,
 	// lo que hay aquí no lo ven los agentes
 	if actual, err := gitEn(root, "symbolic-ref", "--quiet", "--short", "HEAD"); err == nil {
-		if actual = strings.TrimSpace(actual); actual != "" && actual != cfg.Base && !strings.HasPrefix(actual, "loom/") {
+		if actual = strings.TrimSpace(actual); actual != "" && actual != cfg.Base && !strings.HasPrefix(actual, "loom/") && !strings.HasPrefix(actual, "devclean/") {
 			out.Line("· estás en %s pero la base es %s · los agentes parten de %s y ahí se entrega · cambia `base:` en .loom/config.yml si no es lo que quieres", actual, cfg.Base, cfg.Base)
 		}
 	}

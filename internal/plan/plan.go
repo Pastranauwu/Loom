@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"sort"
 	"strconv"
 	"strings"
@@ -66,9 +67,10 @@ func (b *Borrador) UnmarshalJSON(data []byte) error {
 	}
 	a := alias(*b)
 	raw.alias = &a
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if err := json.Unmarshal(idioma.NormalizarClaves(data, clavesBorrador), &raw); err != nil {
 		return err
 	}
+	a.Peso = task.NormalizarPeso(a.Peso)
 	*b = Borrador(a)
 	if len(raw.DependeDe) == 0 {
 		return nil
@@ -136,161 +138,167 @@ type Contexto struct {
 	// Skills es el catálogo de .agents/skills del que el planificador
 	// elige las de cada tarea. Vacío: el campo no se pide.
 	Skills []skills.Skill
+	// Grafo es el resumen de .loom/repo-graph.json relevante a la
+	// petición; vacío no agrega nada al prompt.
+	Grafo string
 }
 
-// Prompt pide decisiones de arquitectura y contratos en una sola llamada.
-// El contexto del repo se inyecta para
-// que el modelo use el lenguaje y el comando de pruebas reales.
+// Prompt asks for architecture decisions and contracts in a single call.
+// The repo context is injected so the model uses the real language and test command.
 func Prompt(frase string, c Contexto) string {
-	return prompt("Eres el planificador de loom. Diseña la solución y reparte unidades de trabajo completas y verificables:\n\n", "\""+frase+"\"\n\n", c)
+	return prompt("You are loom's planner. Design the solution and split it into complete, verifiable units of work:\n\n", "\""+frase+"\"\n\n", c)
 }
 
-// PromptCompletar pide el contrato de tareas que el humano ya decidió en
-// un spec rápido. El planificador no reparte: escribe listo_cuando,
-// alcance, dependencias y firmas de exactamente esas tareas, en ese orden.
+// PromptCompletar asks for the contracts of tasks the human already decided in
+// a quick spec. The planner does not split: it writes done_when, scope,
+// dependencies and signatures for exactly those tasks, in that order.
 func PromptCompletar(feature string, reglas []string, tareas []task.Task, c Contexto) string {
 	n := len(tareas)
-	intro := fmt.Sprintf("Eres el planificador de loom. El humano ya decidió estas %d tareas; tu trabajo es escribir su contrato. "+
-		"NO partas, juntes, quites ni agregues tareas: devuelve exactamente %d, en este mismo orden y con el mismo \"titulo\". "+
-		"Si una tarea ya trae un campo, cópialo tal cual.\n\n", n, n)
+	intro := fmt.Sprintf("You are loom's planner. The human already decided these %d tasks; your job is to write their contract. "+
+		"Do NOT split, merge, remove or add tasks: return exactly %d, in this same order and with the same \"title\". "+
+		"If a task already has a field, copy it as is.\n\n", n, n)
 
 	var p strings.Builder
 	if feature != "" {
 		fmt.Fprintf(&p, "Feature: %s\n", feature)
 	}
 	for _, r := range reglas {
-		fmt.Fprintf(&p, "Regla para todas: %s\n", r)
+		fmt.Fprintf(&p, "Rule for all: %s\n", r)
 	}
-	p.WriteString("Tareas:\n")
+	p.WriteString("Tasks:\n")
 	for i, t := range tareas {
 		fmt.Fprintf(&p, "%d. %s · %s", i+1, t.ID, t.Titulo)
 		if t.ListoCuando != "" {
-			fmt.Fprintf(&p, " · listo_cuando: %s", t.ListoCuando)
+			fmt.Fprintf(&p, " · done_when: %s", t.ListoCuando)
 		}
 		if len(t.TocarSolo) > 0 {
-			fmt.Fprintf(&p, " · tocar_solo: %s", strings.Join(t.TocarSolo, ", "))
+			fmt.Fprintf(&p, " · only_touch: %s", strings.Join(t.TocarSolo, ", "))
 		}
 		if len(t.DependeDe) > 0 {
-			fmt.Fprintf(&p, " · depende_de: %s", strings.Join(t.DependeDe, ", "))
+			fmt.Fprintf(&p, " · depends_on: %s", strings.Join(t.DependeDe, ", "))
 		}
 		if t.Notas != "" {
-			fmt.Fprintf(&p, " · notas: %s", t.Notas)
+			fmt.Fprintf(&p, " · notes: %s", t.Notas)
 		}
 		p.WriteString("\n")
 	}
 	if n > 0 {
-		fmt.Fprintf(&p, "En \"depende_de\" usa los ids de esta lista (ej. \"%s\").\n\n", tareas[0].ID)
+		fmt.Fprintf(&p, "In \"depends_on\" use the ids from this list (e.g. \"%s\").\n\n", tareas[0].ID)
 	}
 	return prompt(intro, p.String(), c)
 }
 
-// prompt arma la instrucción común a planear y a completar: qué se pide,
-// el contexto del repo y el formato de cada contrato.
+// prompt builds the instruction shared by planning and completing: what is
+// asked, the repo context and the format of each contract.
 func prompt(intro, peticion string, c Contexto) string {
 	var b strings.Builder
 	b.WriteString(intro)
 	if c.Constitucion != "" {
-		b.WriteString("Constitución del proyecto (convenciones establecidas que el plan debe respetar):\n")
+		b.WriteString("Project constitution (established conventions the plan must respect):\n")
 		b.WriteString(c.Constitucion)
 		b.WriteString("\n\n")
 	}
 	b.WriteString(peticion)
 	b.WriteString(contextoPrompt(c))
-	b.WriteString("\n\nEres el ARQUITECTO de la solución, no un implementador: no escribes código. Tu trabajo es dejar la arquitectura definida —estilo, árbol de archivos, responsabilidades de cada archivo, flujo de datos, tipos compartidos y la firma exacta de cada función pública (parámetros y valor de retorno)— para que cada ejecutor solo escriba los archivos que le tocan sin rediseñar nada. Aplica SOLID donde aporte; usa arquitectura hexagonal o microservicios solo cuando el problema lo justifique.\n")
-	b.WriteString("Devuelve SOLO un objeto JSON con \"arquitectura\" (texto con el árbol de archivos, sus responsabilidades, tipos compartidos y firmas exactas) y \"tareas\" (array de contratos). La arquitectura se guarda en las notas de todos los contratos.\n")
-	b.WriteString("Organiza \"arquitectura\" en párrafos separados por una línea en blanco, cada uno con su encabezado en mayúsculas (STACK:, ESTILO:, TIPOS COMPARTIDOS:, ...). Dos son obligatorios y con formato fijo, porque a cada ejecutor le llega solo la parte que le toca: \"ÁRBOL DE ARCHIVOS:\" con una línea por archivo que empiece por su ruta (\" src/a.js (T-001) responsabilidad\"), y \"FIRMAS PÚBLICAS EXACTAS:\" con un bloque por archivo que empiece por \"[T-00N ruta]\" seguido de sus firmas.\n")
-	b.WriteString("Divide y vencerás: parte en tareas por ARCHIVO o MÓDULO, cada una con su \"tocar_solo\" acotado a los archivos que escribe, su \"expone\"/\"usa\" con las firmas exactas (parámetros y retorno) y un \"como\" que diga exactamente qué escribir. Cuantas más tareas pequeñas e independientes, más modelos corren en paralelo y más rápido el resultado: preferí varias tareas livianas a una sola tarea grande. Si hace falta una base compartida (tipos, contratos), asígnala a una tarea pesada con agente architect y haz que sus consumidoras dependan de ella. Reserva UNA tarea final para la composición y sus pruebas de integración.\n")
-	b.WriteString("Cada tarea contiene estos campos:\n")
-	b.WriteString("- \"titulo\": frase corta en minúscula\n")
-	b.WriteString("- \"porque\": por qué importa (una frase)\n")
-	b.WriteString("- \"listo_cuando\": un comando ejecutable que HOY FALLE y que pase cuando la tarea esté hecha (obligatorio).\n")
-	b.WriteString("  · loom lo ejecuta ANTES de gastar un solo token y rechaza la tarea si ya pasa: un comando que hoy da verde no verifica nada.\n")
-	b.WriteString("  · Por eso no sirve el comando de pruebas del proyecto tal cual si la suite ya está verde (`npm test`, `go test ./...`, `pytest`): acótalo a lo que esta tarea va a crear — el archivo de prueba, el módulo o el paquete que todavía no existe.\n")
-	b.WriteString("  · Ejemplos que fallan hoy porque el destino no existe: \"go test ./internal/wol/...\", \"node --test test/validator.test.js\", \"pytest tests/test_wol.py\", \"npm test -- validator\".\n")
-	b.WriteString("- \"tocar_solo\": array de globs de archivos que la tarea puede tocar\n")
-	b.WriteString("  · dos tareas NUNCA comparten un archivo en \"tocar_solo\": corren en paralelo y chocan al integrar. Si varias necesitan el mismo (go.mod, package.json, un router), lo toca solo una y las demás la ponen en \"depende_de\".\n")
+	if c.Grafo != "" {
+		b.WriteString("\n\n" + c.Grafo)
+	}
+	b.WriteString("\n\nYou are the ARCHITECT of the solution, not an implementer: you write no code. Your job is to leave the architecture defined (style, file tree, responsibility of each file, data flow, shared types and the exact signature of each public function with parameters and return value) so each executor only writes the files assigned to it without redesigning anything. Apply SOLID where it helps; use hexagonal architecture or microservices only when the problem justifies it. Agents, not people, will maintain this code: ask for compact internal bodies, no comments and no intermediate functions added only for readability, and descriptive names and signatures only for what is declared in \"exposes\".\n")
+	b.WriteString("Return ONLY a JSON object with \"architecture\" (text with the file tree, responsibilities, shared types and exact signatures) and \"tasks\" (array of contracts). The architecture is stored in the notes of every contract.\n")
+	b.WriteString("Organize \"architecture\" in paragraphs separated by a blank line, each with an uppercase heading (STACK:, STYLE:, SHARED TYPES:, ...). Two are mandatory and have a fixed format, because each executor receives only the part that concerns it: \"FILE TREE:\" with one line per file starting with its path (\" src/a.js (T-001) responsibility\"), and \"PUBLIC SIGNATURES:\" with one block per file starting with \"[T-00N path]\" followed by its signatures.\n")
+	b.WriteString("Divide and conquer: split into tasks per FILE or MODULE, each with an \"only_touch\" limited to the files it writes, its \"exposes\"/\"uses\" with exact signatures (parameters and return) and a \"how\" saying exactly what to write. The more small independent tasks, the more models run in parallel and the faster the result: prefer several light tasks to one big task. If a shared base is needed (types, contracts), give it to a heavy task with the architect agent and make its consumers depend on it. Reserve ONE final task for composition and its integration tests.\n")
+	b.WriteString("Each task contains these fields:\n")
+	b.WriteString("- \"title\": short lowercase phrase\n")
+	b.WriteString("- \"why\": why it matters (one sentence)\n")
+	b.WriteString("- \"done_when\": an executable command that FAILS TODAY and passes when the task is done (mandatory).\n")
+	b.WriteString("  · loom runs it BEFORE spending a single token and rejects the task if it already passes: a command that is green today verifies nothing.\n")
+	b.WriteString("  · So the project's test command as is does not work if the suite is already green (`npm test`, `go test ./...`, `pytest`): narrow it to what this task will create — the test file, the module or the package that does not exist yet.\n")
+	b.WriteString("  · Examples that fail today because the target does not exist: \"go test ./internal/wol/...\", \"node --test test/validator.test.js\", \"pytest tests/test_wol.py\", \"npm test -- validator\".\n")
+	b.WriteString("- \"only_touch\": array of globs of files the task may touch\n")
+	b.WriteString("  · two tasks NEVER share a file in \"only_touch\": they run in parallel and collide on integration. If several need the same one (go.mod, package.json, a router), only one touches it and the others list that task in \"depends_on\".\n")
 	if c.PruebasPropias {
-		b.WriteString("  · en este proyecto las pruebas las escribe la propia tarea: si el \"listo_cuando\" apunta a un archivo de prueba, ESE archivo tiene que estar también en \"tocar_solo\", o nadie podrá crearlo.\n")
+		b.WriteString("  · in this project the task writes its own tests: if \"done_when\" points to a test file, THAT file must also be in \"only_touch\", or nobody can create it.\n")
 	}
 	if len(c.Vedadas) > 0 {
-		b.WriteString("  · \"tocar_solo\" NUNCA puede incluir estas rutas (las maneja el proyecto o el examinador ciego, no la tarea): " + strings.Join(c.Vedadas, ", ") + "\n")
+		b.WriteString("  · \"only_touch\" can NEVER include these paths (the project or the blind examiner owns them, not the task): " + strings.Join(c.Vedadas, ", ") + "\n")
 	}
 	if len(c.Ocupados) > 0 {
-		b.WriteString("  · estas rutas YA las está tocando otra tarea en curso; \"tocar_solo\" no puede cruzarse con ellas o la tarea será rechazada sin llegar a ejecutarse:\n")
+		b.WriteString("  · these paths are ALREADY being touched by another running task; \"only_touch\" must not overlap them or the task is rejected before it runs:\n")
 		for _, id := range idsOrdenados(c.Ocupados) {
 			b.WriteString("      " + id + ": " + strings.Join(c.Ocupados[id], ", ") + "\n")
 		}
 	}
-	b.WriteString("- \"depende_de\": array de ids (ej. \"T-001\") de tareas que deben estar verdes antes que esta; vacío si no depende de ninguna\n")
+	b.WriteString("- \"depends_on\": array of ids (e.g. \"T-001\") of tasks that must be green before this one; empty if it depends on none\n")
 	if c.PrimerID != "" && c.PrimerID != "T-001" {
-		b.WriteString("  · ya hay tareas en el repo: tus tareas reciben ids correlativos desde " + c.PrimerID + " en el orden del array. Usa esos ids en \"depende_de\", en el ÁRBOL y en las FIRMAS; para depender de una tarea previa usa su id.\n")
+		b.WriteString("  · the repo already has tasks: yours get consecutive ids starting at " + c.PrimerID + " in array order. Use those ids in \"depends_on\", in the FILE TREE and in the PUBLIC SIGNATURES; to depend on an earlier task use its id.\n")
 	}
-	b.WriteString("- \"expone\": array de firmas públicas EXACTAS que esta tarea produce y otra consume, con tipos de entrada y de retorno (ej. \"wol.Send(mac string, addr string) error\", \"POST /wake\"); vacío si no produce ninguna\n")
+	b.WriteString("- \"exposes\": array of EXACT public signatures this task produces and another consumes, with input and return types (e.g. \"wol.Send(mac string, addr string) error\", \"POST /wake\"); empty if it produces none\n")
 	if len(c.Expuestas) > 0 {
-		b.WriteString("  · firmas que ya exponen tareas previas; si las consumes, cópialas en \"usa\" palabra por palabra y pon su id en \"depende_de\" (nunca las vuelvas a exponer):\n")
+		b.WriteString("  · signatures earlier tasks already expose; if you consume them, copy them word for word into \"uses\" and put their id in \"depends_on\" (never expose them again):\n")
 		for _, id := range idsOrdenados(c.Expuestas) {
 			b.WriteString("      " + id + ": " + strings.Join(c.Expuestas[id], " · ") + "\n")
 		}
 	}
-	b.WriteString("- \"usa\": array de firmas de OTRAS tareas que esta consume, copiadas palabra por palabra del \"expone\" de aquella (mismo nombre, mismos tipos); vacío si no consume ninguna. Si no puedes copiar la firma exacta, la tarea está mal partida: resuelve la dependencia en el plan, no en el ejecutor\n")
-	b.WriteString("- \"peso\": \"liviana\", \"media\" o \"pesada\" según la complejidad: usa liviana para implementación con decisiones ya resueltas, media para lógica compleja y pesada para base arquitectónica o incertidumbre alta\n")
-	b.WriteString("- \"limite_lineas\": 0. No impongas un máximo de líneas ni dividas por tamaño: divide por responsabilidad y dependencias. Los límites positivos solo los decide el humano.\n")
+	b.WriteString("- \"uses\": array of signatures from OTHER tasks this one consumes, copied word for word from that task's \"exposes\" (same name, same types); empty if it consumes none. If you cannot copy the exact signature, the task is badly split: resolve the dependency in the plan, not in the executor\n")
+	b.WriteString("- \"weight\": \"light\", \"medium\" or \"heavy\" by complexity: light for implementation with decisions already made, medium for complex logic and heavy for architectural foundations or high uncertainty\n")
+	b.WriteString("- \"max_lines\": 0. Do not impose a maximum of lines or split by size: split by responsibility and dependencies. Positive limits are the human's call.\n")
 	if len(c.Agentes) > 0 {
 		var ags []string
 		for nombre, a := range c.Agentes {
 			desc := nombre
 			if len(a.Skills) > 0 {
-				desc += fmt.Sprintf(" (habilidades: %s)", strings.Join(a.Skills, ", "))
+				desc += fmt.Sprintf(" (skills: %s)", strings.Join(a.Skills, ", "))
 			}
 			ags = append(ags, desc)
 		}
 		sort.Strings(ags)
-		fmt.Fprintf(&b, "- \"agente\": nombre del agente asignado para esta tarea (disponibles: %s); o \"\" para el ejecutor por defecto\n", strings.Join(ags, "; "))
+		fmt.Fprintf(&b, "- \"agent\": name of the agent assigned to this task (available: %s); or \"\" for the default executor\n", strings.Join(ags, "; "))
 	}
 	if len(c.Skills) > 0 {
-		b.WriteString("- \"skills\": array con las skills que ESTA tarea necesita, de este catálogo; su texto entero entra al prompt del ejecutor, así que cada una cuesta tokens en cada intento. Pon solo las que cambian cómo se escribe esta tarea (p. ej. diseño visual solo en tareas que dibujan interfaz) y [] si ninguna hace falta:\n")
+		b.WriteString("- \"skills\": array with the skills THIS task needs, from this catalog; their whole text enters the executor prompt, so each one costs tokens on every attempt. List only those that change how this task is written (e.g. visual design only in tasks that draw interface) and [] if none is needed:\n")
 		for _, sk := range c.Skills {
 			fmt.Fprintf(&b, "  - %s: %s\n", sk.Nombre, recortar(sk.Descripcion, 200))
 		}
 	}
-	b.WriteString("- \"riesgos\": riesgos o limitaciones, o \"\" si no hay\n")
-	b.WriteString("- \"como\": instrucciones suficientes para ejecutar sin rediseñar: archivos concretos, pasos, entradas y salidas, errores, casos límite, dependencias y pruebas que cubran los requisitos. No lo limites a una línea.\n\n")
-	b.WriteString("Las tareas corren en paralelo y aisladas: no pueden leerse el código entre sí. Si una produce algo que otra necesita, la firma DEBE aparecer igual en el \"expone\" de la que la produce y en el \"usa\" de la que la consume; si no, cada una inventará la suya y no van a encajar.\n\n")
-	b.WriteString("Y no prometas de más: lo que una tarea soporta y su consumidora nunca pide no lo prueba nadie, aunque las dos queden verdes. Si una pieza tiene que aceptar un operador, un formato o un caso límite, el \"listo_cuando\" de la tarea que lo consume tiene que cubrirlo, o no lo declares en el \"expone\" de la que lo produce.\n\n")
-	b.WriteString("Ejemplo:\n{\n  \"arquitectura\": \"Módulo Go existente. internal/wol/send.go construye y envía el paquete UDP; internal/api/wake.go adapta HTTP a wol.Send. El handler compone la llamada sin duplicar lógica UDP. Cada módulo conserva sus pruebas junto al código.\",\n  \"tareas\": [\n    {\n      \"titulo\": \"enviar magic packet\",\n      \"porque\": \"es la acción central\",\n      \"listo_cuando\": \"go test ./internal/wol/...\",\n      \"tocar_solo\": [\n        \"internal/wol/**\"\n      ],\n      \"expone\": [\n        \"wol.Send(mac, addr string) error\"\n      ],\n      \"usa\": [],\n      \"depende_de\": [],\n      \"peso\": \"liviana\",\n      \"limite_lineas\": 0,\n      \"riesgos\": \"\",\n      \"como\": \"Implementa Send en internal/wol/send.go: valida MAC, construye 6 bytes FF más 16 repeticiones de la MAC, envía UDP a addr y propaga errores. Verifica paquete exacto, MAC inválida y fallo de envío.\"\n    },\n    {\n      \"titulo\": \"endpoint http que dispara wol\",\n      \"porque\": \"lo invoca la automatización\",\n      \"listo_cuando\": \"go test ./internal/api/...\",\n      \"tocar_solo\": [\n        \"internal/api/**\"\n      ],\n      \"expone\": [\n        \"POST /wake\"\n      ],\n      \"usa\": [\n        \"wol.Send(mac, addr string) error\"\n      ],\n      \"depende_de\": [\n        \"T-001\"\n      ],\n      \"peso\": \"liviana\",\n      \"limite_lineas\": 0,\n      \"riesgos\": \"\",\n      \"como\": \"Crea y registra POST /wake en internal/api/wake.go usando el router existente en ese alcance. Lee JSON mac y addr, llama wol.Send, responde 204 al éxito, 400 para entrada inválida y 502 si falla UDP. Verifica respuestas y que la petición válida invoque el envío.\"\n    }\n  ]\n}")
+	b.WriteString("- \"risks\": risks or limitations, or \"\" if none\n")
+	b.WriteString("- \"how\": instructions sufficient to execute without redesigning: concrete files, steps, inputs and outputs, errors, edge cases, dependencies and tests covering the requirements. Do not limit it to one line.\n\n")
+	b.WriteString("Tasks run in parallel and isolated: they cannot read each other's code. If one produces something another needs, the signature MUST appear identically in the \"exposes\" of the producer and in the \"uses\" of the consumer; otherwise each will invent its own and they will not fit.\n\n")
+	b.WriteString("And do not promise more than needed: what a task supports and its consumer never asks for is tested by nobody, even if both end up green. If a piece has to accept an operator, a format or an edge case, the \"done_when\" of the task that consumes it must cover it, or do not declare it in the \"exposes\" of the one that produces it.\n\n")
+	b.WriteString("Example:\n{\n  \"architecture\": \"Existing Go module. internal/wol/send.go builds and sends the UDP packet; internal/api/wake.go adapts HTTP to wol.Send. The handler composes the call without duplicating UDP logic. Each module keeps its tests next to the code.\",\n  \"tasks\": [\n    {\n      \"title\": \"send magic packet\",\n      \"why\": \"it is the core action\",\n      \"done_when\": \"go test ./internal/wol/...\",\n      \"only_touch\": [\n        \"internal/wol/**\"\n      ],\n      \"exposes\": [\n        \"wol.Send(mac, addr string) error\"\n      ],\n      \"uses\": [],\n      \"depends_on\": [],\n      \"weight\": \"light\",\n      \"max_lines\": 0,\n      \"risks\": \"\",\n      \"how\": \"Implement Send in internal/wol/send.go: validate the MAC, build 6 bytes of FF plus 16 repetitions of the MAC, send UDP to addr and propagate errors. Verify the exact packet, an invalid MAC and a send failure.\"\n    },\n    {\n      \"title\": \"http endpoint that triggers wol\",\n      \"why\": \"automation invokes it\",\n      \"done_when\": \"go test ./internal/api/...\",\n      \"only_touch\": [\n        \"internal/api/**\"\n      ],\n      \"exposes\": [\n        \"POST /wake\"\n      ],\n      \"uses\": [\n        \"wol.Send(mac, addr string) error\"\n      ],\n      \"depends_on\": [\n        \"T-001\"\n      ],\n      \"weight\": \"light\",\n      \"max_lines\": 0,\n      \"risks\": \"\",\n      \"how\": \"Create and register POST /wake in internal/api/wake.go using the existing router in that scope. Read JSON mac and addr, call wol.Send, answer 204 on success, 400 for invalid input and 502 if UDP fails. Verify the responses and that a valid request invokes the send.\"\n    }\n  ]\n}")
+	b.WriteString(idioma.Instruccion())
 	return b.String()
 }
 
-// contextoPrompt redacta la sección de contexto según lo detectado en
-// el repo. En un repo vacío activa el modo greenfield: la primera
-// tarea inicializa el stack y fija su comando de verificación real.
+// contextoPrompt writes the context section from what was detected in the
+// repo. In an empty repo it enables greenfield mode: the first task
+// initializes the stack and sets its real verification command.
 func contextoPrompt(c Contexto) string {
 	var b strings.Builder
 	if c.EsVacio {
-		b.WriteString("El repositorio está vacío (sin código todavía). Debes arrancar desde cero:\n")
+		b.WriteString("The repository is empty (no code yet). You must start from scratch:\n")
 		if c.Stack != "" {
-			fmt.Fprintf(&b, "- El humano eligió el stack: %s. Úsalo para todas las tareas.\n", c.Stack)
+			fmt.Fprintf(&b, "- The human chose the stack: %s. Use it for all tasks.\n", c.Stack)
 		} else {
-			b.WriteString("- Elige tú UN stack (Go, Node, Python, ...) y fija su estructura. La PRIMERA tarea lo inicializa siguiendo esas decisiones y deja el proyecto compilando.\n")
+			b.WriteString("- Choose ONE stack (Go, Node, Python, ...) and fix its structure. The FIRST task initializes it following those decisions and leaves the project compiling.\n")
 		}
-		b.WriteString("- La primera tarea deja el proyecto compilando; su \"listo_cuando\" es el comando de build o test real del stack (ej. \"go build ./...\" si Go, \"npm test\" si Node).\n")
-		b.WriteString("- Las demás tareas construyen sobre esa base, con \"listo_cuando\" reales de ese mismo stack que hoy fallen, y marcan en \"depende_de\" la tarea que creó la base (y cualquier otra de la que dependan).\n")
-		b.WriteString("- Mantén UN solo lenguaje en todas las tareas.\n")
+		b.WriteString("- The first task leaves the project compiling; its \"done_when\" is the real build or test command of the stack (e.g. \"go build ./...\" for Go, \"npm test\" for Node).\n")
+		b.WriteString("- The other tasks build on that base, with real \"done_when\" commands of the same stack that fail today, and list in \"depends_on\" the task that created the base (and any other they depend on).\n")
+		b.WriteString("- Keep ONE language across all tasks.\n")
 		if c.Requisitos != "" {
-			fmt.Fprintf(&b, "- Además de la petición, el humano pidió: %s\n", c.Requisitos)
+			fmt.Fprintf(&b, "- Besides the request, the human asked for: %s\n", c.Requisitos)
 		}
 		return b.String()
 	}
 	if c.Lenguaje == "" {
-		return "El repositorio ya existe pero no se detectó un lenguaje concreto. Inspéctalo antes de elegir comandos y usa el comando de pruebas que ya exista, si lo hay."
+		return "The repository already exists but no specific language was detected. Inspect it before choosing commands and use the test command that already exists, if any."
 	}
 	pruebas := c.Pruebas
 	if strings.TrimSpace(pruebas) == "" {
-		pruebas = "ninguno detectado · propón uno que exista o el estándar del lenguaje"
+		pruebas = "none detected · propose one that exists or the language standard"
 	}
-	return fmt.Sprintf("El repositorio ya está en desarrollo. Lenguaje detectado: %s. Comando de pruebas del proyecto: %s.\n"+
-		"- Mantén ese lenguaje y ese corredor de pruebas; no cambies el stack ni propongas paquetes o rutas que no existen.\n"+
-		"- Pero NO copies ese comando tal cual en los \"listo_cuando\" si la suite del proyecto ya está verde: entonces pasaría hoy y loom rechazaría la tarea. Apunta con el mismo corredor a lo que la tarea va a crear y que todavía no existe.",
+	return fmt.Sprintf("The repository is already under development. Detected language: %s. Project test command: %s.\n"+
+		"- Keep that language and that test runner; do not change the stack or propose packages or paths that do not exist.\n"+
+		"- But do NOT copy that command as is into \"done_when\" if the project suite is already green: it would pass today and loom would reject the task. Point the same runner at what the task will create and does not exist yet.",
 		c.Lenguaje, pruebas)
 }
 
@@ -312,7 +320,11 @@ func Parse(texto string) ([]Borrador, error) {
 			Arquitectura string     `json:"arquitectura"`
 			Tareas       []Borrador `json:"tareas"`
 		}
-		if err := dec.Decode(&documento); err != nil {
+		var crudo json.RawMessage
+		if err := dec.Decode(&crudo); err != nil {
+			return nil, fmt.Errorf("el modelo devolvió JSON inválido · %s", err)
+		}
+		if err := json.Unmarshal(idioma.NormalizarClaves(crudo, map[string]string{"architecture": "arquitectura", "tasks": "tareas"}), &documento); err != nil {
 			return nil, fmt.Errorf("el modelo devolvió JSON inválido · %s", err)
 		}
 		if strings.TrimSpace(documento.Arquitectura) == "" {
@@ -455,4 +467,11 @@ func recortar(s string, max int) string {
 		return string(r)
 	}
 	return string(r[:max]) + "…"
+}
+
+var clavesBorrador = map[string]string{
+	"title": "titulo", "why": "porque", "done_when": "listo_cuando", "only_touch": "tocar_solo",
+	"dont_touch": "no_tocar", "depends_on": "depende_de", "exposes": "expone", "uses": "usa",
+	"risks": "riesgos", "weight": "peso", "agent": "agente", "covers": "cubre",
+	"max_lines": "limite_lineas", "how": "como",
 }

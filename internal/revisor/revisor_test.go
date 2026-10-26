@@ -122,7 +122,7 @@ func TestRevisarFallaCerrado(t *testing.T) {
 func TestPromptAcotaElJuicio(t *testing.T) {
 	p := Prompt(tareas(), "+ codigo")
 	for _, quiero := range []string{"T-001", "validar mac", "wol.Parse", "+ codigo",
-		"NO marques funciona:false por estilo", "chore", "descripcion", "cambios"} {
+		"Do NOT mark works:false for style", "chore", "description", "changes"} {
 		if !strings.Contains(p, quiero) {
 			t.Errorf("el prompt no menciona %q", quiero)
 		}

@@ -105,26 +105,26 @@ func TestBuildPromptDiceElLenguaje(t *testing.T) {
 	tk := task.Task{ID: "T-001", Titulo: "exportar", Expone: []string{"a_csv(rows) -> str"}}
 
 	py := buildPrompt(tk, "export", "python")
-	if !strings.Contains(py, "Lenguaje de las pruebas: python") {
+	if !strings.Contains(py, "Test language: python") {
 		t.Errorf("el prompt de python no declara el lenguaje:\n%s", py)
 	}
 	if !strings.Contains(py, "pytest") {
 		t.Errorf("el prompt de python no menciona pytest:\n%s", py)
 	}
-	for _, deGo := range []string{"stdlib de Go", "Package Go", "*testing.T"} {
+	for _, deGo := range []string{"Go stdlib", "Go package", "*testing.T"} {
 		if strings.Contains(py, deGo) {
 			t.Errorf("el prompt de python arrastra %q:\n%s", deGo, py)
 		}
 	}
 
 	golang := buildPrompt(tk, "export", "go")
-	if !strings.Contains(golang, "Lenguaje de las pruebas: go") {
+	if !strings.Contains(golang, "Test language: go") {
 		t.Errorf("el prompt de go no declara el lenguaje:\n%s", golang)
 	}
-	if !strings.Contains(golang, "Package Go de las pruebas: export_test") {
+	if !strings.Contains(golang, "Go package of the tests: export_test") {
 		t.Errorf("el prompt de go perdió el package:\n%s", golang)
 	}
-	if !strings.Contains(golang, "stdlib de Go") {
+	if !strings.Contains(golang, "Go stdlib") {
 		t.Errorf("el prompt de go perdió sus reglas:\n%s", golang)
 	}
 }

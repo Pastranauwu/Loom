@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +39,7 @@ const timeoutArquitecto = 45 * time.Minute
 
 // notaCambio va en las tareas que cambian código que ya funciona: no hay
 // stub que rellenar y lo que ya existe no se puede romper.
-const notaCambio = "Cambias código que ya funciona. Primero escribe la prueba del comportamiento nuevo en el archivo que corre listo_cuando, con los \"Casos:\" de arriba; después haz el cambio. No cambies firmas, nombres ni exportaciones que otros módulos usan salvo que el contrato lo pida, y las pruebas que ya existen tienen que seguir pasando. De una prueba que ya existía solo puedes cambiar lo que el contrato declara en \"Obsoleto:\"; el resto de sus casos se queda igual. Si un comentario del archivo describe lo que cambias, actualízalo o bórralo: no dejes comentarios que contradigan el código. El contexto está en " + esqueleto.Documento + "."
+const notaCambio = "You are changing code that already works. First write the test of the new behavior in the file that done_when runs, with the \"Cases:\" above; then make the change. Do not change signatures, names or exports other modules use unless the contract asks for it, and existing tests must keep passing. Of a test that already existed you may only change what the contract declares in \"Obsolete:\"; the rest of its cases stay the same. If a comment in the file describes what you change, update or delete it: leave no comments that contradict the code. The context is in " + esqueleto.Documento + "."
 
 // notaPara elige la nota según lo que toca la tarea: rellenar un stub o
 // cambiar código existente.
@@ -52,9 +53,9 @@ func notaPara(ctx context.Context, dir string, tocar []string) string {
 // notaRelleno va en las notas de cada tarea de relleno: el agente barato
 // no necesita más que saber qué reemplazar, dónde está el contrato y que
 // la prueba sale de sus casos.
-const notaRelleno = "Primero escribe la prueba del archivo que corre listo_cuando con los \"Casos:\" del contrato de cada stub (y los casos límite que el contrato nombre): una prueba por caso, sin variantes que prueben lo mismo; las dependencias de otros módulos van con fakes. Después rellena los cuerpos que lanzan \"" + esqueleto.Marca + "\" siguiendo la \"Idea:\" del contrato: el diseño ya está decidido, no lo cambies ni busques otro. No cambies firmas, nombres ni exportaciones: otros módulos ya dependen de ellas. El contrato está en el comentario de cada stub y en " + esqueleto.Documento + ". Al terminar, el comentario de contrato deja de ser una instrucción para ti y pasa a ser documentación: redúcelo a lo que necesita quien mantenga el código (qué hace y lo que no es obvio) y borra \"Idea:\", \"Casos:\", la lista de quién llama a quién y cualquier maqueta o paso que el código ya dice; los casos viven en la prueba."
+const notaRelleno = "First write the test of the file that done_when runs with the \"Cases:\" of each stub's contract (and the edge cases the contract names): one test per case, no variants testing the same thing; dependencies on other modules use fakes. Then fill in the bodies that throw \"" + esqueleto.Marca + "\" following the contract's \"Idea:\": the design is already decided, do not change it or look for another. Do not change signatures, names or exports: other modules already depend on them. The contract is in each stub's comment and in " + esqueleto.Documento + ". When done, the contract comment stops being an instruction for you and becomes documentation: reduce it to what whoever maintains the code needs (what it does and what is not obvious) and delete \"Idea:\", \"Cases:\", the list of who calls whom and any mock-up or step the code already says; the cases live in the test."
 
-const notaRellenoExamen = "Un examinador independiente escribe la prueba visible desde las firmas y Casos: del esqueleto antes de que empieces. No edites pruebas: implementa los stubs que lanzan \"" + esqueleto.Marca + "\" siguiendo la Idea: del contrato y haz pasar listo_cuando. Mantén firmas y exportaciones. Al terminar, reduce los comentarios de contrato a documentación útil y borra Idea: y Casos:."
+const notaRellenoExamen = "An independent examiner writes the visible test from the skeleton's signatures and Cases: before you start. Do not edit tests: implement the stubs that throw \"" + esqueleto.Marca + "\" following the contract's Idea: and make done_when pass. Keep signatures and exports. When done, reduce the contract comments to useful documentation and delete Idea: and Cases:."
 
 // soltarSinRastro descarta el cuarto y la rama de una tarea que no dejó
 // nada en .loom/runs: son de otra corrida, no de esta. Los cuartos
@@ -105,7 +106,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	if err != nil {
 		return err
 	}
-	pctx, zonas, _, err := contextoPlan(root, cfg)
+	pctx, zonas, _, err := contextoPlan(root, cfg, pedido)
 	if err != nil {
 		return err
 	}
@@ -257,7 +258,13 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 			// hace rechazar tareas que no lo son; se prueba antes de repartir
 			if p, _ := cfg.Pantallas.Completar(res.Pantallas); len(problemas) == 0 && p.Script != "" && !p.Vacia() && capturas.Navegador() != "" {
 				dir := filepath.Join(loop.RunsDir(root), id, fmt.Sprintf("flujos-prueba-%d", vuelta))
-				if err := capturas.ProbarFlujos(ctx, r.Path, p, r.Puerto, room.Entorno(r.Path), dir); err != nil {
+				err := capturas.ProbarFlujos(ctx, r.Path, p, r.Puerto, room.Entorno(r.Path), dir)
+				// la app ya no levantaba antes de que el arquitecto tocara
+				// nada: es del entorno, y devolvérselo como script roto
+				// gastaba las correcciones y tiraba el esqueleto
+				if errors.Is(err, capturas.ErrNoLevanta) && !cfg.Pantallas.Vacia() && len(antes) == 0 {
+					out.Line("· sin probar \"pantallas.script\" · %s", err)
+				} else if err != nil {
 					problemas = append(problemas, "\"pantallas.script\" no funciona contra la app levantada (revisa rutas, selectores y que el navegador que usa esté instalado): "+err.Error())
 				}
 			}
@@ -383,7 +390,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		// las firmas viven en el código y las valida el compilador: sin
 		// expone/usa en prosa no hay nada que comparar a mano
 		pruebaVisible := pruebaVisibleDeTarea(b.TocarSolo, b.ListoCuando)
-		examenCiego := esqueleto.ConStub(ctx, r.Path, b.TocarSolo) && !strings.Contains(b.Como, "Obsoleto:") &&
+		examenCiego := esqueleto.ConStub(ctx, r.Path, b.TocarSolo) && !idioma.Tiene(b.Como, idioma.Obsoleto) &&
 			pruebaVisible != "" && examiner.Examinable(r.Path, task.Task{TocarSolo: b.TocarSolo, ExamenEsqueleto: true, ExamenVisible: pruebaVisible}, config.DetectLanguage(r.Path))
 		alcance := b.TocarSolo
 		nota := notaPara(ctx, r.Path, b.TocarSolo)

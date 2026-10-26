@@ -11,7 +11,7 @@ import (
 
 // pararProceso manda SIGTERM al grupo de la corrida: se lleva también a
 // los CLIs de agente que cuelgan de ella. Solo se apunta al grupo cuando
-// la corrida lo encabeza (--fondo o un comando lanzado desde la shell);
+// la corrida lo encabeza (--background o un comando lanzado desde la shell);
 // si no, se pararía también a quien la lanzó.
 func pararProceso(pid int) error {
 	if pgid, err := syscall.Getpgid(pid); err == nil && pgid == pid {

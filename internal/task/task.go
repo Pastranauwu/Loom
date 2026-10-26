@@ -236,33 +236,33 @@ func Parse(data []byte) (Task, error) {
 		case "version":
 		case "id":
 			t.ID = kv.Unquote(p.Value)
-		case "titulo":
+		case "title", "titulo":
 			t.Titulo = kv.Unquote(p.Value)
-		case "porque":
+		case "why", "porque":
 			t.Porque = kv.Unquote(p.Value)
-		case "listo_cuando":
+		case "done_when", "listo_cuando":
 			t.ListoCuando = kv.Unquote(p.Value)
-		case "tocar_solo":
+		case "only_touch", "tocar_solo":
 			t.TocarSolo, err = kv.ParseList(p.Value)
-		case "no_tocar":
+		case "dont_touch", "no_tocar":
 			t.NoTocar, err = kv.ParseList(p.Value)
-		case "depende_de":
+		case "depends_on", "depende_de":
 			t.DependeDe, err = kv.ParseList(p.Value)
-		case "expone":
+		case "exposes", "expone":
 			t.Expone, err = kv.ParseList(p.Value)
-		case "usa":
+		case "uses", "usa":
 			t.Usa, err = kv.ParseList(p.Value)
-		case "limite_intentos":
+		case "max_retries", "limite_intentos":
 			t.LimiteIntentos, err = kv.ParseInt(p.Value)
-		case "limite_lineas":
+		case "max_lines", "limite_lineas":
 			t.LimiteLineas, err = kv.ParseInt(p.Value)
-		case "riesgos":
+		case "risks", "riesgos":
 			t.Riesgos = kv.Unquote(p.Value)
-		case "peso":
-			t.Peso = kv.Unquote(p.Value)
-		case "agente":
+		case "weight", "peso":
+			t.Peso = NormalizarPeso(kv.Unquote(p.Value))
+		case "agent", "agente":
 			t.Agente = kv.Unquote(p.Value)
-		case "cubre":
+		case "covers", "cubre":
 			t.Cubre, err = kv.ParseList(p.Value)
 		case "examen_esqueleto":
 			switch kv.Unquote(p.Value) {
@@ -362,38 +362,38 @@ func (t Task) Marshal() []byte {
 		fmt.Fprintf(&b, "version: %d\n", t.Version)
 	}
 	fmt.Fprintf(&b, "id: %s\n", t.ID)
-	fmt.Fprintf(&b, "titulo: %s\n", t.Titulo)
+	fmt.Fprintf(&b, "title: %s\n", t.Titulo)
 	if t.Porque != "" {
-		fmt.Fprintf(&b, "porque: %s\n", t.Porque)
+		fmt.Fprintf(&b, "why: %s\n", t.Porque)
 	}
-	fmt.Fprintf(&b, "listo_cuando: %s\n", t.ListoCuando)
-	fmt.Fprintf(&b, "tocar_solo: %s\n", kv.MarshalList(t.TocarSolo))
-	fmt.Fprintf(&b, "no_tocar: %s\n", kv.MarshalList(t.NoTocar))
+	fmt.Fprintf(&b, "done_when: %s\n", t.ListoCuando)
+	fmt.Fprintf(&b, "only_touch: %s\n", kv.MarshalList(t.TocarSolo))
+	fmt.Fprintf(&b, "dont_touch: %s\n", kv.MarshalList(t.NoTocar))
 	if len(t.DependeDe) > 0 {
-		fmt.Fprintf(&b, "depende_de: %s\n", kv.MarshalList(t.DependeDe))
+		fmt.Fprintf(&b, "depends_on: %s\n", kv.MarshalList(t.DependeDe))
 	}
 	if len(t.Expone) > 0 {
-		fmt.Fprintf(&b, "expone: %s\n", kv.MarshalList(t.Expone))
+		fmt.Fprintf(&b, "exposes: %s\n", kv.MarshalList(t.Expone))
 	}
 	if len(t.Usa) > 0 {
-		fmt.Fprintf(&b, "usa: %s\n", kv.MarshalList(t.Usa))
+		fmt.Fprintf(&b, "uses: %s\n", kv.MarshalList(t.Usa))
 	}
-	fmt.Fprintf(&b, "limite_intentos: %d\n", t.LimiteIntentos)
-	fmt.Fprintf(&b, "limite_lineas: %d\n", t.LimiteLineas)
+	fmt.Fprintf(&b, "max_retries: %d\n", t.LimiteIntentos)
+	fmt.Fprintf(&b, "max_lines: %d\n", t.LimiteLineas)
 	if t.Riesgos != "" {
-		fmt.Fprintf(&b, "riesgos: %s\n", t.Riesgos)
+		fmt.Fprintf(&b, "risks: %s\n", t.Riesgos)
 	}
 	if t.Peso != "" {
-		fmt.Fprintf(&b, "peso: %s\n", t.Peso)
+		fmt.Fprintf(&b, "weight: %s\n", PesoEn(t.Peso))
 	}
 	if t.Agente != "" {
-		fmt.Fprintf(&b, "agente: %s\n", t.Agente)
+		fmt.Fprintf(&b, "agent: %s\n", t.Agente)
 	}
 	if t.Skills != nil {
 		fmt.Fprintf(&b, "skills: %s\n", kv.MarshalList(t.Skills))
 	}
 	if len(t.Cubre) > 0 {
-		fmt.Fprintf(&b, "cubre: %s\n", kv.MarshalList(t.Cubre))
+		fmt.Fprintf(&b, "covers: %s\n", kv.MarshalList(t.Cubre))
 	}
 	if t.ExamenEsqueleto {
 		fmt.Fprintf(&b, "examen_esqueleto: true\n")
@@ -488,4 +488,23 @@ func esIdentificador(s string) bool {
 		return false
 	}
 	return true
+}
+
+var pesoEn = map[string]string{"liviana": "light", "media": "medium", "pesada": "heavy"}
+
+// NormalizarPeso lleva light|medium|heavy al valor canónico liviana|media|pesada.
+func NormalizarPeso(p string) string {
+	for es, en := range pesoEn {
+		if p == en {
+			return es
+		}
+	}
+	return p
+}
+
+func PesoEn(p string) string {
+	if en, ok := pesoEn[p]; ok {
+		return en
+	}
+	return p
 }

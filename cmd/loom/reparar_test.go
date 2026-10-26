@@ -38,7 +38,7 @@ func TestRepararReabreLaTareaQueTocaElCodigoDeLaPruebaFallida(t *testing.T) {
 	if r.Peso != "media" {
 		t.Errorf("peso = %q: decidir entre código y prueba vieja no es del liviano", r.Peso)
 	}
-	for _, q := range []string{"REPARACIÓN", "Obsoleto:", "Expected: \"Cada tutorial dura\""} {
+	for _, q := range []string{"REPAIR", "Obsolete:", "Expected: \"Cada tutorial dura\""} {
 		if !strings.Contains(r.Notas, q) {
 			t.Errorf("falta %q en las notas", q)
 		}

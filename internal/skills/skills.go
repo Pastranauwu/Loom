@@ -60,34 +60,42 @@ func DefaultSources() []Source {
 // trabajo que el revisor y la esclusa ya juzgan), clean-code (4,8 KB;
 // queda completa en el catálogo) y caveman (estilo de prosa; aquí basta
 // una línea).
-const Base = `Cómo trabajar:
-- Implementa lo que pide el contrato, nada fuera de tu alcance.
-- Corre seguido las pruebas de lo que tocas y el listo_cuando al final.
-- Haz commit de tu trabajo en la rama actual.
-- No narres lo que haces: actúa. Respuesta final breve.
+const Base = `How to work:
+- Implement what the contract asks, nothing outside your scope.
+- Run the tests of what you touch often, and done_when at the end.
+- Commit your work on the current branch.
+- Do not narrate what you do: act. Keep the final reply short.
 
-Código limpio:
-- Nombres que dicen qué son, sin abreviaturas crípticas.
-- Funciones cortas que hacen una sola cosa, con pocos parámetros y sin efectos ocultos.
-- Reusa lo que ya existe antes de escribir algo nuevo; nada duplicado.
-- Errores explícitos: no los tragues ni devuelvas valores mágicos.
-- Comentarios solo para el porqué; ni código comentado ni prints de depuración.`
+Clean code:
+- Names that say what they are, no cryptic abbreviations.
+- Short functions that do one thing, with few parameters and no hidden effects.
+- Reuse what already exists before writing something new; nothing duplicated.
+- Explicit errors: do not swallow them or return magic values.
+- No debug prints.
+
+Code for agents, not for people:
+- Dense and direct: the minimum that meets the contract, no filler.
+- Zero comments for humans: no "do not touch", "hack", "TODO", "no idea why this works" and no docstrings that repeat the name. Only tool directives (//go:build, //nolint).
+- Zero commented-out or dead code.
+- Do not create 2 or 3 line functions just to name an intermediate step; keep the internal logic compact.
+- Only what exposes declares gets a descriptive signature and name: other agents use it without reading the body.
+- If you implement a skeleton stub, delete its Idea:/Cases: block when done.`
 
 // UI es lo que recibe toda tarea que toca archivos de interfaz (TocaUI),
 // venga del esqueleto o del plan, en cualquier stack. Reemplaza a
 // frontend-design: 9.4 KB en cada intento que pedían un diseño
 // "distintivo" y huir de lo estándar, lo contrario de una interfaz clara
 // hecha con las piezas que el proyecto ya tiene.
-const UI = `Interfaz:
-- Usa el sistema de diseño del proyecto (lo describe ARCHITECTURE.md o se ve en el código): sus componentes, sus tokens de tema y su forma de estilar. No agregues otra librería de UI ni mezcles estilos: nada de CSS suelto, estilos en línea o colores fijos si el proyecto tiene tokens.
-- Reusa los componentes que ya existen antes de escribir uno. Si la librería del proyecto trae un CLI para agregar componentes, úsalo en vez de escribirlos a mano.
-- Cada pantalla sigue la plantilla del proyecto (layout, encabezado, contenido) y cubre sus estados: cargando, vacío (mensaje y acción) y error (mensaje y reintentar).
-- Mobile-first: una columna en pantallas chicas que se abre en las grandes; objetivos táctiles de 44px o más.
-- Formularios: etiqueta visible en cada campo, el error junto al campo, el botón principal deshabilitado mientras envía.
-- Accesible: HTML semántico (button, nav, main, títulos en orden), texto alternativo en imágenes, foco visible, nada que se entienda solo por color.
-- Una acción principal por pantalla; la jerarquía con tamaño, peso y espacio, no con colores extra.
-- Si el contrato pide un estilo, que se note a simple vista en la pantalla: un revisor mira capturas del resultado. Un efecto que casi no se ve cuenta como no hecho.
-- Las pruebas de interfaz verifican lo que el usuario ve y hace (textos, roles, estados), no clases CSS.`
+const UI = `Interface:
+- Use the project's design system (ARCHITECTURE.md describes it or it shows in the code): its components, theme tokens and styling approach. Do not add another UI library or mix styles: no loose CSS, inline styles or hard-coded colors if the project has tokens.
+- Reuse existing components before writing one. If the project's library ships a CLI to add components, use it instead of writing them by hand.
+- Each screen follows the project's template (layout, header, content) and covers its states: loading, empty (message and action) and error (message and retry).
+- Mobile-first: one column on small screens that opens up on large ones; touch targets of 44px or more.
+- Forms: a visible label on every field, the error next to the field, the main button disabled while submitting.
+- Accessible: semantic HTML (button, nav, main, headings in order), alt text on images, visible focus, nothing understood by color alone.
+- One main action per screen; hierarchy through size, weight and space, not extra colors.
+- If the contract asks for a style, it must be visible at a glance on screen: a reviewer looks at screenshots of the result. An effect that is barely visible counts as not done.
+- UI tests verify what the user sees and does (texts, roles, states), not CSS classes.`
 
 // extensionesUI son los archivos que dibujan interfaz.
 var extensionesUI = []string{".tsx", ".jsx", ".vue", ".svelte", ".astro", ".html", ".css", ".scss", ".erb", ".blade.php", ".twig", ".jinja", ".j2", ".hbs", ".razor", ".cshtml"}

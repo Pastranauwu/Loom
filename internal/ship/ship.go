@@ -125,13 +125,12 @@ func Run(ctx context.Context, o Opciones) Resultado {
 	res.LineasMas = mas
 	res.LineasMenos = menos
 
-	// 3. ruido — prints de debug, temporales, código comentado
-	// el código comentado avisa pero no frena: un contrato con pasos o
-	// un ejemplo en un comentario se ve igual, y el esqueleto los
-	// escribe a propósito. Prints de debug y temporales sí frenan.
+	// 3. ruido — prints de debug, temporales, código comentado, comentarios para humanos
+	// solo el contrato del esqueleto avisa: el esqueleto lo escribe a
+	// propósito y el implementador debe borrarlo. El resto frena.
 	var frena, avisa []Hallazgo
 	for _, x := range escanearRuido(diff, archivos) {
-		if x.Tipo == "código comentado" || x.Tipo == "contrato del esqueleto" {
+		if x.Tipo == "contrato del esqueleto" {
 			avisa = append(avisa, x)
 		} else {
 			frena = append(frena, x)
@@ -181,6 +180,15 @@ func Run(ctx context.Context, o Opciones) Resultado {
 		return res
 	} else if len(o.Config.ReglasImport) > 0 {
 		apuntar(Paso{"dependencias", true, detalle})
+	}
+
+	// 6.6 dna — lo que del ADN del proyecto se puede comprobar en el diff
+	if len(o.Config.DNA) > 0 {
+		detalle, ok := verificarDNA(o.Config.DNA, diff, o.Config.ReglasImport)
+		apuntar(Paso{"dna", ok, detalle})
+		if !ok {
+			return res
+		}
 	}
 
 	// 7. bisectable — el commit compila y pasa las pruebas

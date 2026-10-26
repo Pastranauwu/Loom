@@ -324,36 +324,36 @@ func importRelativoRoto(roomPath, visibleRel string, imports []string) string {
 // el proyecto no puede correr.
 func buildPrompt(t task.Task, pkg, lenguaje string) string {
 	var b strings.Builder
-	b.WriteString("Eres el examinador ciego de loom. Escribes pruebas SIN ver la implementación.\n\n")
-	fmt.Fprintf(&b, "Tarea: %s — %s\n", t.ID, t.Titulo)
+	b.WriteString("You are loom's blind examiner. You write tests WITHOUT seeing the implementation.\n\n")
+	fmt.Fprintf(&b, "Task: %s — %s\n", t.ID, t.Titulo)
 	if t.Porque != "" {
-		fmt.Fprintf(&b, "Por qué: %s\n", t.Porque)
+		fmt.Fprintf(&b, "Why: %s\n", t.Porque)
 	}
-	fmt.Fprintf(&b, "Listo cuando: %s\n", t.ListoCuando)
+	fmt.Fprintf(&b, "Done when: %s\n", t.ListoCuando)
 	if len(t.Expone) > 0 {
-		fmt.Fprintf(&b, "Contrato público (firmas que debe exponer): %s\n", strings.Join(t.Expone, "; "))
+		fmt.Fprintf(&b, "Public contract (signatures it must expose): %s\n", strings.Join(t.Expone, "; "))
 	}
 	if t.ExamenEsqueleto {
-		fmt.Fprintf(&b, "La prueba visible debe vivir en %s y ser descubierta por listo_cuando.\n", t.ExamenVisible)
+		fmt.Fprintf(&b, "The visible test must live in %s and be discovered by done_when.\n", t.ExamenVisible)
 	}
 	if len(t.TocarSolo) > 0 {
-		fmt.Fprintf(&b, "Archivos que puede tocar: %s\n", strings.Join(t.TocarSolo, ", "))
+		fmt.Fprintf(&b, "Files it may touch: %s\n", strings.Join(t.TocarSolo, ", "))
 	}
 	if t.Riesgos != "" {
-		fmt.Fprintf(&b, "Riesgos: %s\n", t.Riesgos)
+		fmt.Fprintf(&b, "Risks: %s\n", t.Riesgos)
 	}
-	fmt.Fprintf(&b, "Lenguaje de las pruebas: %s · escribe SOLO en ese lenguaje.\n", lenguaje)
+	fmt.Fprintf(&b, "Test language: %s · write ONLY in that language.\n", lenguaje)
 	if lenguaje == "go" {
-		fmt.Fprintf(&b, "Package Go de las pruebas: %s_test\n", pkg)
+		fmt.Fprintf(&b, "Go package of the tests: %s_test\n", pkg)
 	}
 	b.WriteString(`
-Reglas:
-- Pruebas de CAJA NEGRA: testea solo la interfaz pública declarada en el contrato.
-- NO escribas código de implementación.
-- 70% van en "visible": el implementador las verá como criterio de aceptación.
-- 30% van en "hidden": edge cases y casos límite que el implementador NO verá.
-- Los tests "hidden" deben fallar si la implementación es superficial o solo optimizada para "visible".
-- Cada función de test es independiente.
+Rules:
+- BLACK-BOX tests: test only the public interface declared in the contract.
+- Do NOT write implementation code.
+- 70% go in "visible": the implementer will see them as acceptance criteria.
+- 30% go in "hidden": edge cases and limits the implementer will NOT see.
+- "hidden" tests must fail if the implementation is superficial or only tuned for "visible".
+- Each test function is independent.
 `)
 	b.WriteString(reglasDe(lenguaje))
 	return b.String()

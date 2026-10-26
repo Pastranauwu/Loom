@@ -36,6 +36,13 @@ func parseDiffAnadido(diff string) []archivoDiff {
 		}
 		if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
 			cur.lineas = append(cur.lineas, strings.TrimPrefix(line, "+"))
+			continue
+		}
+		// hunk nuevo o línea de contexto: lo añadido a ambos lados no es
+		// contiguo, y una línea vacía impide que se lea como un solo bloque
+		if (strings.HasPrefix(line, "@@") || strings.HasPrefix(line, " ")) &&
+			len(cur.lineas) > 0 && cur.lineas[len(cur.lineas)-1] != "" {
+			cur.lineas = append(cur.lineas, "")
 		}
 	}
 	return out

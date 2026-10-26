@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,131 +79,143 @@ type Pedido struct {
 	SuiteRota string
 }
 
-// Prompt arma la instrucción del arquitecto. Lo fijo va primero para que
-// una corrección (PromptCorregir) comparta el prefijo en caché.
+// Prompt builds the architect's instruction. The fixed part goes first so a
+// correction (PromptCorregir) shares the cached prefix.
 func Prompt(p Pedido, c plan.Contexto) string {
 	var b strings.Builder
-	b.WriteString("Eres el ARQUITECTO de loom. No implementas la lógica: dejas el proyecto listo para que muchos agentes baratos lo rellenen en paralelo, cada uno un archivo, sin verse entre sí. Lo que ellos no pueden decidir lo decides tú ahora, en código.\n\n")
-	b.WriteString("PEDIDO\n")
+	b.WriteString("You are loom's ARCHITECT. You do not implement the logic: you leave the project ready so many cheap agents fill it in parallel, one file each, without seeing each other. What they cannot decide, you decide now, in code.\n\n")
+	b.WriteString("REQUEST\n")
 	b.WriteString(p.Texto)
 	b.WriteString("\n")
 	if c.Constitucion != "" {
-		b.WriteString("\nCONSTITUCIÓN DEL PROYECTO (respétala)\n" + c.Constitucion + "\n")
+		b.WriteString("\nPROJECT CONSTITUTION (respect it)\n" + c.Constitucion + "\n")
 	}
-	b.WriteString("\nREPOSITORIO\n")
+	b.WriteString("\nREPOSITORY\n")
 	b.WriteString(contexto(c))
 	if strings.TrimSpace(p.Previo) != "" {
-		b.WriteString("\nYa existe " + Documento + ". Evoluciónalo: agrega lo nuevo, ajusta lo que cambia y no reescribas lo que ya funciona. Las tareas son solo para lo nuevo o lo que cambia.\n")
+		b.WriteString("\n" + Documento + " already exists. Evolve it: add what is new, adjust what changes and do not rewrite what already works. Tasks are only for what is new or changes.\n")
 	}
 	if len(p.Capturas) > 0 {
-		b.WriteString("\nASÍ SE VE HOY (capturas en tamaño celular tomadas hace un momento, de este mismo repositorio con el código actual: no están desactualizadas. Ábrelas con tu herramienta para leer archivos antes de planear)\n")
+		b.WriteString("\nHOW IT LOOKS TODAY (phone-size screenshots taken moments ago, of this same repository with the current code: they are not stale. Open them with your file-reading tool before planning)\n")
 		for _, c := range p.Capturas {
 			b.WriteString("- " + c + "\n")
 		}
-		b.WriteString("Si el pedido toca cómo se ve, tu plan tiene que cambiar lo que ves ahí de forma que se note.\n")
+		b.WriteString("If the request touches how it looks, your plan must change what you see there in a way that shows.\n")
 	}
 	b.WriteString(`
-SI EL REPOSITORIO YA TIENE CÓDIGO
-- Las capturas mandan sobre el código: si el código dice que algo existe pero en la captura no se ve, o se ve roto o sin estilo, está mal y hay que planearlo.
-- Si de verdad no hay nada que cambiar, responde con "tareas": [] y no inventes trabajo.
-- Lo que ya funciona NO se convierte en stub. Respeta el stack, las librerías, el sistema de diseño y las convenciones que ya hay; no migres nada que el pedido no pida.
-- Un cambio a código existente es una tarea sin stub: en "como" va qué cambiar, dónde y "Casos:" del comportamiento nuevo (entrada → salida o lo que se ve en pantalla). Si el cambio agrega funciones, métodos o componentes nuevos, esos sí van como stub con su contrato.
-- El "listo_cuando" de un cambio corre una prueba NUEVA del comportamiento nuevo (un archivo que hoy no existe): las pruebas que ya existen pasan hoy y no sirven de oráculo. Esas pruebas tienen que seguir pasando.
-- Una prueba que ya existe está congelada: el agente no puede tocarla. Si el cambio que pides vuelve FALSO algo que una prueba existente verifica (cambia un texto, un flujo, un resultado), eso lo decides tú, no el agente: pon ese archivo de prueba en el "tocar_solo" de la tarea, con su ruta exacta (un glob no lo descongela), y escribe en su "como" una línea "Obsoleto:" con qué casos de esa prueba dejan de valer y qué deben verificar ahora. El agente solo puede cambiar eso. Si ninguna prueba existente queda falsa, no pongas pruebas existentes en "tocar_solo".
-- Si el pedido es visual (rediseño, estilo, experiencia de uso), el resultado tiene que VERSE distinto, no solo cambiar clases. Las pruebas existentes que fijan clases CSS o estilos no protegen nada del usuario: reescríbelas o bórralas tú en este esqueleto para que no frenen el rediseño. No hagas cambios "aditivos" para esquivarlas.
-- Las pruebas de interfaz que pidas verifican lo que el usuario ve y hace (textos, roles, estados, navegación), no clases CSS: cómo se ve lo juzga una revisión con capturas.
+IF THE REPOSITORY ALREADY HAS CODE
+- Screenshots outrank the code: if the code says something exists but it is not visible in the screenshot, or it looks broken or unstyled, it is wrong and must be planned.
+- If there is truly nothing to change, answer with "tasks": [] and do not invent work.
+- What already works does NOT become a stub. Respect the stack, libraries, design system and conventions already there; do not migrate anything the request does not ask for.
+- A change to existing code is a task without a stub: "how" says what to change, where, and "Cases:" of the new behavior (input → output or what shows on screen). If the change adds new functions, methods or components, those do go as stubs with their contract.
+- The "done_when" of a change runs a NEW test of the new behavior (a file that does not exist today): existing tests pass today and are no oracle. Those tests must keep passing.
+- An existing test is frozen: the agent cannot touch it. If the change you ask for makes something an existing test checks FALSE (changes a text, a flow, a result), that is your decision, not the agent's: put that test file in the task's "only_touch" with its exact path (a glob does not unfreeze it), and write in its "how" an "Obsolete:" line saying which cases of that test stop being valid and what they must check now. The agent may only change that. If no existing test becomes false, do not put existing tests in "only_touch".
+- If the request is visual (redesign, style, usability), the result has to LOOK different, not just change classes. Existing tests that pin CSS classes or styles protect nothing for the user: rewrite or delete them yourself in this skeleton so they do not block the redesign. Do not make "additive" changes to dodge them.
+- UI tests you ask for verify what the user sees and does (texts, roles, states, navigation), not CSS classes: how it looks is judged by a screenshot review.
 `)
 	b.WriteString(`
-TU ENTREGA ES UN PLANO EN CÓDIGO, NO UNA IMPLEMENTACIÓN
-No escribes lógica ni pruebas: cada línea que escribas la paga el modelo caro, y esa es la parte que hacen los agentes baratos. Tu trabajo es que encajen sin verse: dónde va cada cosa, qué clases y métodos existen, qué recibe y devuelve cada uno, quién llama a quién.
+YOUR DELIVERABLE IS A BLUEPRINT IN CODE, NOT AN IMPLEMENTATION
+You write no logic and no tests: every line you write is paid by the expensive model, and that is the part the cheap agents do. Your job is that they fit together without seeing each other: where each thing goes, which classes and methods exist, what each receives and returns, who calls whom.
 
-1. Estructura y stack: carpetas, manifiestos (package.json, pyproject.toml, go.mod, ...), configuración de build y del runner de pruebas, y .gitignore. Instala las dependencias.
-   Interfaz web: usa el sistema de diseño y los componentes que el proyecto ya tenga. Solo si no hay ninguno y las reglas no piden otra cosa: Tailwind CSS y la librería de componentes estándar de su framework (p. ej. shadcn/ui en React), configuradas con su CLI sin preguntas (--yes/--defaults), y los componentes base que la app va a usar agregados con ese CLI: son código generado, no los escribas tú. El tema (colores, radios, tipografía) vive en un solo lugar.
-2. ` + Documento + ` en la raíz: estilo (modular, hexagonal o en capas según el problema, no por moda), cada módulo con su archivo y su responsabilidad, qué módulo puede depender de cuál, flujo de datos del caso principal, y cómo se prueba cada módulo. Si hay interfaz web, una sección de UI: el sistema de diseño (dónde viven el tema y los componentes), la plantilla de página (layout, encabezado, estados cargando/vacío/error) y qué componente se usa para qué. Es la fuente de verdad que leen todos los agentes y que el próximo cambio evoluciona.
-3. Tipos compartidos, entidades, interfaces y puertos: solo DECLARACIONES (campos, firmas de métodos). Nada de cuerpos con lógica.
-4. Todo lo NUEVO es STUB, también el cableado nuevo (main, rutas, contenedor, App): cada clase, función y método público con su firma exacta (tipos de entrada y salida) y un comentario de contrato encima con
-   - qué hace, entradas, salida y errores;
-   - a quién llama (módulo y método) y quién lo usa;
-   - "Idea:" cómo se resuelve, ya pensado por ti: algoritmo, estructuras de datos, orden de los pasos y las trampas (casos límite, lo que parece obvio y está mal). Telegráfico, de 1 a 8 líneas, sin código ni frases completas: tú ya resolviste el problema al planear y el agente solo lo escribe. No repitas lo que la firma ya dice.
-   - "Casos:" de 2 a 5 ejemplos concretos de entrada → salida o error, que el agente convertirá en su prueba.
-   Las etiquetas "Idea:" y "Casos:" son LITERALES: la palabra y los dos puntos pegados, sin nada en medio, también en el "como" de un cambio a código existente. "Casos (con mocks):" o "Ejemplos:" no cuentan: loom las busca por texto exacto y te devuelve el plano.
-   El cuerpo solo lanza un error con el texto exacto "` + Marca + `".
-5. Nada más. No escribas pruebas, implementaciones de referencia, datos de ejemplo ni código fuera del repositorio. No corras nada salvo lo necesario para que "verificar" pase.
+1. Structure and stack: folders, manifests (package.json, pyproject.toml, go.mod, ...), build and test-runner configuration, and .gitignore. Install the dependencies.
+   Web interface: use the design system and components the project already has. Only if there are none and the rules ask for nothing else: Tailwind CSS and the standard component library of its framework (e.g. shadcn/ui on React), configured with its CLI without questions (--yes/--defaults), and the base components the app will use added with that CLI: they are generated code, do not write them yourself. The theme (colors, radii, typography) lives in one place.
+2. ` + Documento + ` at the root: style (modular, hexagonal or layered according to the problem, not by fashion), each module with its file and responsibility, which module may depend on which, data flow of the main case, and how each module is tested. If there is a web interface, a UI section: the design system (where the theme and components live), the page template (layout, header, loading/empty/error states) and which component is used for what. It is the source of truth every agent reads and the next change evolves.
+3. Shared types, entities, interfaces and ports: DECLARATIONS only (fields, method signatures). No bodies with logic.
+4. Everything NEW is a STUB, including new wiring (main, routes, container, App): every public class, function and method with its exact signature (input and output types) and a contract comment above it with
+   - what it does, inputs, output and errors;
+   - whom it calls (module and method) and who uses it;
+   - "Idea:" how it is solved, already thought through by you: algorithm, data structures, order of the steps and the traps (edge cases, what looks obvious and is wrong). Telegraphic, 1 to 8 lines, no code or full sentences: you already solved the problem while planning and the agent only writes it. Do not repeat what the signature already says.
+   - "Cases:" 2 to 5 concrete examples of input → output or error, which the agent will turn into its test.
+   The labels "Idea:" and "Cases:" are LITERAL: the word and the colon attached, nothing in between, also in the "how" of a change to existing code. "Cases (with mocks):" or "Examples:" do not count: loom looks for the exact text and sends the blueprint back to you.
+   The body only throws an error with the exact text "` + Marca + `".
+5. Nothing else. Write no tests, reference implementations, sample data or code outside the repository. Run nothing except what is needed for "verify" to pass.
 `)
 	if !p.SinDocker {
-		b.WriteString(`6. Despliegue con Docker (es configuración: la escribes tú, completa). Un Dockerfile por servicio (multi-etapa, imagen final sin herramientas de desarrollo), un compose.yaml en la raíz que levanta todo con "docker compose up --build" (servicios, base de datos si hay, volúmenes para los datos, puertos, variables desde .env) y un .env.example, y un .dockerignore que deje fuera dependencias, builds locales, .git y .env. El README empieza por ese comando. Si ya existen, evoluciónalos. "docker compose config" tiene que pasar.
+		b.WriteString(`6. Docker deployment (it is configuration: you write it, complete). One Dockerfile per service (multi-stage, final image without development tools), a compose.yaml at the root that brings everything up with "docker compose up --build" (services, database if any, volumes for data, ports, variables from .env) and a .env.example, and a .dockerignore that leaves out dependencies, local builds, .git and .env. The README starts with that command. If they already exist, evolve them. "docker compose config" must pass.
 `)
 	}
 	b.WriteString(`
 
-CÓMO REPARTIR
-- Una tarea por módulo: un archivo stub, o varios que comparten estado o no tienen sentido por separado, o un cambio a un archivo existente. Con la "Idea:" escrita, un agente barato puede con un módulo complejo entero: no partas en tareas mínimas lo que se entiende junto, ni subas el "peso" de una tarea porque sea difícil de pensar; eso ya lo pensaste tú. El peso sube solo por tamaño o por interfaz.
-- Excepción: un pedido VISUAL (diseño, estilo, experiencia de uso) no se reparte en tareas chicas. Es UNA tarea de diseño con "peso": "pesada", dueña de todos los archivos de interfaz que cambian (tema, componentes y pantallas en su "tocar_solo"), porque un diseño coherente no sale de parches de agentes que no ven la pantalla completa. En "como" describe el diseño concreto: paleta, tipografía, espaciado, cómo se ve cada pantalla y cada estado. Las tareas funcionales que toquen esos archivos dependen de ella. Cuanto más chicas e independientes, más agentes en paralelo y más barato.
-- Cada tarea con stub declara en "listo_cuando" un archivo de prueba nuevo y lo lista en "tocar_solo" junto al stub. loom lo retira del alcance del implementador y un examinador independiente escribe esa prueba desde las firmas y "Casos:". Los cambios sin stub conservan la escritura de su prueba por el implementador.
-- El agente es un modelo barato: no rediseña ni elige librerías. Lo que necesite decidir tiene que estar en el contrato.
-- Las dependencias entre módulos entran por parámetro o constructor (puertos), para que cada módulo se pruebe con fakes sin esperar a los demás. "depende_de" solo cuando un módulo necesita de verdad la implementación real de otro.
-- Una tarea final escribe la prueba de punta a punta del flujo principal: depende de todas y su "listo_cuando" es el comando de "integracion". Si ya existe una prueba de punta a punta, esa pasa hoy: si lo que cambia es comportamiento, la tarea final escribe una NUEVA y "integracion" corre la nueva; si el cambio no altera el flujo (estilos, textos), no hay tarea final y "integracion" es la prueba que ya existe, como regresión.
+HOW TO SPLIT
+- One task per module: a stub file, or several that share state or make no sense apart, or a change to an existing file. With "Idea:" written, a cheap agent can handle a whole complex module: do not split into minimal tasks what is understood together, and do not raise a task's "weight" because it is hard to think through; you already thought it through. Weight rises only for size or interface.
+- Exception: a VISUAL request (design, style, usability) is not split into small tasks. It is ONE design task with "weight": "heavy", owner of all the interface files that change (theme, components and screens in its "only_touch"), because a coherent design does not come from patches by agents that do not see the whole screen. In "how" describe the concrete design: palette, typography, spacing, how each screen and each state looks. Functional tasks that touch those files depend on it. The smaller and more independent, the more agents in parallel and the cheaper.
+- Each task with a stub declares in "done_when" a new test file and lists it in "only_touch" next to the stub. loom removes it from the implementer's scope and an independent examiner writes that test from the signatures and "Cases:". Changes without a stub keep the test writing by the implementer.
+- The agent is a cheap model: it does not redesign or choose libraries. What it needs to decide must be in the contract.
+- Dependencies between modules enter by parameter or constructor (ports), so each module is tested with fakes without waiting for the others. "depends_on" only when a module truly needs another's real implementation.
+- A final task writes the end-to-end test of the main flow: it depends on all and its "done_when" is the "integration" command. If an end-to-end test already exists, it passes today: if what changes is behavior, the final task writes a NEW one and "integration" runs the new one; if the change does not alter the flow (styles, texts), there is no final task and "integration" is the existing test, as a regression.
 
-ANTES DE RESPONDER: el comando de "verificar" pasa con los stubs (compila, typecheck o importa todo). Nada más.
+BEFORE ANSWERING: the "verify" command passes with the stubs (it compiles, typechecks or imports everything). Nothing more.
 
-RESPONDE AL FINAL SOLO CON ESTE JSON
+ANSWER AT THE END WITH ONLY THIS JSON
 {
-  "verificar": "comando que compila o hace typecheck de todo el proyecto y hoy pasa (ej. \"npx tsc --noEmit\", \"go vet ./...\", \"python -m compileall -q src\")",
-  "integracion": "comando que corre la prueba de punta a punta (la escribe la tarea final)",
-  "pruebas": "comando que corre TODA la suite del proyecto (todas las carpetas y lenguajes)",
-  "arquitectura": "resumen de 5 a 15 líneas; lo completo vive en ` + Documento + `",
-  "pantallas": {"levantar": "comando que sirve la app completa en el puerto $PORT, con build si hace falta (omite todo el campo si no hay interfaz web)", "url": "http://localhost:$PORT", "rutas": ["/", "cada pantalla principal, con su ruta tal como se abre en el navegador"], "semilla": "comando que carga datos de ejemplo con la app levantada en $PORT, para que las capturas no muestren solo estados vacíos (opcional)", "script": "comando que recorre con un navegador los flujos que no tienen ruta (elegir una foto, llenar un formulario, generar un resultado) y guarda un PNG por paso en $CAPTURAS; recibe $BASE_URL. Escríbelo tú (p. ej. Playwright): es OBLIGATORIO si alguna tarea cambia la interfaz"},
-  "tareas": [
+  "verify": "command that compiles or typechecks the whole project and passes today (e.g. \"npx tsc --noEmit\", \"go vet ./...\", \"python -m compileall -q src\")",
+  "integration": "command that runs the end-to-end test (the final task writes it)",
+  "tests": "command that runs the WHOLE project suite (all folders and languages)",
+  "architecture": "summary of 5 to 15 lines; the full text lives in ` + Documento + `",
+  "screens": {"start": "command that serves the whole app on port $PORT, with a build if needed (omit the whole field if there is no web interface)", "url": "http://localhost:$PORT", "routes": ["/", "each main screen, with its route as opened in the browser"], "seed": "command that loads sample data with the app running on $PORT, so screenshots do not show only empty states (optional)", "script": "command that drives a browser through flows that have no route (picking a photo, filling a form, generating a result) and saves one PNG per step in $CAPTURAS; receives $BASE_URL. Write it yourself (e.g. Playwright): it is MANDATORY if any task changes the interface"},
+  "tasks": [
     {
-      "titulo": "frase corta en minúscula",
-      "porque": "qué requerimiento cubre",
-      "cubre": ["los ids de requerimiento que implementa, tal como vienen en el pedido: \"R-a1b2c3\""],
-      "listo_cuando": "comando que corre solo la prueba de este módulo",
-      "tocar_solo": ["el stub o el archivo que cambia", "su archivo de prueba"],
-      "depende_de": [],
-      "peso": "liviana | media | pesada",
-      "como": "qué archivo rellenar o qué cambiar; si es un cambio a código existente, su Idea: y sus Casos:"
+      "title": "short lowercase phrase",
+      "why": "which requirement it covers",
+      "covers": ["the requirement ids it implements, as they come in the request: \"R-a1b2c3\""],
+      "done_when": "command that runs only this module's test",
+      "only_touch": ["the stub or the file that changes", "its test file"],
+      "depends_on": [],
+      "weight": "light | medium | heavy",
+      "how": "which file to fill in or what to change; for a change to existing code, its Idea: and its Cases:"
     }
   ]
 }
 `)
 	if p.SuiteRota != "" {
-		b.WriteString("\nESTADO DE LA BASE\nLa suite del proyecto ya falla hoy, antes de tu cambio. Así termina su salida:\n" + p.SuiteRota + "\nSi ese fallo impide que corran las pruebas de tus tareas (la base de datos de pruebas no se construye, un import roto, una dependencia que falta), arréglalo tú en el esqueleto: es estado de la base, no lógica nueva, y sin eso ninguna tarea puede salir verde. Si no las afecta, no lo toques y no lo uses en ningún \"listo_cuando\".\n")
+		b.WriteString("\nSTATE OF THE BASE\nThe project suite already fails today, before your change. Its output ends like this:\n" + p.SuiteRota + "\nIf that failure prevents your tasks' tests from running (the test database does not build, a broken import, a missing dependency), fix it yourself in the skeleton: it is base state, not new logic, and without it no task can go green. If it does not affect them, do not touch it and do not use it in any \"done_when\".\n")
 	}
 	if p.PrimerID != "" {
-		fmt.Fprintf(&b, "Tus tareas reciben ids correlativos desde %s en el orden del array: en \"depende_de\" escribe esos ids completos (\"%s\"), no números sueltos.\n", p.PrimerID, p.PrimerID)
+		fmt.Fprintf(&b, "Your tasks get consecutive ids starting at %s in array order: in \"depends_on\" write those full ids (\"%s\"), not bare numbers.\n", p.PrimerID, p.PrimerID)
 	}
+	b.WriteString(idioma.Instruccion())
 	return b.String()
 }
 
-// PromptCorregir repite el pedido original (mismo prefijo, mismo caché)
-// y agrega lo que la verificación encontró. El repo conserva el trabajo
-// anterior: se corrige, no se empieza de nuevo.
+// PromptCorregir repeats the original request (same prefix, same cache)
+// and adds what verification found. The repo keeps the earlier work: it is
+// corrected, not started over.
 func PromptCorregir(original string, problemas []string) string {
 	var b strings.Builder
 	b.WriteString(original)
-	b.WriteString("\nYA TRABAJASTE SOBRE ESTE REPOSITORIO. Lo que escribiste sigue en disco, pero la verificación de loom encontró esto:\n")
+	b.WriteString("\nYOU ALREADY WORKED ON THIS REPOSITORY. What you wrote is still on disk, but loom's verification found this:\n")
 	for _, p := range problemas {
 		b.WriteString("- " + p + "\n")
 	}
-	b.WriteString("Corrígelo en el repositorio y responde otra vez con el JSON completo.\n")
+	b.WriteString("Fix it in the repository and answer again with the complete JSON.\n")
 	return b.String()
 }
 
-// PromptCorregirSesion es la corrección para un arquitecto que continúa
-// su propia conversación: ya tiene el pedido y lo que leyó del repo, así
-// que solo recibe lo que la verificación encontró.
+// PromptCorregirSesion is the correction for an architect continuing its
+// own conversation: it already has the request and what it read from the
+// repo, so it only receives what verification found.
 func PromptCorregirSesion(problemas []string) string {
 	var b strings.Builder
-	b.WriteString("La verificación de loom encontró esto en lo que dejaste:\n")
+	b.WriteString("loom's verification found this in what you left:\n")
 	for _, p := range problemas {
 		b.WriteString("- " + p + "\n")
 	}
-	b.WriteString("Corrígelo en el repositorio sin volver a explorar lo que ya conoces y responde otra vez con el JSON completo.\n")
+	b.WriteString("Fix it in the repository without re-exploring what you already know and answer again with the complete JSON.\n")
 	return b.String()
 }
 
 func contexto(c plan.Contexto) string {
+	return contextoBase(c) + grafoDe(c)
+}
+
+func grafoDe(c plan.Contexto) string {
+	if c.Grafo == "" {
+		return ""
+	}
+	return "\n" + c.Grafo + "\n"
+}
+
+func contextoBase(c plan.Contexto) string {
 	switch {
 	case c.EsVacio && c.Stack != "":
 		return "Vacío. El humano eligió el stack: " + c.Stack + ".\n"
@@ -232,7 +245,11 @@ func Parse(texto string) (Resultado, error) {
 	if !strings.HasPrefix(t, "{") {
 		return Resultado{}, errors.New("el arquitecto no devolvió un objeto JSON")
 	}
-	if err := json.NewDecoder(strings.NewReader(plan.EscaparControles(t))).Decode(&r); err != nil {
+	var crudo json.RawMessage
+	if err := json.NewDecoder(strings.NewReader(plan.EscaparControles(t))).Decode(&crudo); err != nil {
+		return Resultado{}, fmt.Errorf("el arquitecto devolvió JSON inválido · %s", err)
+	}
+	if err := json.Unmarshal(normalizarClaves(crudo), &r); err != nil {
 		return Resultado{}, fmt.Errorf("el arquitecto devolvió JSON inválido · %s", err)
 	}
 	r.Tareas = bs
@@ -258,12 +275,12 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 	dir := v.Dir
 	var out []string
 	if _, err := os.Stat(filepath.Join(dir, Documento)); err != nil {
-		out = append(out, "falta "+Documento+" en la raíz")
+		out = append(out, "missing "+Documento+" at the root")
 	}
 	if strings.TrimSpace(r.Verificar) == "" {
-		out = append(out, "falta \"verificar\": el comando que compila o hace typecheck del proyecto")
+		out = append(out, "missing \"verify\": the command that compiles or typechecks the project")
 	} else if salida, code := correr(ctx, dir, r.Verificar, v.Timeout, v.Env); code == nil || *code != 0 {
-		out = append(out, fmt.Sprintf("\"verificar\" (%s) no pasa con los stubs: %s", r.Verificar, cola(salida)))
+		out = append(out, fmt.Sprintf("\"verify\" (%s) does not pass with the stubs: %s", r.Verificar, cola(salida)))
 	}
 	if v.Docker {
 		out = append(out, docker(ctx, dir, v.Timeout, v.Env)...)
@@ -272,20 +289,20 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 	previos := enCommit(ctx, dir, v.Base)
 	integracion := false
 	for i, t := range r.Tareas {
-		nombre := fmt.Sprintf("tarea %d (%s)", i+1, t.Titulo)
+		nombre := fmt.Sprintf("task %d (%s)", i+1, t.Titulo)
 		if strings.TrimSpace(t.ListoCuando) == "" {
-			out = append(out, nombre+": sin listo_cuando")
+			out = append(out, nombre+": no done_when")
 		}
 		if strings.TrimSpace(t.ListoCuando) == strings.TrimSpace(r.Integracion) {
 			integracion = true
 		}
 		if len(t.TocarSolo) == 0 {
-			out = append(out, nombre+": tocar_solo vacío")
+			out = append(out, nombre+": empty only_touch")
 			continue
 		}
 		for _, f := range t.TocarSolo {
 			if !strings.ContainsAny(f, "*?[") && !task.EsArchivoDePrueba(f) && !algunoCoincide([]string{f}, archivos) {
-				out = append(out, fmt.Sprintf("%s: %s no existe; el stub lo creas tú", nombre, f))
+				out = append(out, fmt.Sprintf("%s: %s does not exist; you create the stub", nombre, f))
 			}
 		}
 		out = append(out, contrato(dir, nombre, t, archivos, previos)...)
@@ -302,9 +319,9 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 		pasa := code != nil && *code == 0
 		switch {
 		case pasa && integracion:
-			out = append(out, fmt.Sprintf("\"integracion\" (%s) ya pasa hoy: una tarea con ese listo_cuando no prueba nada. Si lo nuevo necesita prueba de punta a punta, que la tarea final escriba una nueva y \"integracion\" la corra; si no, quita esa tarea y deja \"integracion\" como regresión", r.Integracion))
+			out = append(out, fmt.Sprintf("\"integration\" (%s) already passes today: a task with that done_when proves nothing. If the new work needs an end-to-end test, the final task writes a new one and \"integration\" runs it; otherwise remove that task and keep \"integration\" as a regression", r.Integracion))
 		case !pasa && !integracion:
-			out = append(out, "ninguna tarea tiene como listo_cuando el comando de \"integracion\", que hoy falla: falta la tarea final que escribe la prueba de punta a punta")
+			out = append(out, "no task has the \"integration\" command as its done_when, which fails today: the final task that writes the end-to-end test is missing")
 		}
 	}
 	return out
@@ -340,32 +357,32 @@ func contrato(dir, nombre string, t plan.Borrador, archivos []string, previos ma
 			if err != nil {
 				continue
 			}
-			marca = marca || strings.Contains(string(b), Marca)
-			casos = casos || strings.Contains(string(b), "Casos:")
-			idea = idea || strings.Contains(string(b), "Idea:")
+			marca = marca || TieneMarca(string(b))
+			casos = casos || idioma.Tiene(string(b), idioma.Casos)
+			idea = idea || idioma.Tiene(string(b), idioma.Idea)
 		}
 		if !marca {
-			out = append(out, fmt.Sprintf("%s: %s es nuevo y no tiene ningún stub con \"%s\"; lo nuevo lo implementa el agente, no tú", nombre, strings.Join(nuevos, ", "), Marca))
+			out = append(out, fmt.Sprintf("%s: %s is new and has no stub with \"%s\"; the agent implements what is new, not you", nombre, strings.Join(nuevos, ", "), Marca))
 		}
 		if !casos {
-			out = append(out, fmt.Sprintf("%s: el contrato de %s no trae \"Casos:\"; sin ejemplos el agente no sabe qué probar", nombre, strings.Join(nuevos, ", ")))
+			out = append(out, fmt.Sprintf("%s: the contract of %s has no \"Cases:\"; without examples the agent does not know what to test", nombre, strings.Join(nuevos, ", ")))
 		}
 		// lo pensado por el modelo caro viaja en el contrato: sin eso el
 		// barato rediseña, y solo se le podían dar tareas triviales
 		if !idea {
-			out = append(out, fmt.Sprintf("%s: el contrato de %s no trae \"Idea:\"; escribe en pocas líneas cómo se resuelve (algoritmo, estructuras, trampas) para que el agente solo lo implemente", nombre, strings.Join(nuevos, ", ")))
+			out = append(out, fmt.Sprintf("%s: the contract of %s has no \"Idea:\"; write in a few lines how it is solved (algorithm, structures, traps) so the agent only implements it", nombre, strings.Join(nuevos, ", ")))
 		}
 	}
 	// una prueba existente en tocar_solo deja de estar congelada: sin
 	// decir qué parte quedó obsoleta, el agente podría reescribirla entera
-	if len(pruebasViejas) > 0 && !strings.Contains(t.Como, "Obsoleto:") {
-		out = append(out, fmt.Sprintf("%s: deja modificar %s, una prueba que ya existe, y su \"como\" no trae \"Obsoleto:\" con los casos que dejan de valer; si ninguno queda falso, sácala de tocar_solo", nombre, strings.Join(pruebasViejas, ", ")))
+	if len(pruebasViejas) > 0 && !idioma.Tiene(t.Como, idioma.Obsoleto) {
+		out = append(out, fmt.Sprintf("%s: lets %s, a test that already exists, be modified, and its \"how\" has no \"Obsolete:\" with the cases that stop being valid; if none becomes false, remove it from only_touch", nombre, strings.Join(pruebasViejas, ", ")))
 	}
 	if len(nuevos) > 0 {
 		return out
 	}
-	if len(existentes) > 0 && !strings.Contains(t.Como, "Casos:") {
-		out = append(out, fmt.Sprintf("%s: cambia %s, que ya existe, y su \"como\" no trae \"Casos:\" del comportamiento nuevo", nombre, strings.Join(existentes, ", ")))
+	if len(existentes) > 0 && !idioma.Tiene(t.Como, idioma.Casos) {
+		out = append(out, fmt.Sprintf("%s: changes %s, which already exists, and its \"how\" has no \"Cases:\" of the new behavior", nombre, strings.Join(existentes, ", ")))
 	}
 	return out
 }
@@ -386,15 +403,15 @@ func docker(ctx context.Context, dir string, timeout time.Duration, env []string
 	}
 	var out []string
 	if compose == "" {
-		out = append(out, "falta compose.yaml en la raíz: el proyecto se levanta con \"docker compose up --build\"")
+		out = append(out, "missing compose.yaml at the root: the project starts with \"docker compose up --build\"")
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".dockerignore")); err != nil {
-		out = append(out, "falta .dockerignore: sin él las dependencias y builds locales entran al contexto de docker")
+		out = append(out, "missing .dockerignore: without it dependencies and local builds enter the docker context")
 	}
 	if compose != "" {
 		if _, err := exec.LookPath("docker"); err == nil {
 			if salida, code := correr(ctx, dir, "docker compose config -q", timeout, env); code == nil || *code != 0 {
-				out = append(out, "\"docker compose config\" no pasa: "+cola(salida))
+				out = append(out, "\"docker compose config\" does not pass: "+cola(salida))
 			}
 		}
 	}
@@ -423,7 +440,7 @@ func ConStub(ctx context.Context, dir string, tocar []string) bool {
 		if !config.MatchesAny(tocar, f) || task.EsArchivoDePrueba(f) {
 			continue
 		}
-		if b, err := os.ReadFile(filepath.Join(dir, f)); err == nil && strings.Contains(string(b), Marca) {
+		if b, err := os.ReadFile(filepath.Join(dir, f)); err == nil && TieneMarca(string(b)) {
 			return true
 		}
 	}
@@ -499,4 +516,31 @@ func cola(s string) string {
 		lineas = lineas[len(lineas)-6:]
 	}
 	return strings.Join(lineas, " ⏎ ")
+}
+
+// normalizarClaves lleva las llaves en inglés de la respuesta a las canónicas.
+func normalizarClaves(data []byte) []byte {
+	data = idioma.NormalizarClaves(data, map[string]string{
+		"verify": "verificar", "integration": "integracion", "tests": "pruebas",
+		"architecture": "arquitectura", "screens": "pantallas", "tasks": "tareas",
+	})
+	var m map[string]json.RawMessage
+	if json.Unmarshal(data, &m) != nil {
+		return data
+	}
+	if p, ok := m["pantallas"]; ok {
+		m["pantallas"] = idioma.NormalizarClaves(p, map[string]string{"start": "levantar", "routes": "rutas", "seed": "semilla"})
+		if out, err := json.Marshal(m); err == nil {
+			return out
+		}
+	}
+	return data
+}
+
+// marcaAnterior is the stub body text written before the rename to loom.
+const marcaAnterior = "devclean: sin implementar"
+
+// TieneMarca reports whether src has a stub body, under either name.
+func TieneMarca(src string) bool {
+	return strings.Contains(src, Marca) || strings.Contains(src, marcaAnterior)
 }

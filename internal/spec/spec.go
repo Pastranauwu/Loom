@@ -27,6 +27,13 @@ var DefaultSpecNames = []string{
 	"spec.yaml",
 	".loom/spec.yml",
 	".loom/spec.yaml",
+	// nombres anteriores al cambio de loom
+	"devclean.spec.yml",
+	"devclean.spec.yaml",
+	"devclean.specs.yml",
+	"devclean.specs.yaml",
+	".devclean/spec.yml",
+	".devclean/spec.yaml",
 }
 
 // Limites define límites por defecto para todas las tareas de una especificación.
@@ -64,6 +71,7 @@ type Spec struct {
 	// del mismo spec (IntencionFile). Los llena runApply; nunca vienen
 	// del YAML.
 	Previos    []string `json:"-" yaml:"-"`
+	Delta      Delta    `json:"-" yaml:"-"`
 	PreviosIDs []string `json:"-" yaml:"-"`
 }
 
@@ -151,7 +159,7 @@ func AssignCorrelativeIDs(tasksDir string, tasks []task.Task) ([]task.Task, erro
 // las reglas llegan al agente sin tocar el contrato ni la constitución.
 func notasConReglas(reglas []string, notas string) string {
 	var b strings.Builder
-	b.WriteString("Reglas de la especificación:\n")
+	b.WriteString("Spec rules:\n")
 	for _, r := range reglas {
 		b.WriteString("- " + r + "\n")
 	}
@@ -276,28 +284,27 @@ func Marshal(s Spec) []byte {
 		fmt.Fprintf(&b, "feature: %s\n", kv.Quote(s.Feature))
 	}
 	if s.Motivo != "" {
-		fmt.Fprintf(&b, "motivo: %s\n", kv.Quote(s.Motivo))
+		fmt.Fprintf(&b, "why: %s\n", kv.Quote(s.Motivo))
 	}
 	if s.Agente != "" {
-		fmt.Fprintf(&b, "agente: %s\n", s.Agente)
+		fmt.Fprintf(&b, "agent: %s\n", s.Agente)
 	}
 	if s.Agentes > 0 {
-		fmt.Fprintf(&b, "agentes: %d\n", s.Agentes)
+		fmt.Fprintf(&b, "agents: %d\n", s.Agentes)
 	}
 	if s.Ship {
 		b.WriteString("ship: true\n")
 	}
 	if s.Limites.Intentos > 0 || s.Limites.Lineas > 0 {
-		b.WriteString("limites:\n")
 		if s.Limites.Intentos > 0 {
-			fmt.Fprintf(&b, "  intentos: %d\n", s.Limites.Intentos)
+			fmt.Fprintf(&b, "max_retries: %d\n", s.Limites.Intentos)
 		}
 		if s.Limites.Lineas > 0 {
-			fmt.Fprintf(&b, "  lineas: %d\n", s.Limites.Lineas)
+			fmt.Fprintf(&b, "max_lines: %d\n", s.Limites.Lineas)
 		}
 	}
 	if len(s.Reglas) > 0 {
-		b.WriteString("reglas:\n")
+		b.WriteString("rules:\n")
 		for _, r := range s.Reglas {
 			fmt.Fprintf(&b, "  - %s\n", kv.Quote(r))
 		}
@@ -320,49 +327,51 @@ func Marshal(s Spec) []byte {
 	}
 	if len(s.Constraints.NoTocar) > 0 {
 		b.WriteString("constraints:\n")
-		fmt.Fprintf(&b, "  no_tocar: %s\n", kv.MarshalList(s.Constraints.NoTocar))
+		fmt.Fprintf(&b, "  dont_touch: %s\n", kv.MarshalList(s.Constraints.NoTocar))
 	}
-	b.WriteString("\ntasks:\n")
+	if len(s.Tasks) > 0 {
+		b.WriteString("\ntasks:\n")
+	}
 	for _, t := range s.Tasks {
 		fmt.Fprintf(&b, "  - id: %s\n", t.ID)
-		fmt.Fprintf(&b, "    titulo: %s\n", kv.Quote(t.Titulo))
+		fmt.Fprintf(&b, "    title: %s\n", kv.Quote(t.Titulo))
 		if t.Porque != "" {
-			fmt.Fprintf(&b, "    porque: %s\n", kv.Quote(t.Porque))
+			fmt.Fprintf(&b, "    why: %s\n", kv.Quote(t.Porque))
 		}
-		fmt.Fprintf(&b, "    listo_cuando: %s\n", kv.Quote(t.ListoCuando))
+		fmt.Fprintf(&b, "    done_when: %s\n", kv.Quote(t.ListoCuando))
 		if len(t.TocarSolo) > 0 {
-			fmt.Fprintf(&b, "    tocar_solo: %s\n", kv.MarshalList(t.TocarSolo))
+			fmt.Fprintf(&b, "    only_touch: %s\n", kv.MarshalList(t.TocarSolo))
 		}
 		if len(t.NoTocar) > 0 {
-			fmt.Fprintf(&b, "    no_tocar: %s\n", kv.MarshalList(t.NoTocar))
+			fmt.Fprintf(&b, "    dont_touch: %s\n", kv.MarshalList(t.NoTocar))
 		}
 		if len(t.DependeDe) > 0 {
-			fmt.Fprintf(&b, "    depende_de: %s\n", kv.MarshalList(t.DependeDe))
+			fmt.Fprintf(&b, "    depends_on: %s\n", kv.MarshalList(t.DependeDe))
 		}
 		if len(t.Expone) > 0 {
-			fmt.Fprintf(&b, "    expone: %s\n", kv.MarshalList(t.Expone))
+			fmt.Fprintf(&b, "    exposes: %s\n", kv.MarshalList(t.Expone))
 		}
 		if len(t.Usa) > 0 {
-			fmt.Fprintf(&b, "    usa: %s\n", kv.MarshalList(t.Usa))
+			fmt.Fprintf(&b, "    uses: %s\n", kv.MarshalList(t.Usa))
 		}
 		if t.Peso != "" {
-			fmt.Fprintf(&b, "    peso: %s\n", t.Peso)
+			fmt.Fprintf(&b, "    weight: %s\n", task.PesoEn(t.Peso))
 		}
 		if t.Agente != "" && t.Agente != s.Agente {
-			fmt.Fprintf(&b, "    agente: %s\n", t.Agente)
+			fmt.Fprintf(&b, "    agent: %s\n", t.Agente)
 		}
 		if t.Skills != nil {
 			fmt.Fprintf(&b, "    skills: %s\n", kv.MarshalList(t.Skills))
 		}
 		if t.LimiteIntentos > 0 {
-			fmt.Fprintf(&b, "    limite_intentos: %d\n", t.LimiteIntentos)
+			fmt.Fprintf(&b, "    max_retries: %d\n", t.LimiteIntentos)
 		}
-		fmt.Fprintf(&b, "    limite_lineas: %d\n", t.LimiteLineas)
+		fmt.Fprintf(&b, "    max_lines: %d\n", t.LimiteLineas)
 		if t.Riesgos != "" {
-			fmt.Fprintf(&b, "    riesgos: %s\n", kv.Quote(t.Riesgos))
+			fmt.Fprintf(&b, "    risks: %s\n", kv.Quote(t.Riesgos))
 		}
 		if t.Notas != "" {
-			fmt.Fprintf(&b, "    notas: %s\n", kv.Quote(t.Notas))
+			fmt.Fprintf(&b, "    notes: %s\n", kv.Quote(t.Notas))
 		}
 	}
 	return []byte(b.String())

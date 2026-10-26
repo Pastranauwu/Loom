@@ -1,6 +1,7 @@
 package ship
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/Pastranauwu/loom/internal/task"
 	"path"
 	"regexp"
@@ -23,15 +24,18 @@ func escanearRuido(diff string, archivos []string) []Hallazgo {
 		for _, linea := range ad.lineas {
 			if t := tipoDebug(linea, entrada); t != "" {
 				h = append(h, Hallazgo{Tipo: t, Archivo: ad.nombre, Detalle: recortar(linea)})
-			} else if !task.EsArchivoDePrueba(ad.nombre) && (strings.Contains(linea, "Idea:") || strings.Contains(linea, "Casos:")) {
+			} else if !task.EsArchivoDePrueba(ad.nombre) && (idioma.Tiene(linea, idioma.Idea) || idioma.Tiene(linea, idioma.Casos)) {
 				// el contrato del stub era una instrucción para el agente;
 				// en el código entregado se pudre (100 líneas de
 				// contrato sobre una función de 130, ya contradiciéndola)
 				h = append(h, Hallazgo{Tipo: "contrato del esqueleto", Archivo: ad.nombre, Detalle: recortar(linea)})
+			} else if !esDirectiva(linea) && marcaHumana.MatchString(linea) {
+				h = append(h, Hallazgo{Tipo: "comentario humano", Archivo: ad.nombre, Detalle: recortar(linea)})
 			} else if esCodigoComentado(linea) {
 				h = append(h, Hallazgo{Tipo: "código comentado", Archivo: ad.nombre, Detalle: recortar(linea)})
 			}
 		}
+		h = append(h, bloquesNarrativos(ad)...)
 	}
 	for _, a := range archivos {
 		if esTemporal(a) {
@@ -139,13 +143,9 @@ func declaraEntrada(lineas []string) bool {
 
 // esCodigoComentado marca una línea de comentario que en realidad es
 // código: termina en ; o empieza con una palabra clave tras el marcador.
-// TODO/FIXME y narrativa normal pasan.
 func esCodigoComentado(linea string) bool {
 	t := strings.TrimSpace(linea)
 	if !esComentario(t) {
-		return false
-	}
-	if strings.Contains(t, "TODO") || strings.Contains(t, "FIXME") {
 		return false
 	}
 	sin := strings.TrimLeft(t, "/#*")
@@ -179,6 +179,75 @@ func esCodigoComentado(linea string) bool {
 // formaDeSentencia es lo que una sentencia tiene y la prosa no: una
 // llamada con el paréntesis pegado al nombre, una asignación o un return.
 var formaDeSentencia = regexp.MustCompile(`\w\(|[^=!<>]=[^=>]|^return\b`)
+
+// marcaHumana son los marcadores que un comentario deja para una persona:
+// el código se entrega a agentes, que no los leen ni los resuelven.
+var marcaHumana = regexp.MustCompile(`(?:^\s*\*|//|#|/\*|--).*(?:\b(?:TODO|FIXME|HACK|XXX|NOTE)\b|(?i:do not touch|no tocar))`)
+
+// directivasDeComentario son comentarios que una herramienta lee: quitarlos
+// cambia el comportamiento, así que nunca son ruido.
+var directivasDeComentario = []string{
+	"//go:", "//nolint", "// nolint", "// +build", "//export", "//line ", "#!", "# -*-",
+	"eslint-", "@ts-", "noqa", "type: ignore", "pylint:", "istanbul ", "prettier-ignore", "#region", "#endregion",
+}
+
+func esDirectiva(linea string) bool {
+	t := strings.TrimSpace(linea)
+	for _, d := range directivasDeComentario {
+		if strings.Contains(t, d) {
+			return true
+		}
+	}
+	return false
+}
+
+// esLineaDeComentario es más estricta que esComentario: una línea que solo
+// es comentario, sin confundir `*p = 1` ni `#[derive]` con prosa.
+func esLineaDeComentario(linea string) bool {
+	t := strings.TrimSpace(linea)
+	switch {
+	case strings.HasPrefix(t, "//"), strings.HasPrefix(t, "/*"), strings.HasPrefix(t, "-- "):
+		return true
+	case strings.HasPrefix(t, "#"):
+		return !strings.HasPrefix(t, "#[") && !strings.HasPrefix(t, "#!") && !strings.HasPrefix(t, "#include") && !strings.HasPrefix(t, "#define")
+	case t == "*", strings.HasPrefix(t, "* "):
+		return true
+	}
+	return false
+}
+
+// bloquesNarrativos devuelve un hallazgo por cada racha de más de dos
+// líneas de comentario seguidas. Las rachas con directivas y el contrato
+// del esqueleto (Idea:/Casos:, que ya tiene su aviso) quedan fuera.
+// parseDiffAnadido corta las rachas en cada hunk y línea de contexto.
+func bloquesNarrativos(ad archivoDiff) []Hallazgo {
+	var h []Hallazgo
+	var racha []string
+	cerrar := func() {
+		if len(racha) > 2 && !rachaExenta(racha) {
+			h = append(h, Hallazgo{Tipo: "comentario narrativo", Archivo: ad.nombre, Detalle: recortar(racha[0])})
+		}
+		racha = nil
+	}
+	for _, l := range ad.lineas {
+		if esLineaDeComentario(l) {
+			racha = append(racha, l)
+		} else {
+			cerrar()
+		}
+	}
+	cerrar()
+	return h
+}
+
+func rachaExenta(racha []string) bool {
+	for _, l := range racha {
+		if esDirectiva(l) || idioma.Tiene(l, idioma.Idea) || idioma.Tiene(l, idioma.Casos) {
+			return true
+		}
+	}
+	return false
+}
 
 func esComentario(s string) bool {
 	for _, m := range []string{"//", "#", "/*", "*", "--", "<!--"} {

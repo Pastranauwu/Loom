@@ -20,6 +20,7 @@ type agenteFalso struct {
 	nombre string
 	tokens Tokens
 	veces  int
+	sesion string
 	hacer  func(veces int, req Request) (string, int, error)
 }
 
@@ -28,10 +29,10 @@ func (a *agenteFalso) Name() string { return a.nombre }
 func (a *agenteFalso) Run(_ context.Context, req Request) (Result, error) {
 	a.veces++
 	if a.hacer == nil {
-		return Result{Tokens: a.tokens}, nil
+		return Result{Tokens: a.tokens, Sesion: a.sesion}, nil
 	}
 	stdout, code, err := a.hacer(a.veces, req)
-	return Result{Stdout: stdout, ExitCode: code, Tokens: a.tokens}, err
+	return Result{Stdout: stdout, ExitCode: code, Tokens: a.tokens, Sesion: a.sesion}, err
 }
 
 func tareaDePrueba() task.Task {
@@ -229,7 +230,7 @@ func TestAttemptsJSONListasVacias(t *testing.T) {
 func TestPromptIncluyeContratoYErrorPrevio(t *testing.T) {
 	tk := tareaDePrueba()
 	p := promptPara(tk, nil, "", nil, "", "fallo de prueba", false)
-	for _, want := range []string{"Tarea T-001", "Listo cuando: test -f src/done.txt", "Solo puedes tocar", "El intento anterior falló", "fallo de prueba"} {
+	for _, want := range []string{"Task T-001", "Done when: test -f src/done.txt", "You may only touch", "The previous attempt failed", "fallo de prueba"} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt sin %q:\n%s", want, p)
 		}
@@ -239,7 +240,7 @@ func TestPromptIncluyeContratoYErrorPrevio(t *testing.T) {
 func TestPromptIncluyeSkills(t *testing.T) {
 	tk := tareaDePrueba()
 	p := promptPara(tk, nil, "", []string{"go", "refactor"}, "", "", false)
-	want := "Habilidades de este rol: go, refactor"
+	want := "Skills of this role: go, refactor"
 	if !strings.Contains(p, want) {
 		t.Errorf("prompt sin %q:\n%s", want, p)
 	}
@@ -259,7 +260,7 @@ func TestPromptIncluyeContenidoDeSkills(t *testing.T) {
 func TestPromptPruebasPropias(t *testing.T) {
 	tk := tareaDePrueba()
 	p := promptPara(tk, nil, "", nil, "", "", true)
-	for _, want := range []string{"no tiene examinador ciego", "la escribes TÚ", "src/core/types.test.ts"} {
+	for _, want := range []string{"has no blind examiner", "YOU write", "src/core/types.test.ts"} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt con pruebas propias sin %q:\n%s", want, p)
 		}
@@ -756,7 +757,7 @@ func TestRunNoEsVerdeSinLaPruebaQueListoCuandoNombra(t *testing.T) {
 	if !out.Verde || out.Intentos != 2 {
 		t.Fatalf("el primer intento no escribió la prueba y no puede ser verde: %+v", out)
 	}
-	if len(prompts) != 2 || !strings.Contains(prompts[1], "src/nuevo.test.js no existe") {
+	if len(prompts) != 2 || !strings.Contains(prompts[1], "src/nuevo.test.js does not exist") {
 		t.Errorf("el segundo intento debe saber qué faltó:\n%v", prompts)
 	}
 }
@@ -785,7 +786,7 @@ func TestRunRechazaLaPruebaQuePasaSinLaImplementacion(t *testing.T) {
 	if out.Verde {
 		t.Fatal("una prueba que pasa sin la implementación no puede dar verde")
 	}
-	if len(prompts) != 2 || !strings.Contains(prompts[1], "pasa igual SIN tu implementación") {
+	if len(prompts) != 2 || !strings.Contains(prompts[1], "passes WITHOUT your implementation") {
 		t.Errorf("el siguiente intento debe saber por qué: %v", len(prompts))
 	}
 	// el cuarto queda con el trabajo del agente, no con el código de antes
@@ -800,5 +801,63 @@ func TestRunRechazaLaPruebaQuePasaSinLaImplementacion(t *testing.T) {
 	opts.PatronesPrueba = []string{}
 	if out, err := Run(context.Background(), opts); err != nil || !out.Verde || out.Intentos != 1 {
 		t.Fatalf("una prueba que falla sin el código es legítima: %+v %v", out, err)
+	}
+}
+
+func TestReanudaLaSesionBajoElUmbral(t *testing.T) {
+	for _, c := range []struct {
+		nombre   string
+		contexto int
+		reanuda  bool
+	}{{"bajo el umbral", 50_000, true}, {"sobre el umbral", 150_000, false}} {
+		t.Run(c.nombre, func(t *testing.T) {
+			root := repoConCommit(t)
+			ag := &agenteFalso{nombre: "claude", sesion: "s-1", tokens: Tokens{Turnos: 1, UltimoTurno: c.contexto}}
+			var segundo Request
+			ag.hacer = func(veces int, req Request) (string, int, error) {
+				if veces == 2 {
+					segundo = req
+					escribir(t, req.RoomPath, "src/done.txt", "x\n")
+				}
+				return "", 0, nil
+			}
+			o := optsDePrueba(t, root, ag, tareaDePrueba())
+			o.Ventana, o.ResumeBelowPct = 200_000, 70
+			if _, err := Run(context.Background(), o); err != nil {
+				t.Fatal(err)
+			}
+			if got := segundo.Sesion == "s-1"; got != c.reanuda {
+				t.Fatalf("reanudó = %v, quiero %v", got, c.reanuda)
+			}
+			if c.reanuda != strings.HasPrefix(segundo.Prompt, "Continue the task") {
+				t.Errorf("prompt = %.60q", segundo.Prompt)
+			}
+		})
+	}
+}
+
+func TestSesionMuertaVuelveAlPromptCompleto(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "claude", sesion: "s-1", tokens: Tokens{Turnos: 1, UltimoTurno: 1000}}
+	var prompts []string
+	ag.hacer = func(veces int, req Request) (string, int, error) {
+		prompts = append(prompts, req.Prompt)
+		if req.Sesion != "" {
+			ag.tokens.Turnos = 0
+		} else {
+			ag.tokens.Turnos = 1
+			if veces > 1 {
+				escribir(t, req.RoomPath, "src/done.txt", "x\n")
+			}
+		}
+		return "", 0, nil
+	}
+	o := optsDePrueba(t, root, ag, tareaDePrueba())
+	o.Ventana, o.ResumeBelowPct = 200_000, 70
+	if out, err := Run(context.Background(), o); err != nil || !out.Verde {
+		t.Fatalf("out=%+v err=%v", out, err)
+	}
+	if len(prompts) != 3 || !strings.HasPrefix(prompts[1], "Continue the task") || strings.HasPrefix(prompts[2], "Continue the task") {
+		t.Errorf("prompts = %d: sesión muerta debe repetir con el prompt completo", len(prompts))
 	}
 }

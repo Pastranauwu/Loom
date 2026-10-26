@@ -19,7 +19,7 @@ func newRepararCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reparar [id]",
 		Short: "reabre la tarea que rompió la última entrega conjunta",
-		Long: `Cuando ship --todas frena al probar el conjunto (integradas o aceptación),
+		Long: `Cuando ship --all frena al probar el conjunto (integradas o aceptación),
 reparar reabre la tarea responsable con el fallo en su contrato y la corre
 de nuevo en su cuarto. Sin id elige la tarea que toca el código que cubre
 la prueba que falló; con id reabre esa.
@@ -35,7 +35,7 @@ mal el código o la prueba vieja no es trabajo para el modelo liviano.`,
 			}
 			a, hay := ship.LeerAceptacion(root)
 			if !hay || a.Fallo == nil {
-				return errors.New("la última entrega no frenó al probar el conjunto · nada que reparar (corre loom ship --todas)")
+				return errors.New("la última entrega no frenó al probar el conjunto · nada que reparar (corre loom ship --all)")
 			}
 			dir := config.TasksDir(root)
 			var entregadas []task.Task
@@ -165,8 +165,8 @@ func reabierta(t task.Task, f ship.Fallo) task.Task {
 	if t.Peso == "" || t.Peso == "liviana" {
 		t.Peso = "media"
 	}
-	t.Notas = strings.TrimSpace(t.Notas) + "\n\nREPARACIÓN. Tu trabajo salió verde solo, pero al integrarlo con las demás tareas falló `" + f.Comando + "`:\n" + fallaron(f) + f.Salida +
-		"\nObsoleto: de las pruebas que ya existían (" + strings.Join(f.Pruebas, ", ") + ") solo lo que este contrato pidió cambiar de forma explícita. Si el contrato pidió ese cambio, actualiza únicamente esa aserción; si no lo pidió, la prueba tiene razón y lo que corriges es tu código. No borres ni relajes ningún otro caso."
+	t.Notas = strings.TrimSpace(t.Notas) + "\n\nREPAIR. Your work went green alone, but on integration with the other tasks `" + f.Comando + "` failed:\n" + fallaron(f) + f.Salida +
+		"\nObsolete: of the tests that already existed (" + strings.Join(f.Pruebas, ", ") + ") only what this contract explicitly asked to change. If the contract asked for that change, update only that assertion; if it did not, the test is right and what you fix is your code. Do not delete or relax any other case."
 	return t
 }
 

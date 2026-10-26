@@ -312,3 +312,30 @@ func TestTraducirDependenciasQuitaLaAutodependencia(t *testing.T) {
 		t.Fatal("T-056 → T-058 → T-056 es un ciclo")
 	}
 }
+
+func TestDNAAddRmYConstitucion(t *testing.T) {
+	root := t.TempDir()
+	out = ui.New(io.Discard, false)
+	if err := os.MkdirAll(config.Dir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := (config.Config{Base: "main"}).Save(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := runDNA(root, []string{"add", "hexagonal"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := runDNA(root, []string{"add", "inventado"}); err == nil {
+		t.Error("un dna desconocido debe fallar")
+	}
+	c, err := constitucionDe(root)
+	if err != nil || !strings.Contains(c, "hexagonal") {
+		t.Fatalf("constitución = %q, %v", c, err)
+	}
+	if err := runDNA(root, []string{"rm", "hexagonal"}); err != nil {
+		t.Fatal(err)
+	}
+	if c, _ := constitucionDe(root); strings.Contains(c, "hexagonal") {
+		t.Error("rm debe quitarlo")
+	}
+}

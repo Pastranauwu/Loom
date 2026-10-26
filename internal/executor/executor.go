@@ -116,6 +116,8 @@ type Usage struct {
 	Turns          int `json:"turns,omitempty"`
 	FirstTurn      int `json:"first_turn,omitempty"`
 	FirstTurnWrite int `json:"first_turn_write,omitempty"`
+	// LastTurn is the context size of the final turn: what the session carries into the next call.
+	LastTurn int `json:"last_turn,omitempty"`
 	// CostUSD es el costo que el propio CLI calcula, a precio de lista.
 	CostUSD float64 `json:"cost_usd,omitempty"`
 }
