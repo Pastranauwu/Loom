@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"strings"
@@ -39,7 +40,7 @@ func runConstitution(modelo, ejecutorFlag string, forzar bool) error {
 		return err
 	}
 	if constitution.Exists(root) && !forzar {
-		out.Line("constitución existente en %s · usa --forzar para regenerarla", constitution.Path(root))
+		out.Line(idioma.T("constitución existente en %s · usa --forzar para regenerarla"), constitution.Path(root))
 		return nil
 	}
 	cfg, err := config.Load(root)
@@ -87,18 +88,18 @@ func runConstitution(modelo, ejecutorFlag string, forzar bool) error {
 
 	out.Line("%s", contenido)
 	if isTerminal(os.Stdin) {
-		out.Line("\n¿guardar en %s? [s/n]", constitution.Path(root))
+		out.Line(idioma.T("\n¿guardar en %s? [s/n]"), constitution.Path(root))
 		linea, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		r := strings.ToLower(strings.TrimSpace(linea))
 		if r != "s" && r != "si" && r != "y" && r != "yes" {
-			out.Line("descartada")
+			out.Line(idioma.T("descartada"))
 			return nil
 		}
 	}
 	if err := constitution.Save(root, contenido); err != nil {
 		return err
 	}
-	out.Line("✓ constitución guardada en %s · versiona este archivo en git", constitution.Path(root))
+	out.Line(idioma.T("✓ constitución guardada en %s · versiona este archivo en git"), constitution.Path(root))
 	return nil
 }
 

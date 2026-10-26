@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -47,7 +48,7 @@ func runPs(root string) error {
 		return err
 	}
 	if len(tasks) == 0 {
-		out.Line("sin tareas · crea una con loom plan, loom apply o loom task add")
+		out.Line(idioma.T("sin tareas · crea una con loom plan, loom apply o loom task add"))
 		return nil
 	}
 

@@ -68,7 +68,7 @@ func newRunCmd() *cobra.Command {
 
 func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error {
 	if agentes < 0 {
-		return errors.New("--agents inválido · mínimo 1")
+		return errors.New(idioma.T("--agents inválido · mínimo 1"))
 	}
 	root, cfg, err := entornoListo(false)
 	if err != nil {
@@ -153,31 +153,31 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 		// las huérfanas van primero: son las que el humano no sabe que
 		// tiene, porque el tablero las pintaba corriendo
 		if len(huerfanas) > 0 {
-			out.Line("sin tareas pendientes · %s quedó de una corrida que murió · retómala con loom run --retry", strings.Join(huerfanas, ", "))
+			out.Line(idioma.T("sin tareas pendientes · %s quedó de una corrida que murió · retómala con loom run --retry"), strings.Join(huerfanas, ", "))
 			return nil
 		}
 		if len(detenidas) == 0 && tieneDetenidas(root, tareas) {
-			out.Line("sin tareas pendientes · hay tareas detenidas · revíveles con loom run --retry")
+			out.Line(idioma.T("sin tareas pendientes · hay tareas detenidas · revíveles con loom run --retry"))
 			return nil
 		}
 		if len(enOtraCorrida) > 0 {
-			out.Line("sin tareas pendientes · %s ya la está corriendo otra corrida de este repo · mírala con loom board o párala con loom stop", strings.Join(enOtraCorrida, ", "))
+			out.Line(idioma.T("sin tareas pendientes · %s ya la está corriendo otra corrida de este repo · mírala con loom board o párala con loom stop"), strings.Join(enOtraCorrida, ", "))
 			return nil
 		}
-		out.Line("sin tareas pendientes · empieza con loom task add \"lo que necesitas\"")
+		out.Line(idioma.T("sin tareas pendientes · empieza con loom task add \"lo que necesitas\""))
 		return nil
 	}
 	if perdidas := verdesPerdidas(context.Background(), root, cfg.Base, pendientes); len(perdidas) > 0 {
-		return fmt.Errorf("%s figuran listas pero su rama ya no existe y su trabajo no está en %s · las tareas que dependen de ellas arrancarían sin ese código · borra .loom y replanea con loom up, o quítalas con loom task rm si ya están entregadas", strings.Join(perdidas, ", "), cfg.Base)
+		return fmt.Errorf(idioma.T("%s figuran listas pero su rama ya no existe y su trabajo no está en %s · las tareas que dependen de ellas arrancarían sin ese código · borra .loom y replanea con loom up, o quítalas con loom task rm si ya están entregadas"), strings.Join(perdidas, ", "), cfg.Base)
 	}
 	if len(detenidas) > 0 {
-		out.Line("· reintentando %s · se reusa el cuarto y el trabajo parcial de cada una", strings.Join(detenidas, ", "))
+		out.Line(idioma.T("· reintentando %s · se reusa el cuarto y el trabajo parcial de cada una"), strings.Join(detenidas, ", "))
 	}
 	if len(interrumpidas) > 0 {
-		out.Line("· retomando %s · su corrida anterior murió a media tarea", strings.Join(interrumpidas, ", "))
+		out.Line(idioma.T("· retomando %s · su corrida anterior murió a media tarea"), strings.Join(interrumpidas, ", "))
 	}
 	if len(huerfanas) > 0 {
-		out.Line("· %s quedó de una corrida que murió · retómala con loom run --retry", strings.Join(huerfanas, ", "))
+		out.Line(idioma.T("· %s quedó de una corrida que murió · retómala con loom run --retry"), strings.Join(huerfanas, ", "))
 	}
 
 	timeout := gate.DefaultTimeout
@@ -214,7 +214,7 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 	if len(aprobadas) == 0 {
 		sortRunResults(results)
 		_ = emitirResultados(results)
-		return errors.New("ninguna tarea superó la esclusa · si el motivo es \"listo_cuando ya pasa\", " +
+		return errors.New(idioma.T("ninguna tarea superó la esclusa · si el motivo es \"listo_cuando ya pasa\", ") +
 			"el comando tiene que fallar HOY y pasar cuando la tarea esté hecha: vuelve a planear con loom plan")
 	}
 
@@ -246,17 +246,17 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 	}
 
 	if cfg.PresupuestoTokens > 0 {
-		out.Line("presupuesto absoluto %s tokens · quemados %s · quedan %s", budget.FormatearGasto(cfg.PresupuestoTokens), budget.FormatearGasto(budget.GastoEnDisco(root)), budget.FormatearGasto(cfg.PresupuestoTokens-budget.GastoEnDisco(root)))
+		out.Line(idioma.T("presupuesto absoluto %s tokens · quemados %s · quedan %s"), budget.FormatearGasto(cfg.PresupuestoTokens), budget.FormatearGasto(budget.GastoEnDisco(root)), budget.FormatearGasto(cfg.PresupuestoTokens-budget.GastoEnDisco(root)))
 	}
 	for _, p := range config.Clis {
 		if l := ventanas.LineaVentanas(ventanasReg, p); l != "" {
-			out.Line("presupuesto %s", l)
+			out.Line(idioma.T("presupuesto %s"), l)
 		}
 	}
 	results = append(results, ejecutarOlas(context.Background(), root, cfg, ex, modelo, constitucion, aprobadas, agentes, presupuesto, ventanasReg, nil)...)
 	sortRunResults(results)
 	if cfg.PresupuestoTokens > 0 {
-		out.Line("presupuesto absoluto %s · gasto final %s · quedan %s", budget.FormatearGasto(cfg.PresupuestoTokens), budget.FormatearGasto(budget.GastoEnDisco(root)), budget.FormatearGasto(cfg.PresupuestoTokens-budget.GastoEnDisco(root)))
+		out.Line(idioma.T("presupuesto absoluto %s · gasto final %s · quedan %s"), budget.FormatearGasto(cfg.PresupuestoTokens), budget.FormatearGasto(budget.GastoEnDisco(root)), budget.FormatearGasto(cfg.PresupuestoTokens-budget.GastoEnDisco(root)))
 	}
 	return emitirResultados(results)
 }
@@ -610,14 +610,14 @@ func elegirEjecutor(nombre string) (executor.Executor, error) {
 			}
 			return e, nil
 		}
-		return nil, fmt.Errorf("ejecutor desconocido: %s · usa %s", nombre, strings.Join(executor.Nombres(), ", "))
+		return nil, fmt.Errorf(idioma.T("ejecutor desconocido: %s · usa %s"), nombre, strings.Join(executor.Nombres(), ", "))
 	}
 	for _, e := range executor.Todos {
 		if e.Available() == nil {
 			return e, nil
 		}
 	}
-	return nil, errors.New("ningún ejecutor disponible · instala " + strings.Join(executor.Nombres(), ", "))
+	return nil, errors.New(idioma.T("ningún ejecutor disponible · instala ") + strings.Join(executor.Nombres(), ", "))
 }
 
 // agenteExecutor adapta internal/executor a la interfaz loop.Agent. Es el
@@ -687,7 +687,7 @@ func correr(ctx context.Context, root string, cfg config.Config, ex executor.Exe
 	// solapamiento activo entre tareas de la misma oleada
 	alertasOverlap := checkOverlapOla(root, asignadas)
 	for _, a := range alertasOverlap {
-		out.Line("⚠ SOLAPAMIENTO  %s", a)
+		out.Line(idioma.T("⚠ SOLAPAMIENTO  %s"), a)
 	}
 
 	jobs := make(chan task.Task)
@@ -760,7 +760,7 @@ func correr(ctx context.Context, root string, cfg config.Config, ex executor.Exe
 	// exige que las dos estén verdes. Antes de correr, las ramas están
 	// vacías y no hay nada que fusionar.
 	for _, a := range checkFuncionalOla(ctx, root, cfg, asignadas, results, alertasOverlap) {
-		out.Line("⚠ SOLAPAMIENTO  %s", a)
+		out.Line(idioma.T("⚠ SOLAPAMIENTO  %s"), a)
 	}
 	return results
 }
@@ -1093,7 +1093,7 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 		SkillsContenido: skillsContenido,
 		Examinador:      exam,
 		Ventana:         executor.ContextWindow(modeloTarea),
-		ResumeBelowPct:  cfg.ResumeBelowPct,
+		ResumeBelowPct:  cfg.ResumeBelow(),
 	}
 	if !recursiva {
 		opts.Presupuesto = presupuesto
@@ -1243,7 +1243,7 @@ func emitirResultados(results []runResult) error {
 		if motivoSaldo == "" {
 			motivoSaldo = "el proveedor no tiene saldo · recarga la cuenta y corre loom up"
 		}
-		out.Line("⏸ %d tareas quedaron pendientes · %s", sinSaldo, motivoSaldo)
+		out.Line(idioma.T("⏸ %d tareas quedaron pendientes · %s"), sinSaldo, motivoSaldo)
 	}
 	return nil
 }
@@ -1269,9 +1269,9 @@ func progresoIntento(id, modelo string) func(int, string) {
 	return func(intento int, fase string) {
 		switch fase {
 		case "agente":
-			out.Line("▸ %s  intento %d · %s trabajando", id, intento, modelo)
+			out.Line(idioma.T("▸ %s  intento %d · %s trabajando"), id, intento, modelo)
 		case "verificando":
-			out.Line("▸ %s  intento %d · verificando", id, intento)
+			out.Line(idioma.T("▸ %s  intento %d · verificando"), id, intento)
 		}
 	}
 }

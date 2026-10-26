@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,14 +49,14 @@ func projectRoot() (string, error) {
 		return "", err
 	}
 	if !config.Exists(root) {
-		return "", errors.New("sin configuración · corre loom init primero")
+		return "", errors.New(idioma.T("sin configuración · corre loom init primero"))
 	}
 	return root, nil
 }
 
 func validTaskID(id string) error {
 	if !task.ValidID(id) {
-		return fmt.Errorf("id inválido: %s · usa el formato T-001", id)
+		return fmt.Errorf(idioma.T("id inválido: %s · usa el formato T-001"), id)
 	}
 	return nil
 }
@@ -71,7 +72,7 @@ func newTaskAddCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			titulo := strings.TrimSpace(args[0])
 			if titulo == "" {
-				return errors.New("falta el título · loom task add \"lo que necesitas\"")
+				return errors.New(idioma.T("falta el título · loom task add \"lo que necesitas\""))
 			}
 			root, err := projectRoot()
 			if err != nil {
@@ -108,7 +109,7 @@ func runTaskAdd(root, titulo, agente string) error {
 	if err := out.Data(t); err != nil {
 		return err
 	}
-	out.Line("✓ %s creada · completa listo_cuando con loom task edit %s", id, id)
+	out.Line(idioma.T("✓ %s creada · completa listo_cuando con loom task edit %s"), id, id)
 	imprimirPlantillasListoCuando(stack)
 	return nil
 }
@@ -159,10 +160,10 @@ lo sellado ya no depende de ellos.`,
 func runTaskSeal(root, id, visiblePath, ocultaPath string, forzar bool) error {
 	t, err := task.Load(config.TasksDir(root), id)
 	if err != nil {
-		return fmt.Errorf("no existe la tarea %s · créala con loom task add", id)
+		return fmt.Errorf(idioma.T("no existe la tarea %s · créala con loom task add"), id)
 	}
 	if sealed.Exists(root, id) && !forzar {
-		return fmt.Errorf("%s ya tiene una suite sellada · usa --forzar para reemplazarla", id)
+		return fmt.Errorf(idioma.T("%s ya tiene una suite sellada · usa --forzar para reemplazarla"), id)
 	}
 
 	visible, err := leerSuite(root, visiblePath)
@@ -182,7 +183,7 @@ func runTaskSeal(root, id, visiblePath, ocultaPath string, forzar bool) error {
 		ArchivoVisible: rutaVisible,
 	}
 	if err := sealed.Write(root, id, s); err != nil {
-		return fmt.Errorf("no se pudo sellar la suite de %s · %s", id, err)
+		return fmt.Errorf(idioma.T("no se pudo sellar la suite de %s · %s"), id, err)
 	}
 
 	if err := out.Data(map[string]string{
@@ -192,8 +193,8 @@ func runTaskSeal(root, id, visiblePath, ocultaPath string, forzar bool) error {
 	}); err != nil {
 		return err
 	}
-	out.Line("✓ %s sellada a mano · visible → %s en el cuarto", id, rutaVisible)
-	out.Line("  la oculta se verifica en loom ship y se quema al usarse")
+	out.Line(idioma.T("✓ %s sellada a mano · visible → %s en el cuarto"), id, rutaVisible)
+	out.Line(idioma.T("  la oculta se verifica en loom ship y se quema al usarse"))
 	return nil
 }
 
@@ -207,10 +208,10 @@ func leerSuite(root, p string) (string, error) {
 	}
 	data, err := os.ReadFile(abs)
 	if err != nil {
-		return "", fmt.Errorf("no se pudo leer %s · %s", p, err)
+		return "", fmt.Errorf(idioma.T("no se pudo leer %s · %s"), p, err)
 	}
 	if strings.TrimSpace(string(data)) == "" {
-		return "", fmt.Errorf("%s está vacío · una suite sin pruebas no verifica nada", p)
+		return "", fmt.Errorf(idioma.T("%s está vacío · una suite sin pruebas no verifica nada"), p)
 	}
 	return string(data), nil
 }
@@ -231,7 +232,7 @@ func newTaskEditCmd() *cobra.Command {
 			}
 			path := task.Path(config.TasksDir(root), id)
 			if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("no existe la tarea %s", id)
+				return fmt.Errorf(idioma.T("no existe la tarea %s"), id)
 			}
 
 			editor := strings.Fields(os.Getenv("EDITOR"))
@@ -243,24 +244,24 @@ func newTaskEditCmd() *cobra.Command {
 			edit.Stdout = os.Stdout
 			edit.Stderr = os.Stderr
 			if err := edit.Run(); err != nil {
-				return fmt.Errorf("el editor falló: %s", err)
+				return fmt.Errorf(idioma.T("el editor falló: %s"), err)
 			}
 
 			t, err := task.Load(config.TasksDir(root), id)
 			if err != nil {
-				return fmt.Errorf("%s quedó mal formada · %s · reábrela con loom task edit %s", id, err, id)
+				return fmt.Errorf(idioma.T("%s quedó mal formada · %s · reábrela con loom task edit %s"), id, err, id)
 			}
 			if errs := t.Validate(); len(errs) > 0 {
 				msgs := make([]string, len(errs))
 				for i, e := range errs {
 					msgs[i] = e.Error()
 				}
-				return fmt.Errorf("%s incompleta · %s", id, strings.Join(msgs, " · "))
+				return fmt.Errorf(idioma.T("%s incompleta · %s"), id, strings.Join(msgs, " · "))
 			}
 			if err := out.Data(t); err != nil {
 				return err
 			}
-			out.Line("✓ %s guardada y válida", id)
+			out.Line(idioma.T("✓ %s guardada y válida"), id)
 			return nil
 		},
 	}
@@ -313,12 +314,12 @@ func newTaskRmCmd() *cobra.Command {
 			if err := out.Data(map[string]any{"eliminada": id, "liberadas": liberadas}); err != nil {
 				return err
 			}
-			out.Line("✓ %s eliminada", id)
+			out.Line(idioma.T("✓ %s eliminada"), id)
 			for _, a := range avisos {
-				out.Line("· ojo: %s", a)
+				out.Line(idioma.T("· ojo: %s"), a)
 			}
 			if len(liberadas) > 0 {
-				out.Line("· ya no dependen de ella: %s · revisa que sigan teniendo sentido sin %s", strings.Join(liberadas, ", "), id)
+				out.Line(idioma.T("· ya no dependen de ella: %s · revisa que sigan teniendo sentido sin %s"), strings.Join(liberadas, ", "), id)
 			}
 			return nil
 		},
@@ -390,14 +391,14 @@ func newTaskListCmd() *cobra.Command {
 				return err
 			}
 			if len(entries) == 0 {
-				out.Line("sin tareas · empieza con loom task add \"lo que necesitas\"")
+				out.Line(idioma.T("sin tareas · empieza con loom task add \"lo que necesitas\""))
 				return nil
 			}
 			for _, e := range entries {
 				if e.Estado == "válida" {
 					out.Line("✓ %s  %s", e.ID, e.Titulo)
 				} else {
-					out.Line("· %s  %s · incompleta: %s", e.ID, e.Titulo, strings.Join(e.Problemas, " · "))
+					out.Line(idioma.T("· %s  %s · incompleta: %s"), e.ID, e.Titulo, strings.Join(e.Problemas, " · "))
 				}
 			}
 			return nil

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/historial"
@@ -36,7 +37,7 @@ Se corre en la rama del PR, antes del merge.`,
 				return err
 			}
 			if len(e.Gitignore) > 0 {
-				out.Line("· .gitignore: `.loom/` pasa a ignorar su contenido menos el historial:")
+				out.Line(idioma.T("· .gitignore: `.loom/` pasa a ignorar su contenido menos el historial:"))
 				for _, l := range e.Gitignore {
 					out.Line("    %s", l)
 				}
@@ -44,9 +45,9 @@ Se corre en la rama del PR, antes del merge.`,
 			// el feature quedó entregado y archivado: sus cuartos (una
 			// copia del repo con dependencias por tarea) ya no sirven
 			if n := liberarCuartos(context.Background(), root, e.Tareas); n > 0 {
-				out.Line("· %d cuartos liberados", n)
+				out.Line(idioma.T("· %d cuartos liberados"), n)
 			}
-			out.Line("✓ archivado %s · spec vacío para el siguiente feature · commit hecho", e.Nombre)
+			out.Line(idioma.T("✓ archivado %s · spec vacío para el siguiente feature · commit hecho"), e.Nombre)
 			return nil
 		},
 	}

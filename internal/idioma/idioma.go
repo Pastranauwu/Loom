@@ -5,6 +5,7 @@ package idioma
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -55,8 +56,13 @@ func fromEnv(def string) string {
 }
 
 // Set picks the language of human-facing prose: "es" or anything else for English.
+// Order: LOOM_LANGUAGE, then l (the project's config), then the user's own
+// default (~/.loom/language), then English.
 func Set(l string) {
 	l = fromEnv(l)
+	if l != "es" && l != "en" {
+		l = Preferido()
+	}
 	if l == "es" {
 		lang = "es"
 		return
@@ -64,9 +70,53 @@ func Set(l string) {
 	lang = "en"
 }
 
+// Actual is the language in use: "en" or "es".
+func Actual() string {
+	if Es() {
+		return "es"
+	}
+	return "en"
+}
+
+func archivoPreferido() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".loom", "language")
+}
+
+// Preferido is the language the user chose for every project ("" if none).
+func Preferido() string {
+	p := archivoPreferido()
+	if p == "" {
+		return ""
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return ""
+	}
+	if l := strings.TrimSpace(string(b)); l == "en" || l == "es" {
+		return l
+	}
+	return ""
+}
+
+// GuardarPreferido saves the user's default language.
+func GuardarPreferido(l string) error {
+	p := archivoPreferido()
+	if p == "" || (l != "en" && l != "es") {
+		return os.ErrInvalid
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(p, []byte(l+"\n"), 0o644)
+}
+
 // Instruccion is the line appended to prompts whose output a person reads.
 func Instruccion() string {
-	if lang == "es" {
+	if Es() {
 		return "\nWrite any prose meant for the human (notes, descriptions, reasons, messages) in Spanish. Keep code, identifiers, JSON keys and labels exactly as specified."
 	}
 	return ""

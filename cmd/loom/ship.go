@@ -45,12 +45,12 @@ requests que se pisan entre sí.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if todas {
 				if len(args) > 0 {
-					return errors.New("--all entrega todas las tareas listas · no lleva id")
+					return errors.New(idioma.T("--all entrega todas las tareas listas · no lleva id"))
 				}
 				return runShipTodas(dryRun, titulo, integrar, revisar, local)
 			}
 			if len(args) == 0 {
-				return errors.New("falta el id · usa loom ship T-001 o loom ship --all")
+				return errors.New(idioma.T("falta el id · usa loom ship T-001 o loom ship --all"))
 			}
 			return runShip(args[0], dryRun, local)
 		},
@@ -137,7 +137,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 		}
 	}
 	if len(listas) == 0 {
-		return errors.New("ninguna tarea está lista sin entregar · corre loom run primero")
+		return errors.New(idioma.T("ninguna tarea está lista sin entregar · corre loom run primero"))
 	}
 	ids := make([]string, 0, len(listas))
 	for _, t := range listas {
@@ -154,7 +154,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 		if len(pendientes) > 0 {
 			partes = append(partes, "sin correr: "+strings.Join(pendientes, ", "))
 		}
-		return fmt.Errorf("no todas las tareas están listas · %s", strings.Join(partes, " · "))
+		return fmt.Errorf(idioma.T("no todas las tareas están listas · %s"), strings.Join(partes, " · "))
 	}
 
 	opciones := ship.OpcionesEntrega{
@@ -188,7 +188,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 	}
 	if integrar || revisar {
 		if dryRun {
-			return errors.New("--review e --merge necesitan un PR donde dejar el informe · quita --dry-run")
+			return errors.New(idioma.T("--review e --merge necesitan un PR donde dejar el informe · quita --dry-run"))
 		}
 		rev, err := revisorDelProyecto(root, cfg)
 		if err != nil {
@@ -201,7 +201,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 	// y queda como PR local
 	if cfg.Entrega != config.EntregaLocal && !dryRun {
 		if motivo := ship.AccesoRemoto(root); motivo != "" {
-			out.Line("· %s · si no, el PR queda local", motivo)
+			out.Line(idioma.T("· %s · si no, el PR queda local"), motivo)
 		}
 	}
 	e := ship.EntregarTodas(context.Background(), opciones)
@@ -211,25 +211,25 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 	if !e.Aprobado {
 		if e.Fallo != nil {
 			if ids := responsables(listas, e.Fallo.Pruebas); len(ids) > 0 {
-				out.Line("· probable responsable: %s (toca el código que esa prueba cubre) · reábrela con loom reparar", strings.Join(ids, ", "))
+				out.Line(idioma.T("· probable responsable: %s (toca el código que esa prueba cubre) · reábrela con loom reparar"), strings.Join(ids, ", "))
 			}
 		}
-		return fmt.Errorf("entrega frenada · %s", e.PrimerMotivo())
+		return fmt.Errorf(idioma.T("entrega frenada · %s"), e.PrimerMotivo())
 	}
 	if dryRun {
 		out.Line(idioma.T("entregable · %d tareas en la rama %s · --dry-run, sin PR"), len(listas), e.Rama)
 		return nil
 	}
 	if err := ship.RegistrarEntrega(root, e.Rama, ids); err != nil {
-		out.Line("· no se pudo registrar la entrega · %s · el próximo ship puede volver a incluir estas tareas", err)
+		out.Line(idioma.T("· no se pudo registrar la entrega · %s · el próximo ship puede volver a incluir estas tareas"), err)
 	}
 	if e.Integrado {
-		out.Line("integrado · %d tareas en %s · %s", len(listas), cfg.Base, e.PR)
+		out.Line(idioma.T("integrado · %d tareas en %s · %s"), len(listas), cfg.Base, e.PR)
 		return nil
 	}
-	out.Line("entregado · %d tareas en un PR · %s", len(listas), e.PR)
+	out.Line(idioma.T("entregado · %d tareas en un PR · %s"), len(listas), e.PR)
 	if opciones.Revisor != nil {
-		out.Line("· el informe del revisor está en el PR · la aprobación es tuya")
+		out.Line(idioma.T("· el informe del revisor está en el PR · la aprobación es tuya"))
 	}
 	siguientePasoLocal(e.PR, e.Rama, cfg.Base)
 	return nil
@@ -241,8 +241,8 @@ func siguientePasoLocal(pr, rama, base string) {
 	if !strings.HasPrefix(pr, ship.PRLocal) {
 		return
 	}
-	out.Line("· revisa · git log -p %s..%s", base, rama)
-	out.Line("· integra · git merge --ff-only %s", rama)
+	out.Line(idioma.T("· revisa · git log -p %s..%s"), base, rama)
+	out.Line(idioma.T("· integra · git merge --ff-only %s"), rama)
 }
 
 // revisorAgente adapta el ejecutor al generador de texto del revisor,
@@ -324,12 +324,12 @@ func runShip(id string, dryRun, local bool) error {
 		}
 	}
 	if len(faltan) > 0 {
-		return fmt.Errorf("%s depende de %s, que todavía no se entregó · entrégalas juntas con loom ship --all", id, strings.Join(faltan, ", "))
+		return fmt.Errorf(idioma.T("%s depende de %s, que todavía no se entregó · entrégalas juntas con loom ship --all"), id, strings.Join(faltan, ", "))
 	}
 
 	r := room.Room{ID: id, Path: filepath.Join(room.Dir(root), id), Rama: room.Branch(id)}
 	if _, err := os.Stat(r.Path); err != nil {
-		return fmt.Errorf("no existe el cuarto de %s · la tarea no corrió", id)
+		return fmt.Errorf(idioma.T("no existe el cuarto de %s · la tarea no corrió"), id)
 	}
 
 	opciones := ship.Opciones{
@@ -378,12 +378,12 @@ func runShip(id string, dryRun, local bool) error {
 	if esTUI() {
 		// la compuerta ya mostró los pasos; queda solo la línea final
 		if !res.Aprobado {
-			return fmt.Errorf("esclusa frenada · %s", res.PrimerMotivo())
+			return fmt.Errorf(idioma.T("esclusa frenada · %s"), res.PrimerMotivo())
 		}
 		if dryRun {
 			out.Line(idioma.T("entregable · --dry-run, sin PR"))
 		} else {
-			out.Line("entregado · %s", res.PR)
+			out.Line(idioma.T("entregado · %s"), res.PR)
 			siguientePasoLocal(res.PR, r.Rama, cfg.Base)
 		}
 		return nil
@@ -400,12 +400,12 @@ func runShip(id string, dryRun, local bool) error {
 		}
 	}
 	if !res.Aprobado {
-		return fmt.Errorf("esclusa frenada · %s", res.PrimerMotivo())
+		return fmt.Errorf(idioma.T("esclusa frenada · %s"), res.PrimerMotivo())
 	}
 	if dryRun {
 		out.Line(idioma.T("entregable · --dry-run, sin PR"))
 	} else {
-		out.Line("entregado · %s", res.PR)
+		out.Line(idioma.T("entregado · %s"), res.PR)
 		siguientePasoLocal(res.PR, r.Rama, cfg.Base)
 	}
 	return nil
@@ -421,13 +421,13 @@ func errorShipNoLista(id string, st state.State) error {
 		if razon == "" {
 			razon = "agotó intentos"
 		}
-		return fmt.Errorf("%s está detenida · %s · sube limite_intentos, revisa con loom logs %s o edita la tarea", id, razon, id)
+		return fmt.Errorf(idioma.T("%s está detenida · %s · sube limite_intentos, revisa con loom logs %s o edita la tarea"), id, razon, id)
 	case state.EnCurso:
-		return fmt.Errorf("%s sigue en curso · espera a que termine o mira loom board", id)
+		return fmt.Errorf(idioma.T("%s sigue en curso · espera a que termine o mira loom board"), id)
 	case state.Pendiente:
-		return fmt.Errorf("%s está pendiente · corre loom run primero", id)
+		return fmt.Errorf(idioma.T("%s está pendiente · corre loom run primero"), id)
 	default:
-		return fmt.Errorf("%s no está lista (estado %s) · corre loom run primero", id, st.Estado)
+		return fmt.Errorf(idioma.T("%s no está lista (estado %s) · corre loom run primero"), id, st.Estado)
 	}
 }
 
@@ -454,7 +454,7 @@ func pruebasDeLosCuartos(root string, cfg *config.Config, ids []string) {
 		if p, ok := config.DetectTestCommand(filepath.Join(room.Dir(root), ids[i])); ok {
 			cfg.Pruebas = p
 			if cfg.Save(root) == nil {
-				out.Line("· comando de pruebas detectado en %s: %s · guardado en config.yml", ids[i], p)
+				out.Line(idioma.T("· comando de pruebas detectado en %s: %s · guardado en config.yml"), ids[i], p)
 			}
 			return
 		}

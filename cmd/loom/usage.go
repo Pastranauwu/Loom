@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"sort"
@@ -103,9 +104,9 @@ func runUsage(sonda bool) error {
 		if uso.Semanal != nil {
 			partes = append(partes, fmt.Sprintf("semanal %d%%", *uso.Semanal))
 		}
-		out.Line("cuenta real (claude) · %s", strings.Join(partes, " · "))
+		out.Line(idioma.T("cuenta real (claude) · %s"), strings.Join(partes, " · "))
 	} else {
-		out.Line("cuenta real (claude) · no accesible · loom mide su propio gasto en las ventanas; la cuenta la leés en claude.ai o con una key en ANTHROPIC_API_KEY")
+		out.Line(idioma.T("cuenta real (claude) · no accesible · loom mide su propio gasto en las ventanas; la cuenta la leés en claude.ai o con una key en ANTHROPIC_API_KEY"))
 	}
 	return nil
 }
@@ -194,7 +195,7 @@ func mostrarGastoPorTarea(root string) error {
 				usagePath := strings.TrimSuffix(path, ".log") + ".usage.json"
 				if exacto, err := os.ReadFile(usagePath); err == nil {
 					if err := json.Unmarshal(exacto, &u); err != nil {
-						return fmt.Errorf("uso inválido en %s: %w", usagePath, err)
+						return fmt.Errorf(idioma.T("uso inválido en %s: %w"), usagePath, err)
 					}
 				} else if errors.Is(err, os.ErrNotExist) {
 					// Los logs anteriores al archivo estructurado guardan solo
@@ -266,7 +267,7 @@ func mostrarGastoPorTarea(root string) error {
 		total.Reanudados += f.Reanudados
 	}
 	out.Line(formato, "total", "", total.Intentos, total.Turnos, total.PrimerTurno, total.PrimerTurnoEscrita, total.Entrada, total.Salida, total.CacheLeida, total.CacheEscrita, total.CostoUSD, "", total.Reanudados)
-	out.Line("usd = precio de lista informado por el CLI, no cargo de la suscripción · incluye implementación, arquitectura y examinador; otros roles pueden faltar")
+	out.Line(idioma.T("usd = precio de lista informado por el CLI, no cargo de la suscripción · incluye implementación, arquitectura y examinador; otros roles pueden faltar"))
 	return nil
 }
 

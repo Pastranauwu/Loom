@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -92,8 +93,8 @@ func runCheck(id string) error {
 		}
 	}
 	if !res.Aprobada {
-		return fmt.Errorf("tarea rechazada · %s", res.PrimerMotivo())
+		return fmt.Errorf(idioma.T("tarea rechazada · %s"), res.PrimerMotivo())
 	}
-	out.Line("tarea aceptada · lista para asignar")
+	out.Line(idioma.T("tarea aceptada · lista para asignar"))
 	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"strings"
@@ -139,18 +140,18 @@ func runDoctor() error {
 	critico := false
 	for _, c := range checks {
 		if c.OK {
-			out.Line("✓ %s%s", c.Nombre, detalleDoctor(c))
+			out.Line("✓ %s%s", idioma.T(c.Nombre), detalleDoctor(c))
 		} else {
-			out.Line("✗ %s  · %s", c.Nombre, c.Detalle)
+			out.Line("✗ %s  · %s", idioma.T(c.Nombre), idioma.T(c.Detalle))
 			if c.Nombre != "keys" && c.Nombre != "npx" && c.Nombre != "remoto" {
 				critico = true
 			}
 		}
 	}
 	if critico {
-		return errors.New("el entorno no está listo · arregla lo marcado con ✗")
+		return errors.New(idioma.T("el entorno no está listo · arregla lo marcado con ✗"))
 	}
-	out.Line("entorno listo")
+	out.Line(idioma.T("entorno listo"))
 	_ = cfg
 	return nil
 }
@@ -159,7 +160,7 @@ func detalleDoctor(c chequeoDoctor) string {
 	if c.Detalle == "" {
 		return ""
 	}
-	return "  · " + c.Detalle
+	return "  · " + idioma.T(c.Detalle)
 }
 
 func mustGetwd() string {
@@ -185,7 +186,7 @@ func chequearModelos(cfg config.Config, disponibles []string) chequeoDoctor {
 	defer cancel()
 	catalogo, err := ex.Models(ctx)
 	if err != nil {
-		return chequeoDoctor{"modelos", true, "catálogo no consultable · se usará el modelo por defecto de " + ex.Name()}
+		return chequeoDoctor{"modelos", true, idioma.T("catálogo no consultable · se usará el modelo por defecto de ") + ex.Name()}
 	}
 
 	var configurados []string
@@ -211,7 +212,7 @@ func chequearModelos(cfg config.Config, disponibles []string) chequeoDoctor {
 		}
 	}
 	if len(declarados) == 0 {
-		return chequeoDoctor{"modelos", true, "sin `modelos:` · se usará el modelo por defecto de " + ex.Name()}
+		return chequeoDoctor{"modelos", true, idioma.T("sin `modelos:` · se usará el modelo por defecto de ") + ex.Name()}
 	}
 	return chequeoDoctor{"modelos", true, strings.Join(declarados, ", ")}
 }

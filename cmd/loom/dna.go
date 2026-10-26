@@ -26,7 +26,7 @@ func constitucionDe(root string) (string, error) {
 	}
 	b, desconocidos := dna.Bloque(config.Dir(root), cfg.DNA)
 	if len(desconocidos) > 0 {
-		out.Line("· dna desconocido en config.yml: %s · mira loom dna list", strings.Join(desconocidos, ", "))
+		out.Line(idioma.T("· dna desconocido en config.yml: %s · mira loom dna list"), strings.Join(desconocidos, ", "))
 	}
 	return strings.TrimSpace(c + "\n\n" + b), nil
 }
@@ -99,12 +99,12 @@ func runDNA(root string, args []string) error {
 		return nil
 	case "add", "rm":
 		if len(args) < 2 {
-			return fmt.Errorf("falta el nombre · loom dna %s <nombre> · disponibles: %s", args[0], strings.Join(nombresDNA(todos), ", "))
+			return fmt.Errorf(idioma.T("falta el nombre · loom dna %s <nombre> · disponibles: %s"), args[0], strings.Join(nombresDNA(todos), ", "))
 		}
 		nombre := args[1]
 		if args[0] == "add" {
 			if !contieneDNA(nombresDNA(todos), nombre) {
-				return fmt.Errorf("dna desconocido: %s · disponibles: %s", nombre, strings.Join(nombresDNA(todos), ", "))
+				return fmt.Errorf(idioma.T("dna desconocido: %s · disponibles: %s"), nombre, strings.Join(nombresDNA(todos), ", "))
 			}
 			if !contieneDNA(cfg.DNA, nombre) {
 				cfg.DNA = append(cfg.DNA, nombre)
@@ -124,7 +124,7 @@ func runDNA(root string, args []string) error {
 		out.Line(idioma.T("✓ dna activo: %s"), strings.Join(cfg.DNA, ", "))
 		return nil
 	}
-	return fmt.Errorf("subcomando desconocido: %s · usa list, add, rm o show", args[0])
+	return fmt.Errorf(idioma.T("subcomando desconocido: %s · usa list, add, rm o show"), args[0])
 }
 
 func elegirDNA(root string, cfg config.Config, todos []dna.Arquetipo) error {

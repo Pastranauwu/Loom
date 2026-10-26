@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"path"
 	"slices"
 	"strings"
@@ -17,8 +18,9 @@ import (
 
 func newRepararCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "reparar [id]",
-		Short: "reabre la tarea que rompió la última entrega conjunta",
+		Use:     "repair [id]",
+		Aliases: []string{"reparar"},
+		Short:   "reabre la tarea que rompió la última entrega conjunta",
 		Long: `Cuando ship --all frena al probar el conjunto (integradas o aceptación),
 reparar reabre la tarea responsable con el fallo en su contrato y la corre
 de nuevo en su cuarto. Sin id elige la tarea que toca el código que cubre
@@ -35,7 +37,7 @@ mal el código o la prueba vieja no es trabajo para el modelo liviano.`,
 			}
 			a, hay := ship.LeerAceptacion(root)
 			if !hay || a.Fallo == nil {
-				return errors.New("la última entrega no frenó al probar el conjunto · nada que reparar (corre loom ship --all)")
+				return errors.New(idioma.T("la última entrega no frenó al probar el conjunto · nada que reparar (corre loom ship --all)"))
 			}
 			dir := config.TasksDir(root)
 			var entregadas []task.Task
@@ -60,11 +62,11 @@ mal el código o la prueba vieja no es trabajo para el modelo liviano.`,
 					// prueba misma: nadie la escribió (se borró
 					// la tarea final y la aceptación la seguía pidiendo)
 					if f := task.PruebaSinEscribir(root, a.Fallo.Comando); f != "" {
-						return fmt.Errorf("%s no existe y ninguna tarea la escribe · no hay nada que reabrir · crea la tarea que la escriba (loom task add) o quita `%s` de la aceptación en .loom/feature.json", f, a.Fallo.Comando)
+						return fmt.Errorf(idioma.T("%s no existe y ninguna tarea la escribe · no hay nada que reabrir · crea la tarea que la escriba (loom task add) o quita `%s` de la aceptación en .loom/feature.json"), f, a.Fallo.Comando)
 					}
-					return fmt.Errorf("no sé qué tarea rompió %s · %s · di cuál con loom reparar T-00N", a.Fallo.Comando, a.Fallo.Salida)
+					return fmt.Errorf(idioma.T("no sé qué tarea rompió %s · %s · di cuál con loom reparar T-00N"), a.Fallo.Comando, a.Fallo.Salida)
 				default:
-					return fmt.Errorf("varias tareas tocan ese código: %s · di cuál con loom reparar T-00N", strings.Join(ids, ", "))
+					return fmt.Errorf(idioma.T("varias tareas tocan ese código: %s · di cuál con loom reparar T-00N"), strings.Join(ids, ", "))
 				}
 			}
 			t, err := task.Load(dir, id)
@@ -76,7 +78,7 @@ mal el código o la prueba vieja no es trabajo para el modelo liviano.`,
 				return err
 			}
 			if st.Estado != state.Lista {
-				return fmt.Errorf("%s no está lista (estado %s) · reparar reabre tareas que ya habían salido verdes", id, st.Estado)
+				return fmt.Errorf(idioma.T("%s no está lista (estado %s) · reparar reabre tareas que ya habían salido verdes"), id, st.Estado)
 			}
 			if err := task.Save(dir, reabierta(t, *a.Fallo)); err != nil {
 				return err
@@ -84,7 +86,7 @@ mal el código o la prueba vieja no es trabajo para el modelo liviano.`,
 			if err := state.Save(root, state.State{ID: id, Estado: state.Pendiente, Rama: st.Rama, Puerto: st.Puerto, Commit: st.Commit}); err != nil {
 				return err
 			}
-			out.Line("· %s reabierta con el fallo de %s en su contrato · se reusa su cuarto", id, a.Fallo.Paso)
+			out.Line(idioma.T("· %s reabierta con el fallo de %s en su contrato · se reusa su cuarto"), id, a.Fallo.Paso)
 			return runCmd(1, "", "", true, false)
 		},
 	}

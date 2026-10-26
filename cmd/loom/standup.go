@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 	"time"
 
@@ -67,12 +68,12 @@ func runStandup() error {
 	}
 	if cfg, err := config.Load(root); err == nil {
 		if cfg.PresupuestoTokens > 0 {
-			out.Line("presupuesto %s", budget.Barra(budget.GastoEnDisco(root), cfg.PresupuestoTokens))
+			out.Line(idioma.T("presupuesto %s"), budget.Barra(budget.GastoEnDisco(root), cfg.PresupuestoTokens))
 		}
 		ventanasReg := ventanas.Nuevo(ventanas.LedgerPath(), cfg.PresupuestoVentanas)
 		for _, p := range config.Clis {
 			if l := ventanas.LineaVentanas(ventanasReg, p); l != "" {
-				out.Line("presupuesto %s", l)
+				out.Line(idioma.T("presupuesto %s"), l)
 			}
 		}
 		if cfg.PresupuestoTokens > 0 || len(cfg.PresupuestoVentanas) > 0 {
@@ -90,7 +91,7 @@ func runStandup() error {
 			continue
 		}
 		out.Line("")
-		out.Line("árbol de %s (%s):", t.ID, t.Titulo)
+		out.Line(idioma.T("árbol de %s (%s):"), t.ID, t.Titulo)
 		imprimirArbolStandup(root, nodos, t.ID, 1)
 	}
 	return nil
@@ -121,7 +122,7 @@ func imprimirArbolStandup(root string, nodos []recurse.NodoArbol, padre string, 
 			marca = "◐"
 			detalle = " · " + l.Descripcion()
 		}
-		out.Line("%s%s %s  %s (%d intentos)%s", sangria, marca, n.ID, n.Titulo, n.Intentos, detalle)
+		out.Line(idioma.T("%s%s %s  %s (%d intentos)%s"), sangria, marca, n.ID, n.Titulo, n.Intentos, detalle)
 		imprimirArbolStandup(root, nodos, n.ID, profundidad+1)
 	}
 }

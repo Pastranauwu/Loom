@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 
 	"github.com/Pastranauwu/loom/internal/config"
@@ -15,7 +16,7 @@ func imprimirPlantillasListoCuando(stack string) {
 		out.Line("· %s", reglaOroListoCuando)
 		return
 	}
-	out.Line("· listo_cuando debe fallar hoy · ejemplos para %s:", stack)
+	out.Line(idioma.T("· listo_cuando debe fallar hoy · ejemplos para %s:"), stack)
 	for _, e := range ejemplos {
 		out.Line("  %s", e)
 	}

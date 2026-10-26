@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -11,9 +12,10 @@ import (
 
 func newModelosCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "modelos",
-		Short: "elige el modelo de cada peso (liviana, media, pesada) del catálogo del CLI",
-		Args:  cobra.NoArgs,
+		Use:     "models",
+		Aliases: []string{"modelos"},
+		Short:   "elige el modelo de cada peso (liviana, media, pesada) del catálogo del CLI",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -35,13 +37,13 @@ func runModelos(cwd string) error {
 	}
 	cli, catalogo := detectarCatalogo(cfg.Cli)
 	if len(catalogo) == 0 {
-		return errors.New("el CLI no devolvió catálogo de modelos · revisa loom doctor")
+		return errors.New(idioma.T("el CLI no devolvió catálogo de modelos · revisa loom doctor"))
 	}
 	if !esTUI() {
 		for _, peso := range config.Pesos {
 			out.Line("%s: %s", peso, cfg.Modelos[peso])
 		}
-		return errors.New("el panel necesita terminal · edita modelos: en .loom/config.yml")
+		return errors.New(idioma.T("el panel necesita terminal · edita modelos: en .loom/config.yml"))
 	}
 	actual := cfg.Modelos
 	if cfg.Cli != cli || len(actual) == 0 {

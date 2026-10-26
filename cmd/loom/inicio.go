@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/Pastranauwu/loom/internal/tui"
 	"path/filepath"
 )
@@ -9,7 +10,7 @@ import (
 // mostrarInicioProyecto orienta el arranque sin interrumpir ejecuciones automatizadas.
 func mostrarInicioProyecto(root string) {
 	if !esTUI() {
-		out.Line("· preparando proyecto %s · repositorio → modelos → arquitectura → tareas", filepath.Base(root))
+		out.Line(idioma.T("· preparando proyecto %s · repositorio → modelos → arquitectura → tareas"), filepath.Base(root))
 		return
 	}
 	out.Line("%s", tui.Logo(72))

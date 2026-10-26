@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/config"
@@ -21,7 +22,7 @@ func newGraphCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out.Line("grafo · %d archivos · %d actualizados", len(g.Files), n)
+			out.Line(idioma.T("grafo · %d archivos · %d actualizados"), len(g.Files), n)
 			out.Data(map[string]any{"archivos": len(g.Files), "actualizados": n, "commit_sha": g.CommitSHA})
 			return nil
 		},
@@ -32,7 +33,7 @@ func newGraphCmd() *cobra.Command {
 func resumenGrafo(root, consulta string) string {
 	g, _, err := graph.Update(root, config.Dir(root))
 	if err != nil {
-		out.Line("· grafo del repo no disponible (%v) · el planificador explora por su cuenta", err)
+		out.Line(idioma.T("· grafo del repo no disponible (%v) · el planificador explora por su cuenta"), err)
 		return ""
 	}
 	return graph.Resumen(g, consulta)

@@ -72,10 +72,10 @@ func soltarSinRastro(ctx context.Context, root, id string) {
 		return
 	}
 	if err := room.Destroy(ctx, root, id); err != nil {
-		out.Line("· %s tiene una rama de otra corrida que no se pudo descartar · %s", id, err)
+		out.Line(idioma.T("· %s tiene una rama de otra corrida que no se pudo descartar · %s"), id, err)
 		return
 	}
-	out.Line("· %s tenía cuarto y rama de otra corrida · descartados", id)
+	out.Line(idioma.T("· %s tenía cuarto y rama de otra corrida · descartados"), id)
 }
 
 // exigeDocker decide si el arquitecto escribe y verifica el despliegue con
@@ -135,7 +135,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	// cuando lo que se construye no se despliega (una librería, un CLI)
 	sinDocker := !exigeDocker(pedido, pctx.EsVacio)
 	if !pctx.EsVacio && sinDocker && !strings.Contains(strings.ToLower(pedido), "sin docker") {
-		out.Line("· el repo ya tiene código · no se exige docker · pídelo con \"con docker\" en el spec")
+		out.Line(idioma.T("· el repo ya tiene código · no se exige docker · pídelo con \"con docker\" en el spec"))
 	}
 	// cómo se ve hoy, si ya se sabe levantar: el arquitecto planea un
 	// cambio visual contra la pantalla, no contra el código
@@ -165,11 +165,11 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	// con código y sin plan pagado: ¿la suite ya falla en la base? Se
 	// mira en el cuarto recién creado; uno retomado ya trae cambios
 	if sucio, _ := gitEn(r.Path, "status", "--porcelain"); guardada == "" && !pctx.EsVacio && strings.TrimSpace(cfg.Pruebas) != "" && strings.TrimSpace(sucio) == "" {
-		out.Line("· corriendo la suite en la base antes de planear · %s …", cfg.Pruebas)
+		out.Line(idioma.T("· corriendo la suite en la base antes de planear · %s …"), cfg.Pruebas)
 		if pd.SuiteRota = esqueleto.SuiteBase(ctx, r.Path, cfg.Pruebas, pruebaTimeout, room.Entorno(r.Path)); pd.SuiteRota != "" {
 			ultima := pd.SuiteRota[strings.LastIndex(pd.SuiteRota, "⏎")+1:]
-			out.Line("· la suite ya falla en %s antes de cualquier cambio · %s", cfg.Base, strings.TrimSpace(strings.TrimPrefix(ultima, "⏎")))
-			out.Line("· el arquitecto lo recibe como dato · si es algo de la base, arreglarlo ahí primero (ctrl+c) sale más barato")
+			out.Line(idioma.T("· la suite ya falla en %s antes de cualquier cambio · %s"), cfg.Base, strings.TrimSpace(strings.TrimPrefix(ultima, "⏎")))
+			out.Line(idioma.T("· el arquitecto lo recibe como dato · si es algo de la base, arreglarlo ahí primero (ctrl+c) sale más barato"))
 		}
 	}
 	original := esqueleto.Prompt(pd, pctx)
@@ -190,7 +190,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		if vuelta == 0 && guardada != "" {
 			// el esqueleto ya se pagó: lo que falló fue loom después
 			// (instalar, parsear, verificar). Se reverifica sin llamarlo.
-			out.Line("· reusando la respuesta guardada del arquitecto · borra %s para rehacerlo", rutaRespuestaEsqueleto(root, id))
+			out.Line(idioma.T("· reusando la respuesta guardada del arquitecto · borra %s para rehacerlo"), rutaRespuestaEsqueleto(root, id))
 			texto, err = guardada, nil
 		} else {
 			err = esperarPlan(titulo, func(avance func(string)) error {
@@ -228,10 +228,10 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 			})
 		}
 		if errors.Is(err, executor.ErrTope) {
-			return fmt.Errorf("el arquitecto no terminó · %w · sube tope_arquitecto_usd en .loom/config.yml o acota el spec · lo escrito sigue en %s", err, r.Path)
+			return fmt.Errorf(idioma.T("el arquitecto no terminó · %w · sube tope_arquitecto_usd en .loom/config.yml o acota el spec · lo escrito sigue en %s"), err, r.Path)
 		}
 		if err != nil {
-			return fmt.Errorf("el arquitecto no terminó · %w · lo escrito sigue en %s, vuelve a correr para que lo corrija", err, r.Path)
+			return fmt.Errorf(idioma.T("el arquitecto no terminó · %w · lo escrito sigue en %s, vuelve a correr para que lo corrija"), err, r.Path)
 		}
 		// lo que el arquitecto instaló después de crear el cuarto
 		// (package.json nuevo, pyproject) también tiene que estar. Si no
@@ -263,7 +263,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 				// nada: es del entorno, y devolvérselo como script roto
 				// gastaba las correcciones y tiraba el esqueleto
 				if errors.Is(err, capturas.ErrNoLevanta) && !cfg.Pantallas.Vacia() && len(antes) == 0 {
-					out.Line("· sin probar \"pantallas.script\" · %s", err)
+					out.Line(idioma.T("· sin probar \"pantallas.script\" · %s"), err)
 				} else if err != nil {
 					problemas = append(problemas, "\"pantallas.script\" no funciona contra la app levantada (revisa rutas, selectores y que el navegador que usa esté instalado): "+err.Error())
 				}
@@ -290,9 +290,9 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		}
 		if correcciones == correccionesEsqueleto {
 			if respaldo == "" {
-				return fmt.Errorf("el esqueleto no pasó la verificación · %s · lo escrito sigue en %s", strings.Join(problemas, " · "), r.Path)
+				return fmt.Errorf(idioma.T("el esqueleto no pasó la verificación · %s · lo escrito sigue en %s"), strings.Join(problemas, " · "), r.Path)
 			}
-			out.Line("· %s no dejó un esqueleto válido · sube a %s, que corrige sobre lo ya escrito", modelo, respaldo)
+			out.Line(idioma.T("· %s no dejó un esqueleto válido · sube a %s, que corrige sobre lo ya escrito"), modelo, respaldo)
 			modelo, respaldo, correcciones = respaldo, "", 0
 			ex = ejecutorPara(ex, modelo)
 			sesion = "" // otro modelo: conversación nueva sobre lo ya escrito
@@ -308,21 +308,21 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		// el arquitecto no encontró nada que cambiar: lo que haya tocado
 		// en el cuarto (ARCHITECTURE.md) no se entrega sin tareas
 		_ = room.Destroy(ctx, root, id)
-		out.Line("· el arquitecto no encontró nada que cambiar · el código ya cumple el pedido")
+		out.Line(idioma.T("· el arquitecto no encontró nada que cambiar · el código ya cumple el pedido"))
 		return nil
 	}
 	if salida, err := gitEn(r.Path, "add", "-A"); err != nil {
-		return fmt.Errorf("no se pudo indexar el esqueleto · %s", strings.TrimSpace(salida))
+		return fmt.Errorf(idioma.T("no se pudo indexar el esqueleto · %s"), strings.TrimSpace(salida))
 	}
 	// al retomar, el esqueleto puede estar ya commiteado: nada que agregar
 	if _, err := gitEn(r.Path, "diff", "--cached", "--quiet"); err != nil {
 		if salida, err := gitEn(r.Path, "-c", "user.name=loom", "-c", "user.email=loom@local", "commit", "--quiet", "-m", "wip: "+id+" esqueleto"); err != nil {
-			return fmt.Errorf("no se pudo commitear el esqueleto · %s", strings.TrimSpace(salida))
+			return fmt.Errorf(idioma.T("no se pudo commitear el esqueleto · %s"), strings.TrimSpace(salida))
 		}
 	}
 	creados, err := gitEn(r.Path, "diff", "--name-only", r.Commit, "HEAD")
 	if err != nil {
-		return fmt.Errorf("no se pudo listar lo que creó el esqueleto · %s", strings.TrimSpace(creados))
+		return fmt.Errorf(idioma.T("no se pudo listar lo que creó el esqueleto · %s"), strings.TrimSpace(creados))
 	}
 	// cómo levantar y recorrer la interfaz: lo usan el revisor visual y
 	// la entrega. Lo declarado en config manda; lo nuevo se suma
@@ -335,7 +335,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		if p.Script != "" {
 			flujos = " · con script de flujos"
 		}
-		out.Line("· pantallas del proyecto · %s · %d rutas%s", p.Levantar, len(p.Rutas), flujos)
+		out.Line(idioma.T("· pantallas del proyecto · %s · %d rutas%s"), p.Levantar, len(p.Rutas), flujos)
 	}
 	// la suite que la esclusa de salida y la integración van a exigir
 	if strings.TrimSpace(cfg.Pruebas) == "" && res.Pruebas != "" {
@@ -343,7 +343,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		if err := cfg.Save(root); err != nil {
 			return err
 		}
-		out.Line("· pruebas del proyecto · %s", res.Pruebas)
+		out.Line(idioma.T("· pruebas del proyecto · %s"), res.Pruebas)
 	}
 	// un plan de solo cambios a código existente puede no tocar nada en
 	// el esqueleto: sin cambios no hay tarea de esqueleto que entregar ni
@@ -418,13 +418,13 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		if _, err := exec.LookPath("docker"); err == nil {
 			s.Acceptance = append(s.Acceptance, spec.Acceptance{Criterion: "las imágenes de docker compose construyen", Command: "docker compose build"})
 		} else {
-			out.Line("· docker no está instalado · la entrega no va a construir las imágenes del compose")
+			out.Line(idioma.T("· docker no está instalado · la entrega no va a construir las imágenes del compose"))
 		}
 	}
 	if res.Integracion != "" {
 		s.Acceptance = append(s.Acceptance, spec.Acceptance{Criterion: "flujo de punta a punta del esqueleto", Command: res.Integracion})
 	}
-	out.Line("· esqueleto %s listo · %d tareas de relleno · integración: %s", id, len(bs), valorO(res.Integracion, "sin prueba de punta a punta"))
+	out.Line(idioma.T("· esqueleto %s listo · %d tareas de relleno · integración: %s"), id, len(bs), valorO(res.Integracion, "sin prueba de punta a punta"))
 	return nil
 }
 
@@ -545,15 +545,15 @@ func tomarCapturas(ctx context.Context, dir string, p capturas.Pantallas, puerto
 		return nil
 	}
 	if capturas.Navegador() == "" {
-		out.Line("· instalando chrome-headless-shell para las capturas (una vez por máquina)")
+		out.Line(idioma.T("· instalando chrome-headless-shell para las capturas (una vez por máquina)"))
 		if err := capturas.Instalar(ctx); err != nil {
-			out.Line("· sin capturas · %s", err)
+			out.Line(idioma.T("· sin capturas · %s"), err)
 			return nil
 		}
 	}
 	fotos, err := capturas.Tomar(ctx, dir, p, puerto, room.Entorno(dir), outDir)
 	if err != nil {
-		out.Line("· sin capturas · %s", err)
+		out.Line(idioma.T("· sin capturas · %s"), err)
 		return nil
 	}
 	return fotos

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"sort"
 	"strings"
 	"time"
@@ -118,12 +119,12 @@ func runBoard() error {
 	cfg, err := config.Load(root)
 	if err == nil {
 		if cfg.PresupuestoTokens > 0 {
-			out.Line("PRESUPUESTO %s", budget.Barra(budget.GastoEnDisco(root), cfg.PresupuestoTokens))
+			out.Line(idioma.T("PRESUPUESTO %s"), budget.Barra(budget.GastoEnDisco(root), cfg.PresupuestoTokens))
 		}
 		ventanasReg := ventanas.Nuevo(ventanas.LedgerPath(), cfg.PresupuestoVentanas)
 		for _, p := range config.Clis {
 			if l := ventanas.LineaVentanas(ventanasReg, p); l != "" {
-				out.Line("PRESUPUESTO %s", l)
+				out.Line(idioma.T("PRESUPUESTO %s"), l)
 			}
 		}
 		if cfg.PresupuestoTokens > 0 || len(cfg.PresupuestoVentanas) > 0 {
@@ -132,7 +133,7 @@ func runBoard() error {
 	}
 
 	if len(tasks) == 0 {
-		out.Line("sin tareas · empieza con loom task add \"lo que necesitas\"")
+		out.Line(idioma.T("sin tareas · empieza con loom task add \"lo que necesitas\""))
 		return nil
 	}
 	imprimirGrupo("LISTO PARA ENTREGAR", lista)
@@ -210,7 +211,7 @@ func reintentarTarea(root, id string) error {
 		return err
 	}
 	if st.Estado != state.Detenida {
-		return fmt.Errorf("%s no está detenida (estado %s) · nada que reintentar", id, st.Estado)
+		return fmt.Errorf(idioma.T("%s no está detenida (estado %s) · nada que reintentar"), id, st.Estado)
 	}
 	// volver a pendiente es lo que hace que `run` la recoja; el cuarto y
 	// su rama siguen ahí, así que el agente arranca viendo lo que ya
@@ -218,6 +219,6 @@ func reintentarTarea(root, id string) error {
 	if err := state.Save(root, state.State{ID: id, Estado: state.Pendiente, Rama: st.Rama, Puerto: st.Puerto, Commit: st.Commit}); err != nil {
 		return err
 	}
-	out.Line("· %s vuelve a la cola · se reusa su cuarto y su trabajo parcial", id)
+	out.Line(idioma.T("· %s vuelve a la cola · se reusa su cuarto y su trabajo parcial"), id)
 	return runCmd(1, "", "", true, false)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 
@@ -48,9 +49,9 @@ func runLogs(id string) error {
 		return err
 	}
 
-	out.Line("%s · estado: %s", id, st.Estado)
+	out.Line(idioma.T("%s · estado: %s"), id, st.Estado)
 	if len(attempts) == 0 {
-		out.Line("sin intentos · la tarea todavía no corre")
+		out.Line(idioma.T("sin intentos · la tarea todavía no corre"))
 		return nil
 	}
 	for _, a := range attempts {
@@ -62,13 +63,13 @@ func runLogs(id string) error {
 		if archivos == "" {
 			archivos = "—"
 		}
-		out.Line("  intento %d  salida %s  +%d/-%d  %s  modelo %s  tokens %d/%d",
+		out.Line(idioma.T("  intento %d  salida %s  +%d/-%d  %s  modelo %s  tokens %d/%d"),
 			a.Intento, code, a.LineasMas, a.LineasMenos, archivos, a.Modelo, a.Tokens.Entrada, a.Tokens.Salida)
 		if a.ErrorAgente != "" {
-			out.Line("    ✗ el agente falló · %s", a.ErrorAgente)
+			out.Line(idioma.T("    ✗ el agente falló · %s"), a.ErrorAgente)
 		}
 		if a.Log != "" {
-			out.Line("    log: %s", a.Log)
+			out.Line(idioma.T("    log: %s"), a.Log)
 		}
 	}
 	if st.Pregunta != "" {

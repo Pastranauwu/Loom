@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"strconv"
 	"strings"
 
@@ -92,7 +93,7 @@ func completarSpec(root string, s *spec.Spec) error {
 			s.Tasks[i] = completarTarea(s.Tasks[i], bs[i], ids, defLineas, s.Agente)
 		}
 	}
-	out.Line("· el planificador completó %d de %d tareas · revísalas con loom board", n, total)
+	out.Line(idioma.T("· el planificador completó %d de %d tareas · revísalas con loom board"), n, total)
 	return nil
 }
 

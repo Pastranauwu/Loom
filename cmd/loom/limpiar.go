@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 
@@ -16,8 +17,9 @@ import (
 
 func newLimpiarCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "limpiar",
-		Short: "libera los cuartos de las tareas que ya están en la rama base",
+		Use:     "clean",
+		Aliases: []string{"limpiar"},
+		Short:   "libera los cuartos de las tareas que ya están en la rama base",
 		Long: `Cada cuarto es una copia del repo con sus dependencias instaladas: en un
 proyecto Node son más de 100 MB por tarea. limpiar quita el cuarto y la
 rama de cada tarea lista cuyo trabajo ya está en la rama base, y los de
@@ -52,10 +54,10 @@ loom archive lo hace solo con las tareas del feature que archiva.`,
 				return err
 			}
 			if n == 0 {
-				out.Line("nada que limpiar · no hay cuartos de tareas ya entregadas")
+				out.Line(idioma.T("nada que limpiar · no hay cuartos de tareas ya entregadas"))
 				return nil
 			}
-			out.Line("✓ %d cuartos liberados", n)
+			out.Line(idioma.T("✓ %d cuartos liberados"), n)
 			return nil
 		},
 	}

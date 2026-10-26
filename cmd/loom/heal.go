@@ -64,7 +64,7 @@ correctiva en su cuarto hasta que su listo_cuando pase. Con --ship la entrega.`,
 				if entregar {
 					return runShip(t.ID, false, false)
 				}
-				out.Line("✓ %s en verde · entrégala con loom ship %s", t.ID, t.ID)
+				out.Line(idioma.T("✓ %s en verde · entrégala con loom ship %s"), t.ID, t.ID)
 			}
 			return nil
 		},
@@ -87,19 +87,19 @@ func leerLog(from string, stdin *os.File) (string, error) {
 	case from != "":
 		f, err := os.Open(from)
 		if err != nil {
-			return "", fmt.Errorf("no pude leer %s · %w", from, err)
+			return "", fmt.Errorf(idioma.T("no pude leer %s · %w"), from, err)
 		}
 		defer f.Close()
 		r = f
 	default:
-		return "", errors.New("falta el log del fallo · loom heal --from crash.log (o por pipe)")
+		return "", errors.New(idioma.T("falta el log del fallo · loom heal --from crash.log (o por pipe)"))
 	}
 	b, err := io.ReadAll(io.LimitReader(r, 4<<20))
 	if err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(string(b)) == "" {
-		return "", errors.New("el log está vacío · nada que diagnosticar")
+		return "", errors.New(idioma.T("el log está vacío · nada que diagnosticar"))
 	}
 	return string(b), nil
 }
@@ -111,7 +111,7 @@ func curar(root string, cfg config.Config, gen plan.Generador, log, archivoSpec 
 	if ruta == "" {
 		var err error
 		if ruta, err = spec.Find(root); err != nil {
-			return task.Task{}, errors.New("heal parte de un spec · crea uno con loom sketch o loom.spec.yml")
+			return task.Task{}, errors.New(idioma.T("heal parte de un spec · crea uno con loom sketch o loom.spec.yml"))
 		}
 	} else if !filepath.IsAbs(ruta) {
 		ruta = filepath.Join(root, ruta)
@@ -145,7 +145,7 @@ func curar(root string, cfg config.Config, gen plan.Generador, log, archivoSpec 
 	out.Line(idioma.T("reproduce  %s"), d.Comando)
 	out.Line(idioma.T("tocar      %s"), strings.Join(append(append([]string{}, d.Tocar...), d.ArchivoPrueba), ", "))
 	if dry {
-		out.Line("\n--dry-run · no se tocó el spec ni se creó la tarea")
+		out.Line(idioma.T("\n--dry-run · no se tocó el spec ni se creó la tarea"))
 		return task.Task{}, nil
 	}
 
@@ -156,16 +156,16 @@ func curar(root string, cfg config.Config, gen plan.Generador, log, archivoSpec 
 	}
 	t := heal.Tarea(d, id, recorte)
 	if errs := t.Validate(); len(errs) > 0 {
-		return task.Task{}, fmt.Errorf("el diagnóstico produjo un contrato inválido: %v · vuelve a intentarlo", errs[0])
+		return task.Task{}, fmt.Errorf(idioma.T("el diagnóstico produjo un contrato inválido: %v · vuelve a intentarlo"), errs[0])
 	}
 
 	acc := spec.Acceptance{Criterion: d.Criterio, Command: d.Comando}
 	if err := spec.AgregarReglaYCriterio(ruta, d.Invariante, acc); err != nil {
-		out.Line("· el spec no se editó (%v) · agrega la regla a mano", err)
+		out.Line(idioma.T("· el spec no se editó (%v) · agrega la regla a mano"), err)
 	} else {
 		actualizarEstadoTrasHeal(root, ruta, acc)
 		rel, _ := filepath.Rel(root, ruta)
-		out.Line("✓ %s · regla y criterio agregados", rel)
+		out.Line(idioma.T("✓ %s · regla y criterio agregados"), rel)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return task.Task{}, err

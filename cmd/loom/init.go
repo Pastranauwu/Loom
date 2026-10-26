@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
+	"github.com/Pastranauwu/loom/internal/task"
 	"io"
 	"os"
 	"path/filepath"
@@ -57,10 +59,10 @@ func newInitCmd() *cobra.Command {
 // horas. Enter en blanco acepta lo detectado.
 func confirmarPruebas(in io.Reader, detectado string) string {
 	if detectado == "" {
-		out.Line("· comando de pruebas no detectado · escribe el de este proyecto, o enter para dejarlo vacío")
+		out.Line(idioma.T("· comando de pruebas no detectado · escribe el de este proyecto, o enter para dejarlo vacío"))
 	} else {
-		out.Line("· comando de pruebas detectado: %s", detectado)
-		out.Line("  enter para aceptarlo, o escribe el correcto")
+		out.Line(idioma.T("· comando de pruebas detectado: %s"), detectado)
+		out.Line(idioma.T("  enter para aceptarlo, o escribe el correcto"))
 	}
 	linea, _ := bufio.NewReader(in).ReadString('\n')
 	if respuesta := strings.TrimSpace(linea); respuesta != "" {
@@ -75,7 +77,13 @@ func runInit(cwd, pruebasFlag, plantilla, cli string, in io.Reader, sinSkills bo
 		return err
 	}
 	if config.Exists(root) {
-		return errors.New("ya existe .loom en este repo · nada que hacer")
+		return errors.New(idioma.T("ya existe .loom en este repo · nada que hacer"))
+	}
+
+	if in != nil && esTUI() && os.Getenv("LOOM_LANGUAGE") == "" {
+		if l, err := elegirIdioma(); err == nil && l != "" {
+			idioma.Set(l)
+		}
 	}
 
 	base := config.DetectBaseBranch(root)
@@ -86,7 +94,7 @@ func runInit(cwd, pruebasFlag, plantilla, cli string, in io.Reader, sinSkills bo
 	case plantilla != "":
 		cmd, ok := config.PlantillaPruebas(plantilla)
 		if !ok {
-			return errors.New("plantilla desconocida: " + plantilla + " · usa go, node o python")
+			return errors.New(idioma.T("plantilla desconocida: ") + plantilla + " · usa go, node o python")
 		}
 		pruebas, pruebasOK = cmd, true
 	case in != nil:
@@ -105,6 +113,7 @@ func runInit(cwd, pruebasFlag, plantilla, cli string, in io.Reader, sinSkills bo
 	}
 	cfg := config.Config{
 		Base:            base,
+		Language:        idioma.Actual(),
 		Pruebas:         pruebas,
 		ZonasProhibidas: config.DefaultForbiddenZones(),
 		PatronesPrueba:  config.DefaultTestPatterns(),
@@ -143,39 +152,40 @@ func runInit(cwd, pruebasFlag, plantilla, cli string, in io.Reader, sinSkills bo
 	if err := out.Data(initResult{Base: base, Pruebas: pruebas, Config: config.Path(root)}); err != nil {
 		return err
 	}
-	out.Line("✓ repositorio detectado")
+	out.Line(idioma.T("✓ repositorio detectado"))
 	if base != "" {
-		out.Line("✓ rama base: %s", base)
+		out.Line(idioma.T("✓ rama base: %s"), base)
 	} else {
-		out.Line("· rama base no detectada · edita .loom/config.yml")
+		out.Line(idioma.T("· rama base no detectada · edita .loom/config.yml"))
 	}
 	if pruebasOK {
-		out.Line("✓ comando de pruebas detectado: %s", pruebas)
+		out.Line(idioma.T("✓ comando de pruebas detectado: %s"), pruebas)
 	} else {
-		out.Line("· comando de pruebas no detectado · edita .loom/config.yml")
+		out.Line(idioma.T("· comando de pruebas no detectado · edita .loom/config.yml"))
 	}
 	if config.DetectEmpty(root) {
-		out.Line("· repositorio vacío · loom plan arrancará desde cero proponiendo un stack")
+		out.Line(idioma.T("· repositorio vacío · loom plan arrancará desde cero proponiendo un stack"))
 	}
 	if cliDetectado != "" {
-		out.Line("✓ ejecutor: %s", cliDetectado)
+		out.Line(idioma.T("✓ ejecutor: %s"), cliDetectado)
 	} else {
-		out.Line("· ningún ejecutor instalado · instala opencode o claude")
+		out.Line(idioma.T("· ningún ejecutor instalado · instala opencode o claude"))
 	}
 	if len(modelos) > 0 {
 		for _, peso := range config.Pesos {
-			out.Line("✓ modelo %s: %s", peso, modelos[peso])
+			out.Line(idioma.T("✓ modelo %s: %s"), peso, modelos[peso])
 		}
 	} else if cliDetectado != "" {
-		out.Line("· sin catálogo de modelos · se usará el modelo por defecto de %s", cliDetectado)
+		out.Line(idioma.T("· sin catálogo de modelos · se usará el modelo por defecto de %s"), cliDetectado)
 	}
-	out.Line("✓ configuración creada en .loom/")
+	out.Line(idioma.T("✓ configuración creada en .loom/"))
+	out.Line(idioma.T("· nuevo en loom · corre loom tutorial para un recorrido guiado"))
 	if sinSkills {
-		out.Line("· skills sin traer · corre loom skills sync cuando quieras")
+		out.Line(idioma.T("· skills sin traer · corre loom skills sync cuando quieras"))
 	} else {
-		out.Line("· trayendo skills por defecto (npx skills add) …")
+		out.Line(idioma.T("· trayendo skills por defecto (npx skills add) …"))
 		if err := runSkillsSync(); err != nil {
-			out.Line("· no se pudieron traer las skills · %s · reintenta con loom skills sync", err)
+			out.Line(idioma.T("· no se pudieron traer las skills · %s · reintenta con loom skills sync"), err)
 		}
 	}
 	stack := config.StackDePlantilla(plantilla)
@@ -224,21 +234,21 @@ func elegirCLIAMano(instalados []string) (string, error) {
 	}
 	ops := make([]tui.Opcion, 0, len(instalados))
 	for _, n := range instalados {
-		detalle := "Usa los proveedores y modelos configurados en OpenCode"
+		detalle := idioma.T("Usa los proveedores y modelos configurados en OpenCode")
 		switch n {
 		case "claude":
-			detalle = "Usa tu sesión de Claude · Opus planifica, Haiku y Sonnet implementan"
+			detalle = idioma.T("Usa tu sesión de Claude · Opus planifica, Haiku y Sonnet implementan")
 		case "codex":
-			detalle = "Usa tu sesión de Codex (ChatGPT) y sus modelos gpt"
+			detalle = idioma.T("Usa tu sesión de Codex (ChatGPT) y sus modelos gpt")
 		}
 		ops = append(ops, tui.Opcion{ID: n, Etiqueta: n, Detalle: detalle})
 	}
-	id, err := tui.Elegir("CLI DE AGENTE", "↑/↓ mueve · enter elige · esc o ctrl+c cancela", ops)
+	id, err := tui.Elegir(idioma.T("CLI DE AGENTE"), idioma.T("↑/↓ mueve · enter elige · esc o ctrl+c cancela"), ops)
 	if err != nil {
 		return "", err
 	}
 	if id == "" {
-		return "", errors.New("inicio cancelado · vuelve a ejecutar loom up cuando quieras")
+		return "", errors.New(idioma.T("inicio cancelado · vuelve a ejecutar loom up cuando quieras"))
 	}
 	return id, nil
 }
@@ -251,11 +261,11 @@ func elegirModelosAMano(propuesta map[string]string, catalogo []string) (map[str
 	for _, peso := range config.Pesos {
 		resumen = append(resumen, peso+": "+propuesta[peso])
 	}
-	quiere, err := tui.Elegir("MODELOS POR PESO DE TAREA",
-		"j/k mueve · enter elige · q deja la propuesta",
+	quiere, err := tui.Elegir(idioma.T("MODELOS POR PESO DE TAREA"),
+		idioma.T("j/k mueve · enter elige · q deja la propuesta"),
 		[]tui.Opcion{
-			{ID: "auto", Etiqueta: "usar la propuesta", Detalle: strings.Join(resumen, " · ")},
-			{ID: "mano", Etiqueta: "elegir yo", Detalle: fmt.Sprintf("%d modelos disponibles en el CLI", len(catalogo))},
+			{ID: "auto", Etiqueta: idioma.T("usar la propuesta"), Detalle: strings.Join(resumen, " · ")},
+			{ID: "mano", Etiqueta: idioma.T("elegir yo"), Detalle: fmt.Sprintf(idioma.T("%d modelos disponibles en el CLI"), len(catalogo))},
 		})
 	if err != nil || quiere != "mano" {
 		return nil, err
@@ -272,8 +282,8 @@ func elegirPorPeso(propuesta map[string]string, catalogo []string) (map[string]s
 	}
 	elegidos := map[string]string{}
 	for _, peso := range config.Pesos {
-		id, err := tui.Elegir("MODELO PARA TAREAS DE PESO "+strings.ToUpper(peso),
-			"j/k mueve · enter elige · q deja "+propuesta[peso], ops)
+		id, err := tui.Elegir(idioma.T("MODELO PARA TAREAS DE PESO ")+strings.ToUpper(pesoEn(peso)),
+			idioma.T("j/k mueve · enter elige · q deja ")+propuesta[peso], ops)
 		if err != nil {
 			return nil, err
 		}
@@ -283,4 +293,12 @@ func elegirPorPeso(propuesta map[string]string, catalogo []string) (map[string]s
 		elegidos[peso] = id
 	}
 	return elegidos, nil
+}
+
+// pesoEn shows a weight in the language of the interface: light, medium, heavy.
+func pesoEn(peso string) string {
+	if idioma.Es() {
+		return peso
+	}
+	return task.PesoEn(peso)
 }

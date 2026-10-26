@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"io"
 	"os"
 	"path/filepath"
@@ -147,13 +148,13 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 		}
 		out.Line("%s", tui.Caja(strings.TrimRight(cuerpo.String(), "\n")))
 	} else {
-		out.Line("propongo %d tareas:", len(props))
+		out.Line(idioma.T("propongo %d tareas:"), len(props))
 		for _, p := range props {
 			ag := ""
 			if p.Agente != "" {
 				ag = " [" + p.Agente + "]"
 			}
-			out.Line("%s  %s%s  · %s · listo cuando: %s", p.ID, p.Titulo, ag, descripcionLineas(p.LimiteLineas), p.ListoCuando)
+			out.Line(idioma.T("%s  %s%s  · %s · listo cuando: %s"), p.ID, p.Titulo, ag, descripcionLineas(p.LimiteLineas), p.ListoCuando)
 		}
 	}
 
@@ -189,9 +190,9 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 			Tasks:   tasks,
 		}
 		if err := os.WriteFile(exportSpec, spec.Marshal(s), 0o644); err != nil {
-			return fmt.Errorf("error al guardar especificación: %w", err)
+			return fmt.Errorf(idioma.T("error al guardar especificación: %w"), err)
 		}
-		out.Line("✓ especificación guardada en %s · revísala y aplícala con loom apply", exportSpec)
+		out.Line(idioma.T("✓ especificación guardada en %s · revísala y aplícala con loom apply"), exportSpec)
 		if !aprobar {
 			return nil
 		}
@@ -207,7 +208,7 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 	}
 	if !aprobar {
 		if !isTerminal(os.Stdin) {
-			out.Line("sin confirmación interactiva · usa --approve para crearlas")
+			out.Line(idioma.T("sin confirmación interactiva · usa --approve para crearlas"))
 			return nil
 		}
 		if esTUI() {
@@ -216,7 +217,7 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 				return err
 			}
 			if !ok {
-				out.Line("plan descartado")
+				out.Line(idioma.T("plan descartado"))
 				return nil
 			}
 			elegidas = map[string]bool{}
@@ -227,14 +228,14 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 			// ella: se quedarían "bloqueadas · depende de T-00X" para
 			// siempre. Se caen con ella, y se dice cuáles.
 			if arrastradas := cerrarDependencias(props, elegidas); len(arrastradas) > 0 {
-				out.Line("· también quito %s · dependen de una tarea descartada", strings.Join(arrastradas, ", "))
+				out.Line(idioma.T("· también quito %s · dependen de una tarea descartada"), strings.Join(arrastradas, ", "))
 			}
 			if len(elegidas) == 0 {
-				out.Line("ninguna tarea marcada · plan descartado")
+				out.Line(idioma.T("ninguna tarea marcada · plan descartado"))
 				return nil
 			}
 		} else if !confirmar(os.Stdin) {
-			out.Line("plan descartado")
+			out.Line(idioma.T("plan descartado"))
 			return nil
 		}
 	}
@@ -269,12 +270,12 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 		}
 	}
 	if len(creadas) == 0 {
-		out.Line("ninguna tarea creada")
+		out.Line(idioma.T("ninguna tarea creada"))
 		return nil
 	}
-	out.Line("✓ %s creadas · revisa con loom check %s", strings.Join(creadas, ", "), creadas[0])
+	out.Line(idioma.T("✓ %s creadas · revisa con loom check %s"), strings.Join(creadas, ", "), creadas[0])
 	if len(creadas) < len(ids) {
-		out.Line("· descartadas: %s", strings.Join(descartadas(ids, creadas), ", "))
+		out.Line(idioma.T("· descartadas: %s"), strings.Join(descartadas(ids, creadas), ", "))
 	}
 
 	// `pruebas` es lo que corre el paso bisectable de la esclusa de
@@ -282,7 +283,7 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 	// trabajo ya está hecho; avisar acá cuesta una línea y llega a
 	// tiempo. En greenfield `init` no pudo detectarlo: no había código.
 	if strings.TrimSpace(cfg.Pruebas) == "" {
-		out.Line("· sin comando de pruebas en config.yml · decláralo antes de loom ship")
+		out.Line(idioma.T("· sin comando de pruebas en config.yml · decláralo antes de loom ship"))
 	}
 	return nil
 }
@@ -363,7 +364,7 @@ func sanearSkills(bs []plan.Borrador, catalogo []skills.Skill) {
 			if existe[n] {
 				validas = append(validas, n)
 			} else {
-				out.Line("· %s: skill %q no está en .agents/skills · se omite", bs[i].Titulo, n)
+				out.Line(idioma.T("· %s: skill %q no está en .agents/skills · se omite"), bs[i].Titulo, n)
 			}
 		}
 		bs[i].Skills = validas
@@ -375,14 +376,14 @@ func sanearAlcance(bs []plan.Borrador, zonas, patrones []string, ocupados map[st
 		limpio := bs[i].TocarSolo[:0]
 		for _, p := range bs[i].TocarSolo {
 			if z, mal := gate.AlcanceProhibido(p, zonas, patrones); mal {
-				out.Line("· quito %q de tocar_solo · zona vedada (%s)", p, z)
+				out.Line(idioma.T("· quito %q de tocar_solo · zona vedada (%s)"), p, z)
 				continue
 			}
 			if id, dueño := alcanceOcupado(p, ocupados); dueño {
 				// no se recorta: un alcance que se cruza suele ser el
 				// corazon de la tarea, y quitarlo la deja sin sentido.
 				// Se avisa para que el humano parta o espere.
-				out.Line("⚠ %q se cruza con %s, que está en curso · la esclusa la rechazará hasta que %s termine", p, id, id)
+				out.Line(idioma.T("⚠ %q se cruza con %s, que está en curso · la esclusa la rechazará hasta que %s termine"), p, id, id)
 			}
 			limpio = append(limpio, p)
 		}
@@ -405,7 +406,7 @@ func ampliarPruebasPropias(bs []plan.Borrador) {
 			if config.MatchesAny(bs[i].TocarSolo, path) {
 				continue
 			}
-			out.Line("· %s · agrego %q a tocar_solo · sin examinador, la tarea escribe su propia suite", bs[i].Titulo, path)
+			out.Line(idioma.T("· %s · agrego %q a tocar_solo · sin examinador, la tarea escribe su propia suite"), bs[i].Titulo, path)
 			bs[i].TocarSolo = append(bs[i].TocarSolo, path)
 		}
 	}
@@ -564,7 +565,7 @@ func idsPrevios(dir string) map[string]bool {
 
 // confirmar pregunta s/n y devuelve si el usuario aprobó.
 func confirmar(in io.Reader) bool {
-	out.Line("¿crear estas tareas? [s/n]")
+	out.Line(idioma.T("¿crear estas tareas? [s/n]"))
 	linea, _ := bufio.NewReader(in).ReadString('\n')
 	r := strings.ToLower(strings.TrimSpace(linea))
 	return r == "s" || r == "si" || r == "y" || r == "yes"
@@ -630,7 +631,7 @@ func (g generadorPlan) Generar(ctx context.Context, prompt string) (string, erro
 	})
 	if err != nil {
 		if res.ExitCode == 124 {
-			return "", fmt.Errorf("el planificador agotó %s · ajusta timeout_agente en .loom/config.yml", timeout)
+			return "", fmt.Errorf(idioma.T("el planificador agotó %s · ajusta timeout_agente en .loom/config.yml"), timeout)
 		}
 		return "", err
 	}
@@ -663,7 +664,7 @@ func (g planGuardado) Generar(ctx context.Context, prompt string) (string, error
 	suma := fmt.Sprintf("%x", sha256.Sum256([]byte(prompt)))
 	var guardado struct{ Prompt, Texto string }
 	if b, err := os.ReadFile(ruta); err == nil && json.Unmarshal(b, &guardado) == nil && guardado.Prompt == suma {
-		out.Line("· reusando la respuesta guardada del planificador · borra .loom/plan-crudo.json para replanear")
+		out.Line(idioma.T("· reusando la respuesta guardada del planificador · borra .loom/plan-crudo.json para replanear"))
 		return guardado.Texto, nil
 	}
 	texto, err := g.gen.Generar(ctx, prompt)

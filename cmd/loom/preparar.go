@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"io"
 	"os"
 	"os/exec"
@@ -70,16 +71,16 @@ func prepararEntornoConCLI(cwd string, in io.Reader, entregar bool, cliPreferido
 	}
 
 	if _, err := exec.LookPath("git"); err != nil {
-		return "", config.Config{}, errors.New("git no está instalado · instálalo y vuelve a correr")
+		return "", config.Config{}, errors.New(idioma.T("git no está instalado · instálalo y vuelve a correr"))
 	}
 
 	// 1. repositorio
 	root, err := config.RepoRoot(cwd)
 	if err != nil {
 		if _, err := gitEn(cwd, "init", "--quiet"); err != nil {
-			return "", config.Config{}, fmt.Errorf("no se pudo crear el repo git · %s", err)
+			return "", config.Config{}, fmt.Errorf(idioma.T("no se pudo crear el repo git · %s"), err)
 		}
-		out.Line("· sin repo git · creado con git init")
+		out.Line(idioma.T("· sin repo git · creado con git init"))
 		if root, err = config.RepoRoot(cwd); err != nil {
 			return "", config.Config{}, err
 		}
@@ -116,9 +117,9 @@ func prepararEntornoConCLI(cwd string, in io.Reader, entregar bool, cliPreferido
 			cfg.Base = "main"
 		}
 		if anterior != "" && anterior != cfg.Base {
-			out.Line("· la rama base %s no existe · se usa %s", anterior, cfg.Base)
+			out.Line(idioma.T("· la rama base %s no existe · se usa %s"), anterior, cfg.Base)
 		} else {
-			out.Line("· rama base: %s", cfg.Base)
+			out.Line(idioma.T("· rama base: %s"), cfg.Base)
 		}
 		guardar = true
 	}
@@ -126,7 +127,7 @@ func prepararEntornoConCLI(cwd string, in io.Reader, entregar bool, cliPreferido
 	// lo que hay aquí no lo ven los agentes
 	if actual, err := gitEn(root, "symbolic-ref", "--quiet", "--short", "HEAD"); err == nil {
 		if actual = strings.TrimSpace(actual); actual != "" && actual != cfg.Base && !strings.HasPrefix(actual, "loom/") && !strings.HasPrefix(actual, "devclean/") {
-			out.Line("· estás en %s pero la base es %s · los agentes parten de %s y ahí se entrega · cambia `base:` en .loom/config.yml si no es lo que quieres", actual, cfg.Base, cfg.Base)
+			out.Line(idioma.T("· estás en %s pero la base es %s · los agentes parten de %s y ahí se entrega · cambia `base:` en .loom/config.yml si no es lo que quieres"), actual, cfg.Base, cfg.Base)
 		}
 	}
 
@@ -145,7 +146,7 @@ func prepararEntornoConCLI(cwd string, in io.Reader, entregar bool, cliPreferido
 	ex, err := elegirEjecutor(cfg.Cli)
 	if err != nil && cfg.Cli != "" && cliPreferido == "" {
 		if ex, err = elegirEjecutor(""); err == nil {
-			out.Line("· %s no está instalado · se usa %s", cfg.Cli, ex.Name())
+			out.Line(idioma.T("· %s no está instalado · se usa %s"), cfg.Cli, ex.Name())
 		}
 	}
 	if err != nil && cliPreferido != "" {
@@ -174,14 +175,14 @@ func prepararEntornoConCLI(cwd string, in io.Reader, entregar bool, cliPreferido
 	if strings.TrimSpace(cfg.Pruebas) == "" && !config.DetectEmpty(root) {
 		if p, ok := config.DetectTestCommand(root); ok {
 			cfg.Pruebas, guardar = p, true
-			out.Line("· comando de pruebas detectado: %s", p)
+			out.Line(idioma.T("· comando de pruebas detectado: %s"), p)
 		} else if lector != nil {
 			if p := confirmarPruebas(lector, ""); p != "" {
 				cfg.Pruebas, guardar = p, true
 			}
 		}
 		if strings.TrimSpace(cfg.Pruebas) == "" {
-			out.Line("· sin comando de pruebas · ship no va a verificar el conjunto · decláralo en .loom/config.yml")
+			out.Line(idioma.T("· sin comando de pruebas · ship no va a verificar el conjunto · decláralo en .loom/config.yml"))
 		}
 	}
 
@@ -219,21 +220,21 @@ func commitInicial(root string, lector *bufio.Reader) error {
 	}
 	if !soloNuestro {
 		if lector == nil {
-			return errors.New("no hay commits y hay archivos sin versionar · haz un commit inicial y reintenta")
+			return errors.New(idioma.T("no hay commits y hay archivos sin versionar · haz un commit inicial y reintenta"))
 		}
 		if !aprobar(lector, "no hay commits · ¿hago un commit inicial con todo lo que hay? [s/N]") {
-			return errors.New("sin commit inicial · hazlo vos y vuelve a correr")
+			return errors.New(idioma.T("sin commit inicial · hazlo vos y vuelve a correr"))
 		}
 	}
 	// sin .gitignore, el commit inicial se llevaría node_modules y .venv
 	_ = room.ExcluirArtefactos(context.Background(), root)
 	if _, err := gitEn(root, "add", "-A"); err != nil {
-		return fmt.Errorf("no se pudo preparar el commit inicial · %s", err)
+		return fmt.Errorf(idioma.T("no se pudo preparar el commit inicial · %s"), err)
 	}
 	if _, err := gitEn(root, "commit", "--quiet", "--allow-empty", "-m", "chore: inicio"); err != nil {
-		return fmt.Errorf("no se pudo hacer el commit inicial · %s", err)
+		return fmt.Errorf(idioma.T("no se pudo hacer el commit inicial · %s"), err)
 	}
-	out.Line("· sin commits · commit inicial creado")
+	out.Line(idioma.T("· sin commits · commit inicial creado"))
 	return nil
 }
 
@@ -241,7 +242,7 @@ func commitInicial(root string, lector *bufio.Reader) error {
 // hay ninguno. Solo en terminal y solo con permiso: instalar globales
 // sin preguntar no es plug and play, es intrusión.
 func instalarEjecutor(lector *bufio.Reader) (executor.Executor, error) {
-	faltan := errors.New("ningún ejecutor instalado · instala opencode (npm i -g opencode-ai) o claude (npm i -g @anthropic-ai/claude-code) y vuelve a correr")
+	faltan := errors.New(idioma.T("ningún ejecutor instalado · instala opencode (npm i -g opencode-ai) o claude (npm i -g @anthropic-ai/claude-code) y vuelve a correr"))
 	if lector == nil {
 		return nil, faltan
 	}
@@ -254,13 +255,13 @@ func instalarEjecutor(lector *bufio.Reader) (executor.Executor, error) {
 	cmd := exec.Command("npm", "i", "-g", "@anthropic-ai/claude-code")
 	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("npm no pudo instalar claude · %s", err)
+		return nil, fmt.Errorf(idioma.T("npm no pudo instalar claude · %s"), err)
 	}
 	ex, err := elegirEjecutor("claude")
 	if err != nil {
 		return nil, err
 	}
-	out.Line("✓ claude instalado · inicia sesión con `claude` si todavía no lo hiciste")
+	out.Line(idioma.T("✓ claude instalado · inicia sesión con `claude` si todavía no lo hiciste"))
 	return ex, nil
 }
 
@@ -272,11 +273,11 @@ func prepararEntrega(root string, cfg config.Config) error {
 		return nil
 	}
 	if _, err := gitEn(root, "remote", "get-url", "origin"); err != nil {
-		out.Line("· sin remoto origin · el PR queda local: la rama y su descripción en .loom/pr/")
+		out.Line(idioma.T("· sin remoto origin · el PR queda local: la rama y su descripción en .loom/pr/"))
 		return nil
 	}
 	if _, err := exec.LookPath("gh"); err != nil {
-		return errors.New("--ship necesita gh para abrir el PR en origin · instálalo (https://cli.github.com) o corre sin --ship")
+		return errors.New(idioma.T("--ship necesita gh para abrir el PR en origin · instálalo (https://cli.github.com) o corre sin --ship"))
 	}
 	return nil
 }

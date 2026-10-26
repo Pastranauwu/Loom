@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"path/filepath"
 	"strings"
 
@@ -54,7 +55,7 @@ func runApply(root, filePath string, runImmediately, dryRun bool) (spec.Spec, er
 	if filePath == "" {
 		filePath, err = spec.Find(root)
 		if err != nil {
-			return spec.Spec{}, fmt.Errorf("no se encontró archivo de especificación en %s · especifícalo con -f o crea loom.spec.yml", root)
+			return spec.Spec{}, fmt.Errorf(idioma.T("no se encontró archivo de especificación en %s · especifícalo con -f o crea loom.spec.yml"), root)
 		}
 	} else if !filepath.IsAbs(filePath) {
 		filePath = filepath.Join(root, filePath)
@@ -62,7 +63,7 @@ func runApply(root, filePath string, runImmediately, dryRun bool) (spec.Spec, er
 
 	s, err := spec.Load(filePath)
 	if err != nil {
-		return spec.Spec{}, fmt.Errorf("error al leer %s: %w", filePath, err)
+		return spec.Spec{}, fmt.Errorf(idioma.T("error al leer %s: %w"), filePath, err)
 	}
 	// solo el modo requirements: ahí el plan entero lo genera el
 	// arquitecto, y replanear un spec igual es pagarlo dos veces
@@ -79,7 +80,7 @@ func runApply(root, filePath string, runImmediately, dryRun bool) (spec.Spec, er
 		if !dryRun {
 			_ = spec.SaveEstadoSpec(root, clave, actual) // repo que venía de intencion.json o feature.json
 		}
-		out.Line("· %s sin cambios desde el último plan · sigo con las tareas pendientes (borra .loom/%s para replanear)", filepath.Base(filePath), spec.EstadoFile)
+		out.Line(idioma.T("· %s sin cambios desde el último plan · sigo con las tareas pendientes (borra .loom/%s para replanear)"), filepath.Base(filePath), spec.EstadoFile)
 		return s, nil
 	}
 	if ok && porRequirements {
@@ -128,14 +129,14 @@ func aplicarSpec(root string, s spec.Spec, origen string, runImmediately, dryRun
 	if n := contarSinContrato(s.Tasks); n > 0 || (len(s.Tasks) == 0 && len(s.Requirements) > 0) {
 		if dryRun {
 			// en seco no se gastan tokens: se marca lo que completará la IA
-			out.Line("· %d tareas sin contrato completo · el planificador las completa al aplicar", n)
+			out.Line(idioma.T("· %d tareas sin contrato completo · el planificador las completa al aplicar"), n)
 			for i := range s.Tasks {
 				if strings.TrimSpace(s.Tasks[i].ListoCuando) == "" {
 					s.Tasks[i].ListoCuando = "(lo completa el planificador)"
 				}
 			}
 		} else if err := completarSpec(root, &s); err != nil {
-			return spec.Spec{}, fmt.Errorf("no se pudo completar %s: %w", filepath.Base(filePath), err)
+			return spec.Spec{}, fmt.Errorf(idioma.T("no se pudo completar %s: %w"), filepath.Base(filePath), err)
 		}
 	}
 
@@ -148,29 +149,29 @@ func aplicarSpec(root string, s spec.Spec, origen string, runImmediately, dryRun
 	// spec y no dice nada
 	for _, issue := range spec.ValidatePlan(s, applied) {
 		if issue.Level == "warning" && len(applied) > 0 {
-			out.Line("· plan: %s", issue.Message)
+			out.Line(idioma.T("· plan: %s"), issue.Message)
 		}
 	}
 	// la aceptación que nombra una prueba inexistente frena la entrega al
 	// final, con todo pagado: se dice ahora
 	enRepo, _ := task.List(tasksDir)
 	for _, issue := range spec.AceptacionSinPrueba(root, s, append(enRepo, applied...)) {
-		out.Line("· plan: %s", issue.Message)
+		out.Line(idioma.T("· plan: %s"), issue.Message)
 	}
 
 	if dryRun {
-		out.Line("✓ especificación válida (%d tareas en %s, modo --dry-run):", len(applied), filepath.Base(filePath))
+		out.Line(idioma.T("✓ especificación válida (%d tareas en %s, modo --dry-run):"), len(applied), filepath.Base(filePath))
 		for _, t := range applied {
 			ag := ""
 			if t.Agente != "" {
 				ag = " [" + t.Agente + "]"
 			}
-			out.Line("  %s  %s%s  · listo cuando: %s", t.ID, t.Titulo, ag, t.ListoCuando)
+			out.Line(idioma.T("  %s  %s%s  · listo cuando: %s"), t.ID, t.Titulo, ag, t.ListoCuando)
 		}
 		return s, nil
 	}
 	if err := spec.SaveFeatureState(root, s); err != nil {
-		return spec.Spec{}, fmt.Errorf("no se pudo guardar la aceptación del feature: %w", err)
+		return spec.Spec{}, fmt.Errorf(idioma.T("no se pudo guardar la aceptación del feature: %w"), err)
 	}
 
 	if err := out.Data(applied); err != nil {
@@ -200,13 +201,13 @@ func aplicarSpec(root string, s spec.Spec, origen string, runImmediately, dryRun
 		}
 		out.Line("%s", tui.Caja(strings.TrimRight(cuerpo.String(), "\n")))
 	} else {
-		out.Line("✓ %d tareas aplicadas desde %s:", len(applied), filepath.Base(filePath))
+		out.Line(idioma.T("✓ %d tareas aplicadas desde %s:"), len(applied), filepath.Base(filePath))
 		for _, t := range applied {
 			ag := ""
 			if t.Agente != "" {
 				ag = " [" + t.Agente + "]"
 			}
-			out.Line("  %s  %s%s  · listo cuando: %s", t.ID, t.Titulo, ag, t.ListoCuando)
+			out.Line(idioma.T("  %s  %s%s  · listo cuando: %s"), t.ID, t.Titulo, ag, t.ListoCuando)
 		}
 	}
 
@@ -219,6 +220,6 @@ func aplicarSpec(root string, s spec.Spec, origen string, runImmediately, dryRun
 		return s, runCmd(agentes, "", "", false, false)
 	}
 
-	out.Line("\n· corre loom run (o loom up) para ejecutarlas en paralelo")
+	out.Line(idioma.T("\n· corre loom run (o loom up) para ejecutarlas en paralelo"))
 	return s, nil
 }

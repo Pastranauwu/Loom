@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/Pastranauwu/loom/internal/idioma"
 
 	"github.com/spf13/cobra"
 
@@ -54,11 +55,11 @@ func runSkillsSync() error {
 	for _, nombre := range nombres {
 		src, conocida := fuentes[nombre]
 		if !conocida {
-			out.Line("⚠ %s · sin fuente conocida (agrégala en config.yml con su repo o pide a loom que la reconozca)", nombre)
+			out.Line(idioma.T("⚠ %s · sin fuente conocida (agrégala en config.yml con su repo o pide a loom que la reconozca)"), nombre)
 			continue
 		}
 		if skills.Instalado(root, nombre) {
-			out.Line("· %s · ya instalada", nombre)
+			out.Line(idioma.T("· %s · ya instalada"), nombre)
 			ok++
 			continue
 		}
@@ -70,7 +71,7 @@ func runSkillsSync() error {
 		out.Line("✓ %s", nombre)
 		ok++
 	}
-	out.Line("%d skills listas, %d fallidas", ok, fallidas)
+	out.Line(idioma.T("%d skills listas, %d fallidas"), ok, fallidas)
 	return nil
 }
 

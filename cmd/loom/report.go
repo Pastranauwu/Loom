@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -60,15 +61,15 @@ func runReport(cmd *cobra.Command) error {
 	if err := out.Data(metrics.Reporte{Metricas: m, Tendencia: tendencia}); err != nil {
 		return err
 	}
-	out.Line("intentos hasta verde  %s %.1f   (meta ≤ 2)", tendencia.IntentosHastaVerde, m.IntentosHastaVerde)
-	out.Line("ruido                 %s %.1f%%  (meta < 5%%)", tendencia.Ruido, m.Ruido)
-	out.Line("roce                  %s %.1f por 10 entregas  (meta < 1)", tendencia.Roce, m.Roce)
+	out.Line(idioma.T("intentos hasta verde  %s %.1f   (meta ≤ 2)"), tendencia.IntentosHastaVerde, m.IntentosHastaVerde)
+	out.Line(idioma.T("ruido                 %s %.1f%%  (meta < 5%%)"), tendencia.Ruido, m.Ruido)
+	out.Line(idioma.T("roce                  %s %.1f por 10 entregas  (meta < 1)"), tendencia.Roce, m.Roce)
 	if m.Friccion != nil {
-		out.Line("fricción              %s %.0f min", tendencia.Friccion, *m.Friccion)
+		out.Line(idioma.T("fricción              %s %.0f min"), tendencia.Friccion, *m.Friccion)
 	} else {
-		out.Line("fricción              %s —  sin datos", tendencia.Friccion)
+		out.Line(idioma.T("fricción              %s —  sin datos"), tendencia.Friccion)
 	}
-	out.Line("rechazo en entrada    %s %.1f%%", tendencia.RechazoEntrada, m.RechazoEntrada)
-	out.Line("tokens                %d", m.Tokens)
+	out.Line(idioma.T("rechazo en entrada    %s %.1f%%"), tendencia.RechazoEntrada, m.RechazoEntrada)
+	out.Line(idioma.T("tokens                %d"), m.Tokens)
 	return nil
 }

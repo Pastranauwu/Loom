@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"strings"
 
@@ -58,7 +59,7 @@ func runMap(root string, mermaid, todos bool, profundidad int) error {
 	if g, _, err := graph.Update(root, config.Dir(root)); err == nil {
 		e.Grafo = g
 	} else {
-		out.Line("· sin grafo del repo (%v) · el mapa sale solo de los contratos", err)
+		out.Line(idioma.T("· sin grafo del repo (%v) · el mapa sale solo de los contratos"), err)
 	}
 	if tareas, err := task.List(config.TasksDir(root)); err == nil {
 		e.Tareas = tareas

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -62,7 +63,7 @@ func newStopCmd() *cobra.Command {
 			}
 			b, err := os.ReadFile(corridaPath(root))
 			if errors.Is(err, os.ErrNotExist) {
-				out.Line("no hay corrida en curso")
+				out.Line(idioma.T("no hay corrida en curso"))
 				return nil
 			}
 			if err != nil {
@@ -71,15 +72,15 @@ func newStopCmd() *cobra.Command {
 			pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
 			if err != nil {
 				_ = os.Remove(corridaPath(root))
-				return errors.New("corrida.pid corrupto · se borró · no había nada que parar")
+				return errors.New(idioma.T("corrida.pid corrupto · se borró · no había nada que parar"))
 			}
 			if !esLoom(pid) {
 				_ = os.Remove(corridaPath(root))
-				out.Line("la corrida %d ya no existe · marca borrada", pid)
+				out.Line(idioma.T("la corrida %d ya no existe · marca borrada"), pid)
 				return nil
 			}
 			if err := pararProceso(pid); err != nil {
-				return errors.New("no se pudo parar la corrida " + strconv.Itoa(pid) + " · " + err.Error())
+				return errors.New(idioma.T("no se pudo parar la corrida ") + strconv.Itoa(pid) + " · " + err.Error())
 			}
 			_ = os.Remove(corridaPath(root))
 
@@ -96,9 +97,9 @@ func newStopCmd() *cobra.Command {
 					paradas = append(paradas, s.ID)
 				}
 			}
-			out.Line("corrida %d parada", pid)
+			out.Line(idioma.T("corrida %d parada"), pid)
 			if len(paradas) > 0 {
-				out.Line("detenidas · %s · retómalas con loom run --retry", strings.Join(paradas, ", "))
+				out.Line(idioma.T("detenidas · %s · retómalas con loom run --retry"), strings.Join(paradas, ", "))
 			}
 			return nil
 		},
@@ -118,7 +119,7 @@ func tomarEntrega(root string) (func(), error) {
 			return func() {}, nil
 		}
 		if n, err := strconv.Atoi(otro); err == nil && esLoom(n) {
-			return nil, errors.New("ya hay una entrega en curso (pid " + otro + ") · espera a que termine o párala con loom stop")
+			return nil, errors.New(idioma.T("ya hay una entrega en curso (pid ") + otro + ") · espera a que termine o párala con loom stop")
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {

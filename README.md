@@ -43,6 +43,8 @@ Agents are part of execution, not the product interface. Coordination happens th
 
 ## Quick start
 
+New here? Run `loom tutorial` for a guided tour, and pick your language in `loom init` (or `loom language es`): what you read follows your language, what the models get is always English.
+
 At the root of your project, create `loom.spec.yml`:
 
 ```yaml
@@ -363,6 +365,8 @@ Planning, diagnosis and operation:
 | `loom plan "<request>" [--approve]` | Generates a proposal of contracts. `--export-spec file.yml` exports it. |
 | `loom graph` | Updates the incremental repo index in `.loom/repo-graph.json`. |
 | `loom map` (alias `view`) | Draws the system without opening code: modules, the contracts each exposes and who consumes them, imports, active DNA and gate state. `--mermaid` exports a diagram for Markdown or a PR, `--json` the full structure. |
+| `loom tutorial` | A paged guided tour of loom for new developers, in your language. |
+| `loom language [en\|es]` | Sets the language of messages, help, the map and the tutorial. Prompts, spec and config keys always stay English. |
 | `loom sketch ["idea"]` | Interviews you with four edge-case questions and writes the spec. |
 | `loom heal --from crash.log` | Reads a failure log, adds the missing rule and a reproducing acceptance criterion to the spec, and runs the corrective task. |
 | `loom dna [add\|rm\|list]` | Picks design archetypes (`hexagonal`, `zero-deps`, `crash-early`, `functional-core`) injected into every prompt; `zero-deps` and `hexagonal` are also enforced by the exit gate. |
@@ -461,30 +465,31 @@ If no task carries an ID, references such as `T-001` in `depends_on` are resolve
 
 ## Internal configuration
 
-`up` creates `.loom/config.yml` when needed. It is an advanced interface (its keys are still in Spanish):
+`up` creates `.loom/config.yml` when needed. Its keys are English (the old Spanish names are still read):
 
 ```yaml
 base: main
-pruebas: go test ./...
+language: en           # en | es: the language you read; prompts and keys stay English
+tests: go test ./...
 cli: claude
-language: en          # "es" writes human-facing prose in Spanish
-resume_below_pct: 70  # claude: resume the session below this % of the context window
-modelos:
-  liviana: haiku
-  media: sonnet
-  pesada: opus
-estrategia: equilibrada
-timeout_agente: 1200
-timeout_pruebas: 300
-presupuesto_tokens: 0
-presupuesto:
-  claude: { 5h: 40000, semanal: 120000 }
-zonas_prohibidas: ["go.sum", "migrations/**", ".github/**"]
-patrones_prueba: ["*_test.go", "test/**", "*.spec.ts"]
-agentes:
+models:
+  light: haiku
+  medium: sonnet
+  heavy: opus
+strategy: balanced
+agent_timeout: 1200
+tests_timeout: 300
+token_budget: 0
+resume_below_pct: 70   # claude: resume the session below this % of the window (off to disable)
+budget:
+  claude: { 5h: 40000, weekly: 120000 }
+forbidden_zones: ["go.sum", "migrations/**", ".github/**"]
+test_patterns: ["*_test.go", "test/**", "*.spec.ts"]
+agents:
   specialist: { provider: claude, model: sonnet, skills: ["python", "ml"] }
-reglas_import: ["api → dominio → datos"]
-recursion_max: 0
+import_rules: ["api → domain → data"]
+max_recursion: 0
+dna: ["hexagonal", "zero-deps"]
 ```
 
 Model selection, retries, budgets, timeouts, import rules and archetypes live here. The normal flow does not require you to manage them. The built-in archetypes are `ejecutor`, `backend`, `frontend`, `architect`, `tester` and `refactor`.

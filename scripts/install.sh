@@ -60,6 +60,14 @@ case ":$PATH:" in
     ;;
 esac
 
+# idioma: prompts y config van siempre en inglés; esto es solo lo que lees
+if [ ! -f "$HOME/.loom/language" ] && (exec < /dev/tty) 2>/dev/null; then
+  printf 'Language / Idioma [en/es] (en): ' > /dev/tty
+  read -r idioma < /dev/tty || idioma=""
+  case "$idioma" in es|ES|Es) idioma=es ;; *) idioma=en ;; esac
+  mkdir -p "$HOME/.loom" && echo "$idioma" > "$HOME/.loom/language"
+fi
+
 echo
 echo "siguiente paso: $bin doctor"
 echo "si todo está verde: $bin init"

@@ -82,7 +82,7 @@ func runSketch(root string, cfg config.Config, gen plan.Generador, in io.Reader,
 	if idea == "" {
 		var ok bool
 		if idea, ok = pregunta(idioma.T("¿Qué quieres construir?"), idioma.T("una línea · enter envía · esc cancela")); !ok || idea == "" {
-			return errors.New("sin idea no hay spec · loom sketch \"tu idea\"")
+			return errors.New(idioma.T("sin idea no hay spec · loom sketch \"tu idea\""))
 		}
 	}
 	repo := contextoRepoSketch(root, cfg)
@@ -152,12 +152,12 @@ func destinoSketch(root, destino string, forzar bool) (string, error) {
 			destino = filepath.Join(root, destino)
 		}
 		if _, err := os.Stat(destino); err == nil && !forzar {
-			return "", fmt.Errorf("%s ya existe · usa --force o -o otra/ruta.yml", destino)
+			return "", fmt.Errorf(idioma.T("%s ya existe · usa --force o -o otra/ruta.yml"), destino)
 		}
 		return destino, nil
 	}
 	if existente, err := spec.Find(root); err == nil && !forzar {
-		return "", fmt.Errorf("ya hay un spec en %s · usa --force o -o otra/ruta.yml", existente)
+		return "", fmt.Errorf(idioma.T("ya hay un spec en %s · usa --force o -o otra/ruta.yml"), existente)
 	}
 	return filepath.Join(root, "loom.spec.yml"), nil
 }

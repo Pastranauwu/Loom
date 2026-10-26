@@ -17,6 +17,11 @@ func T(es string) string {
 // verbs in the same order.
 var textos = map[string]string{
 	"tú diseñas el patrón · loom teje el código": "you design the pattern · loom weaves the code",
+	"✓ idioma: %s": "✓ language: %s",
+	"← → navegar · enter siguiente · q salir": "← → navigate · enter next · q quit",
+	"← atrás · enter o q para salir":          "← back · enter or q to exit",
+	"tutorial":                                "tutorial",
+	"· nuevo en loom · corre loom tutorial para un recorrido guiado": "· new to loom · run loom tutorial for a guided tour",
 	// run view
 	"CORRIDA": "RUN", "pendiente": "pending", "pendientes": "pending", "verdes": "green",
 	"verde en ": "green in ", "sin saldo · queda pendiente": "out of credit · stays pending",

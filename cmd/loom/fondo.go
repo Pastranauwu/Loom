@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,7 +34,7 @@ func CorridasDir(root string) string {
 func lanzarEnFondo(root string) error {
 	exe, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("no se pudo ubicar el binario para desprenderlo · %s", err)
+		return fmt.Errorf(idioma.T("no se pudo ubicar el binario para desprenderlo · %s"), err)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -56,7 +57,7 @@ func lanzarEnFondo(root string) error {
 	cmd.Stderr = registro
 	cmd.SysProcAttr = desprender()
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("no se pudo arrancar en segundo plano · %s", err)
+		return fmt.Errorf(idioma.T("no se pudo arrancar en segundo plano · %s"), err)
 	}
 	pid := cmd.Process.Pid
 	// soltarlo: sin esto el padre deja un zombi al salir
@@ -66,10 +67,10 @@ func lanzarEnFondo(root string) error {
 	if err != nil {
 		rel = ruta
 	}
-	out.Line("corriendo en segundo plano · pid %d", pid)
-	out.Line("registro · %s", rel)
-	out.Line("avance · loom board · en vivo · tail -f %s", rel)
-	out.Line("parar · loom stop · retomar después · loom run --retry")
+	out.Line(idioma.T("corriendo en segundo plano · pid %d"), pid)
+	out.Line(idioma.T("registro · %s"), rel)
+	out.Line(idioma.T("avance · loom board · en vivo · tail -f %s"), rel)
+	out.Line(idioma.T("parar · loom stop · retomar después · loom run --retry"))
 	return nil
 }
 
