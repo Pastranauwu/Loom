@@ -7,6 +7,8 @@ func init() {
 }
 
 var ide = map[string]string{
+	"✓ claude conectado a loom por MCP (herramientas loom_*)":                              "✓ claude wired to loom over MCP (loom_* tools)",
+	"· no se pudo conectar claude a loom · %s · hazlo con claude mcp add loom -- loom mcp": "· could not wire claude to loom · %s · do it with claude mcp add loom -- loom mcp",
 	"uso": "usage", "tareas": "tasks", "mapa": "map", "tareas · mapa": "tasks · map",
 	"tab cambia · j/k mueve · enter detalle · esc atrás":                                             "tab switches · j/k moves · enter detail · esc back",
 	"tab cambia · j/k desplaza · g/G inicio/fin":                                                     "tab switches · j/k scrolls · g/G top/bottom",

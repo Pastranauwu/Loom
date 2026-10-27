@@ -9,6 +9,7 @@ import (
 	"github.com/Pastranauwu/loom/internal/task"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -180,6 +181,7 @@ func runInit(cwd, pruebasFlag, plantilla, cli string, in io.Reader, sinSkills bo
 	}
 	out.Line(idioma.T("✓ configuración creada en .loom/"))
 	out.Line(idioma.T("· nuevo en loom · corre loom tutorial para un recorrido guiado"))
+	registrarMCP(root)
 	out.Line(idioma.T("· loom ide abre el espacio de trabajo: Claude conectado a loom, tablero, mapa y consumo"))
 	if sinSkills {
 		out.Line(idioma.T("· skills sin traer · corre loom skills sync cuando quieras"))
@@ -302,4 +304,24 @@ func pesoEn(peso string) string {
 		return peso
 	}
 	return task.PesoEn(peso)
+}
+
+// registrarMCP deja loom conectado a Claude Code en este repo (alcance
+// local: vive en la config del usuario, no entra al repo), de modo que un
+// claude suelto también ve las herramientas loom_*. Sin claude no hace nada.
+func registrarMCP(root string) {
+	if _, err := exec.LookPath("claude"); err != nil {
+		return
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	cmd := exec.Command("claude", "mcp", "add", "--scope", "local", "loom", "--", exe, "mcp")
+	cmd.Dir = root
+	if o, err := cmd.CombinedOutput(); err != nil && !strings.Contains(string(o), "already exists") {
+		out.Line(idioma.T("· no se pudo conectar claude a loom · %s · hazlo con claude mcp add loom -- loom mcp"), strings.TrimSpace(string(o)))
+		return
+	}
+	out.Line(idioma.T("✓ claude conectado a loom por MCP (herramientas loom_*)"))
 }
