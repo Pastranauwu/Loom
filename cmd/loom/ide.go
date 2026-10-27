@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/idioma"
+	"github.com/Pastranauwu/loom/internal/tui"
 )
 
 const rolTechLead = `You are the tech lead of this repository and the human's only voice. Loom builders work in isolated rooms and never see this chat: they only get a task contract.
@@ -95,19 +96,24 @@ func crearIDE(root, exe, s string) error {
 		" --append-system-prompt " + comillas(rolTechLead)
 	panel := func(p string) string { return comillas(exe) + " panel " + p }
 
-	// el panel derecho se parte de arriba abajo: tablero, mapa, consumo
+	// derecha: el navegador (tareas y mapa) arriba y el consumo, chico, abajo
 	pasos := [][]string{
 		{"new-session", "-d", "-s", s, "-c", root, claude},
-		{"split-window", "-h", "-t", s, "-l", "34%", "-c", root, panel("board")},
-		{"split-window", "-v", "-t", s + ":.1", "-l", "55%", "-c", root, panel("map")},
-		{"split-window", "-v", "-t", s + ":.2", "-l", "36%", "-c", root, panel("usage")},
+		{"split-window", "-h", "-t", s, "-l", "34%", "-c", root, panel("nav")},
+		{"split-window", "-v", "-t", s + ":.1", "-l", "6", "-c", root, panel("usage")},
 		{"set-option", "-t", s, "mouse", "on"},
 		{"set-option", "-t", s, "pane-border-status", "top"},
+		{"set-option", "-t", s, "pane-border-format", " #{pane_title} "},
+		{"set-option", "-t", s, "pane-border-style", "fg=#3a3f42"},
+		{"set-option", "-t", s, "pane-active-border-style", "fg=#4FB3A2"},
+		{"set-option", "-t", s, "status-style", "bg=#1c1f21,fg=#6B6F72"},
+		{"set-option", "-t", s, "status-left", "#[fg=#4FB3A2,bold] loom #[default]· "},
+		{"set-option", "-t", s, "window-status-current-format", ""},
+		{"set-option", "-t", s, "window-status-format", ""},
 		{"set-option", "-t", s, "status-right", " ctrl+b d · " + idioma.T("ocultar") + "   loom ide · " + idioma.T("volver") + " "},
-		{"select-pane", "-t", s + ":.0", "-T", "claude · loom mcp"},
-		{"select-pane", "-t", s + ":.1", "-T", "board"},
-		{"select-pane", "-t", s + ":.2", "-T", "map"},
-		{"select-pane", "-t", s + ":.3", "-T", "usage"},
+		{"select-pane", "-t", s + ":.0", "-T", "claude"},
+		{"select-pane", "-t", s + ":.1", "-T", idioma.T("tareas · mapa")},
+		{"select-pane", "-t", s + ":.2", "-T", idioma.T("uso")},
 		{"select-pane", "-t", s + ":.0"},
 	}
 	for _, p := range pasos {
@@ -119,26 +125,35 @@ func crearIDE(root, exe, s string) error {
 	return nil
 }
 
-// loom panel <board|map|usage> redibuja un comando cada 2 s. Es lo que
-// corre en los paneles de la derecha; no tiene uso fuera de loom ide.
+// loom panel <nav|usage> es lo que corre en los paneles de la derecha;
+// no tiene uso fuera de loom ide.
 func newPanelCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:    "panel <board|map|usage>",
+		Use:    "panel <nav|usage>",
 		Hidden: true,
 		Args:   cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if args[0] != "board" && args[0] != "map" && args[0] != "usage" {
-				return fmt.Errorf("panel desconocido: %s", args[0])
-			}
-			exe, err := os.Executable()
+			root, err := projectRoot()
 			if err != nil {
 				return err
 			}
-			for {
-				salida, _ := exec.Command(exe, args[0], "--plain").CombinedOutput()
-				fmt.Print("\033[H\033[2J", string(salida))
-				time.Sleep(2 * time.Second)
+			switch args[0] {
+			case "nav":
+				return tui.Panel(root, func(ancho int) string {
+					m, _, err := construirMapa(root, false, 2)
+					if err != nil {
+						return err.Error()
+					}
+					return tui.VistaMapa(m, ancho)
+				})
+			case "usage":
+				for {
+					ancho, _ := tui.Terminal(os.Stdout.Fd())
+					fmt.Print("\033[H\033[2J", tui.Consumo(root, ancho))
+					time.Sleep(2 * time.Second)
+				}
 			}
+			return fmt.Errorf("panel desconocido: %s", args[0])
 		},
 	}
 }

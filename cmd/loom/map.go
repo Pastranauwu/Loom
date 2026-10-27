@@ -50,16 +50,19 @@ En terminal es un árbol; --mermaid exporta un diagrama para Markdown o un PR;
 	return cmd
 }
 
-func runMap(root string, mermaid, todos bool, profundidad int) error {
+// construirMapa reads the repo and the contracts into the map. A graph
+// failure is returned apart: the map still comes out, from the contracts.
+func construirMapa(root string, todos bool, profundidad int) (topo.Mapa, error, error) {
 	cfg, err := config.Load(root)
 	if err != nil {
-		return err
+		return topo.Mapa{}, nil, err
 	}
 	e := topo.Entrada{Profundidad: profundidad, Todos: todos, Estados: map[string]string{}}
+	var grafoErr error
 	if g, _, err := graph.Update(root, config.Dir(root)); err == nil {
 		e.Grafo = g
 	} else {
-		out.Line(idioma.T("· sin grafo del repo (%v) · el mapa sale solo de los contratos"), err)
+		grafoErr = err
 	}
 	if tareas, err := task.List(config.TasksDir(root)); err == nil {
 		e.Tareas = tareas
@@ -85,7 +88,17 @@ func runMap(root string, mermaid, todos bool, profundidad int) error {
 		}
 	}
 
-	m := topo.Construir(e)
+	return topo.Construir(e), grafoErr, nil
+}
+
+func runMap(root string, mermaid, todos bool, profundidad int) error {
+	m, grafoErr, err := construirMapa(root, todos, profundidad)
+	if err != nil {
+		return err
+	}
+	if grafoErr != nil {
+		out.Line(idioma.T("· sin grafo del repo (%v) · el mapa sale solo de los contratos"), grafoErr)
+	}
 	if out.JSON() {
 		return out.Data(m)
 	}
