@@ -26,7 +26,7 @@ type chequeoDoctor struct {
 func newDoctorCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
-		Short: "verifica git, configuración, keys y ejecutores",
+		Short: "verifica git, configuración y ejecutores",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDoctor()
@@ -95,30 +95,6 @@ func runDoctor() error {
 		checks = append(checks, chequearModelos(cfg, disponibles))
 	}
 
-	// keys: al menos una variable de proveedor en el entorno
-	keys := []string{"OPENCODE_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "OPENAI_API_KEY"}
-	for _, p := range cfg.Proveedores {
-		if p.KeyEnv != "" {
-			keys = append(keys, p.KeyEnv)
-		}
-	}
-	for _, a := range cfg.Agentes {
-		if a.KeyEnv != "" {
-			keys = append(keys, a.KeyEnv)
-		}
-	}
-	var presentes []string
-	for _, k := range keys {
-		if os.Getenv(k) != "" {
-			presentes = append(presentes, k)
-		}
-	}
-	if len(presentes) > 0 {
-		checks = append(checks, chequeoDoctor{"keys", true, strings.Join(presentes, ", ")})
-	} else {
-		checks = append(checks, chequeoDoctor{"keys", false, "ninguna key de proveedor en el entorno"})
-	}
-
 	// remoto: con varias cuentas de gh, la activa puede no entrar al
 	// origin; sin este chequeo se descubre al final de la entrega
 	if repoErr == nil && cfg.Entrega != config.EntregaLocal {
@@ -152,7 +128,7 @@ func runDoctor() error {
 			out.Line("✓ %s%s", idioma.T(c.Nombre), detalleDoctor(c))
 		} else {
 			out.Line("✗ %s  · %s", idioma.T(c.Nombre), idioma.T(c.Detalle))
-			if c.Nombre != "keys" && c.Nombre != "npx" && c.Nombre != "tmux" && c.Nombre != "claude" && c.Nombre != "remoto" {
+			if c.Nombre != "npx" && c.Nombre != "tmux" && c.Nombre != "claude" && c.Nombre != "remoto" {
 				critico = true
 			}
 		}

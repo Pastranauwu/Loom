@@ -171,7 +171,7 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return args, nil
 			}),
-		quick("loom_apply_dry_run", "Validate a spec and show the plan without writing anything.", map[string]string{"file": "string:spec path (defaults to loom.spec.yml)"},
+		quick("loom_apply_dry_run", "Validate a spec (format, ids, rules) without planning or writing anything; it does not show tasks. Use loom_apply to get them.", map[string]string{"file": "string:spec path (defaults to loom.spec.yml)"},
 			func(a map[string]any) ([]string, error) {
 				args := []string{"apply", "--dry-run", "--json"}
 				if f := str(a, "file"); f != "" {
@@ -216,7 +216,16 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return tailLog(dir, str(a, "name"), n)
 			}},
-		heavy("loom_up", "Plan, run in isolated rooms and optionally ship. Give a request, or omit it to apply loom.spec.yml.",
+		heavy("loom_apply", "Plan the spec into task contracts WITHOUT running them. Do this first so you can set each task's permissions with loom_task_set, then start them with loom_run. Poll loom_board until the tasks appear.",
+			map[string]string{"file": "string:spec path (defaults to loom.spec.yml)"},
+			func(a map[string]any) ([]string, error) {
+				args := []string{"apply"}
+				if f := str(a, "file"); f != "" {
+					args = append(args, "-f", f)
+				}
+				return args, nil
+			}),
+		heavy("loom_up", "Plan AND run in one step, with no chance to set task permissions in between: prefer loom_apply then loom_run. Give a request, or omit it to apply loom.spec.yml.",
 			map[string]string{"request": "string:natural-language request", "agents": "number:parallel workers", "ship": "boolean:open one PR when done"},
 			func(a map[string]any) ([]string, error) {
 				args := []string{"up"}
