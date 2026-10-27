@@ -195,6 +195,15 @@ func Run(ctx context.Context, o Opciones) Resultado {
 		}
 	}
 
+	// 6.7 estricto — lo que deja pasar al compilador: ts-ignore, any, unsafe, Python sin tipos
+	if aplicaEstricto(archivos) {
+		if h := escanearEstricto(diff, o.Task); len(h) > 0 {
+			apuntar(Paso{"estricto", false, resumenHallazgos(h)})
+			return res
+		}
+		apuntar(Paso{"estricto", true, idioma.T("sin código permisivo")})
+	}
+
 	// 7. bisectable — el commit compila y pasa las pruebas
 	detalle, ok := bisectable(ctx, o)
 	if !ok {

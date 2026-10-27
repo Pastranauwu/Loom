@@ -2,6 +2,9 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.2.0 (27 oct 2026)
+Modelos por rol: el pesado solo lo usan el arquitecto, el planificador y `heal`; el chat de `loom ide` corre en el medio (`--model`, nunca Opus) y un constructor de tarea `weight: heavy` usa el medio salvo que `heavy_builder:` en `config.yml` diga otra cosa. `loom_board` y `loom_log` del MCP devuelven solo lo que cambió desde la última llamada. Cuatro lenguajes de primera clase en la esclusa: nuevo paso `estricto` que frena `@ts-ignore`, `@ts-nocheck` y `any` en TypeScript, `unsafe` en Rust si el contrato no lo justifica (`risks`, `notes` o `exposes` lo nombran) y funciones Python sin tipos completos en argumentos y retorno; las plantillas de pruebas pasan a la forma estricta (`go vet`, `cargo check` + `clippy -D warnings`, `tsc --noEmit --strict` + vitest, `mypy --strict` + `ruff` + pytest) y el arquitecto recibe esas formas para `verify`. El examinador ciego sigue sin cubrir Rust.
+
 ## v2.1.0 (27 oct 2026)
 `loom mcp` sirve loom a un cliente MCP por stdio, sin dependencias nuevas: las herramientas rápidas (`loom_map`, `loom_board`, `loom_check`, `loom_apply_dry_run`...) responden en vivo y las pesadas (`loom_up`, `loom_run`, `loom_ship`, `loom_redteam`, `loom_heal`) arrancan desprendidas y devuelven pid y registro. El modelo del chat entrevista al humano, escribe el spec (`loom_spec_write`) y fija los permisos de cada tarea (`loom_task_set`: `only_touch`, `dont_touch`, peso, intentos); el código revierte lo que se salga. `loom ide` abre una sesión de tmux con Claude ya conectado a loom a la izquierda (2/3) y, a la derecha (1/3), tablero, mapa y consumo en vivo; se oculta con ctrl+b d y se retoma con `loom ide`. `loom doctor` revisa tmux y claude.
 

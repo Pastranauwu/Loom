@@ -92,7 +92,7 @@ func TestRunInitPlantillaGo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.Pruebas != "go test ./..." {
+	if cfg.Pruebas != "go vet ./... && go test ./..." {
 		t.Errorf("Pruebas = %q, quiere plantilla go", cfg.Pruebas)
 	}
 	if !strings.Contains(b.String(), "go test ./internal/") {
@@ -103,7 +103,7 @@ func TestRunInitPlantillaGo(t *testing.T) {
 func TestRunInitPlantillaDesconocida(t *testing.T) {
 	root := repoTemporal(t)
 	out = ui.New(io.Discard, false)
-	err := runInit(root, "", "rust", "", nil, true)
+	err := runInit(root, "", "elixir", "", nil, true)
 	if err == nil || !strings.Contains(err.Error(), "plantilla desconocida") {
 		t.Fatalf("error = %v, quiere plantilla desconocida", err)
 	}

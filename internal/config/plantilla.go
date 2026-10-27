@@ -8,11 +8,15 @@ import "strings"
 func PlantillaPruebas(stack string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(stack)) {
 	case "go":
-		return "go test ./...", true
+		return "go vet ./... && go test ./...", true
+	case "rust", "cargo":
+		return "cargo check && cargo clippy -- -D warnings && cargo test", true
+	case "typescript", "ts":
+		return "npx tsc --noEmit --strict && npx vitest run", true
 	case "node", "jest":
 		return "npm test", true
 	case "python", "pytest":
-		return "pytest", true
+		return "mypy --strict . && ruff check . && pytest", true
 	default:
 		return "", false
 	}

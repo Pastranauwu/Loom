@@ -12,15 +12,17 @@ func TestPlantillaPruebas(t *testing.T) {
 		want  string
 		ok    bool
 	}{
-		{"go", "go test ./...", true},
-		{"GO", "go test ./...", true},
+		{"go", "go vet ./... && go test ./...", true},
+		{"GO", "go vet ./... && go test ./...", true},
 		{"node", "npm test", true},
 		{"jest", "npm test", true},
-		{"python", "pytest", true},
-		{"pytest", "pytest", true},
-		{"rust", "", false},
+		{"python", "mypy --strict . && ruff check . && pytest", true},
+		{"pytest", "mypy --strict . && ruff check . && pytest", true},
+		{"rust", "cargo check && cargo clippy -- -D warnings && cargo test", true},
+		{"typescript", "npx tsc --noEmit --strict && npx vitest run", true},
+		{"elixir", "", false},
 		{"", "", false},
-		{"  go  ", "go test ./...", true},
+		{"  go  ", "go vet ./... && go test ./...", true},
 	}
 	for _, c := range casos {
 		got, ok := PlantillaPruebas(c.stack)

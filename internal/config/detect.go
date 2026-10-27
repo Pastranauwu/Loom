@@ -66,6 +66,9 @@ func DetectTestCommand(root string) (string, bool) {
 	if fileExists(filepath.Join(root, "pyproject.toml")) {
 		return "pytest", true
 	}
+	if fileExists(filepath.Join(root, "Cargo.toml")) {
+		return "cargo test", true
+	}
 	return "", false
 }
 

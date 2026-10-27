@@ -148,7 +148,7 @@ BEFORE ANSWERING: the "verify" command passes with the stubs (it compiles, typec
 
 ANSWER AT THE END WITH ONLY THIS JSON
 {
-  "verify": "command that compiles or typechecks the whole project and passes today (e.g. \"npx tsc --noEmit\", \"go vet ./...\", \"python -m compileall -q src\")",
+  "verify": "command that compiles or typechecks the whole project and passes today in the strict form of the language: Go \"go vet ./...\", Rust \"cargo check && cargo clippy -- -D warnings\", TypeScript \"npx tsc --noEmit --strict\", Python \"mypy --strict .\" (and \"ruff check .\")",
   "integration": "command that runs the end-to-end test (the final task writes it)",
   "tests": "command that runs the WHOLE project suite (all folders and languages)",
   "architecture": "summary of 5 to 15 lines; the full text lives in ` + Documento + `",

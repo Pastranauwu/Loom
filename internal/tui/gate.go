@@ -24,7 +24,7 @@ import (
 // el contador llegaba a 9/8.
 var NombresPasos = []string{
 	"base", "historial", "ruido", "secretos", "presupuesto",
-	"interfaces", "dependencias", "dna", "bisectable", "redteam", "suite_oculta",
+	"interfaces", "dependencias", "dna", "estricto", "bisectable", "redteam", "suite_oculta",
 	"handoff", "pr",
 }
 
@@ -33,7 +33,7 @@ var NombresPasos = []string{
 // mismo orden que NombresPasos — lo verifica TestEtiquetasAlineadas.
 var nombresCortos = []string{
 	"base", "hist", "ruido", "secr", "presu",
-	"iface", "deps", "dna", "bisec", "red", "oculta",
+	"iface", "deps", "dna", "estr", "bisec", "red", "oculta",
 	"hand", "pr",
 }
 
