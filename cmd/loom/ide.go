@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/Pastranauwu/loom/internal/tui"
 )
@@ -85,13 +86,27 @@ func runIDE(root string) error {
 	return cmd.Run()
 }
 
+// modeloTechLead is the model of the chat: the medium one, never the heavy.
+// An id claude does not know (an opencode one) falls back to the sonnet alias.
+func modeloTechLead(root string) string {
+	if cfg, err := config.Load(root); err == nil {
+		m := config.ModeloRol(cfg, "techlead")
+		if strings.HasPrefix(m, "claude-") || m == "sonnet" || m == "opus" || m == "haiku" {
+			if !strings.Contains(m, "opus") {
+				return m
+			}
+		}
+	}
+	return "sonnet"
+}
+
 func crearIDE(root, exe, s string) error {
 	mcp := fmt.Sprintf(`{"mcpServers":{"loom":{"command":%q,"args":["mcp"]}}}`, exe)
 	var tools []string
 	for _, t := range mcpSoloLectura {
 		tools = append(tools, "mcp__loom__"+t)
 	}
-	claude := "claude --mcp-config " + comillas(mcp) +
+	claude := "claude --model " + comillas(modeloTechLead(root)) + " --mcp-config " + comillas(mcp) +
 		" --allowedTools " + comillas(strings.Join(tools, ",")) +
 		" --append-system-prompt " + comillas(rolTechLead)
 	panel := func(p string) string { return comillas(exe) + " panel " + p }

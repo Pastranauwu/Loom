@@ -739,3 +739,26 @@ func TestRedteamEnConfig(t *testing.T) {
 		t.Error("por defecto no hay redteam")
 	}
 }
+
+func TestModeloConstructorYTechLead(t *testing.T) {
+	c := Config{Modelos: map[string]string{"liviana": "haiku", "media": "sonnet", "pesada": "opus"}}
+	for peso, quiero := range map[string]string{"liviana": "haiku", "media": "sonnet", "pesada": "sonnet"} {
+		if got := c.ModeloConstructor(peso); got != quiero {
+			t.Errorf("constructor %s = %q, quiero %q", peso, got, quiero)
+		}
+	}
+	if got := ModeloRol(c, "planificador"); got != "opus" {
+		t.Errorf("planificador = %q, quiero opus", got)
+	}
+	if got := ModeloRol(c, "techlead"); got != "sonnet" {
+		t.Errorf("techlead = %q, quiero sonnet", got)
+	}
+	c.HeavyBuilder = "opus"
+	if got := c.ModeloConstructor("pesada"); got != "opus" {
+		t.Errorf("heavy_builder = %q, quiero opus", got)
+	}
+	c2, err := Parse([]byte("heavy_builder: sonnet\n"))
+	if err != nil || c2.HeavyBuilder != "sonnet" {
+		t.Errorf("heavy_builder no se lee: %v %q", err, c2.HeavyBuilder)
+	}
+}

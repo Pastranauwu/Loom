@@ -89,6 +89,9 @@ type Config struct {
 	// Redteam is off (default), warn or block: whether a saboteur attacks a task
 	// before it ships, and whether a confirmed crash stops the PR.
 	Redteam string `json:"redteam,omitempty"`
+	// HeavyBuilder is the model of builders on heavy tasks. Empty = the
+	// medium model: the heavy one is for the architect and heal.
+	HeavyBuilder string `json:"heavy_builder,omitempty"`
 	// Language is the language of prose written for people: "en" (default) or "es".
 	Language string `json:"language,omitempty"`
 	// PresupuestoVentanas es el bloque `presupuesto:`: por proveedor, por
@@ -319,6 +322,9 @@ func (c Config) Save(root string) error {
 	if c.Redteam == "warn" || c.Redteam == "block" {
 		fmt.Fprintf(&b, "redteam: %s\n", c.Redteam)
 	}
+	if c.HeavyBuilder != "" {
+		fmt.Fprintf(&b, "heavy_builder: %s\n", c.HeavyBuilder)
+	}
 	if c.Language == "en" || c.Language == "es" {
 		fmt.Fprintf(&b, "language: %s\n", c.Language)
 	}
@@ -464,7 +470,7 @@ func ModeloRol(c Config, rol string) string {
 	switch rol {
 	case "planificador":
 		return c.ModeloPeso("pesada")
-	case "revisor":
+	case "revisor", "techlead":
 		return c.ModeloPeso("media")
 	case "examinador":
 		return c.ModeloPeso("liviana")
@@ -494,6 +500,24 @@ func (c Config) ModeloPeso(peso string) string {
 	return c.Modelos[peso]
 }
 
+// ModeloConstructor is the model a builder runs a task of that weight on.
+// Only the architect, the planner and heal use the heavy model: a builder
+// on a heavy task gets the medium one unless heavy_builder says otherwise.
+func (c Config) ModeloConstructor(peso string) string {
+	if peso == "" {
+		peso = c.PesoPorDefecto()
+	}
+	if peso == "pesada" {
+		if c.HeavyBuilder != "" {
+			return c.HeavyBuilder
+		}
+		if m := c.ModeloPeso("media"); m != "" {
+			return m
+		}
+	}
+	return c.ModeloPeso(peso)
+}
+
 // ModeloPara devuelve el modelo de un peso de tarea, cayendo al peso por
 // defecto de la estrategia si el peso pedido no está mapeado, y "" si no
 // hay nada declarado (el CLI decide entonces).
@@ -501,7 +525,7 @@ func (c Config) ModeloPara(peso string) string {
 	if peso == "" {
 		peso = c.PesoPorDefecto()
 	}
-	if m := c.ModeloPeso(peso); m != "" {
+	if m := c.ModeloConstructor(peso); m != "" {
 		return m
 	}
 	return c.ModeloPeso(c.PesoPorDefecto())
@@ -642,6 +666,8 @@ func Parse(data []byte) (Config, error) {
 				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · presupuesto_tokens inválido: %s · entero, mínimo 0 (0 = sin tope)"), p.Line, p.Value)
 			}
 			cfg.PresupuestoTokens = n
+		case "heavy_builder":
+			cfg.HeavyBuilder = kv.Unquote(p.Value)
 		case "redteam":
 			v := kv.Unquote(p.Value)
 			if v != "off" && v != "warn" && v != "block" {

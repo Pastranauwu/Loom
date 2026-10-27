@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -156,7 +158,19 @@ func mcpTools(exe string) []mcp.Tool {
 
 	return []mcp.Tool{
 		quick("loom_map", "Map of the repo: modules by layer with their tasks and contracts. Read it before writing a spec.", nil, fixed("map", "--json")),
-		quick("loom_board", "Board of every task and its state (pending, running, ready, stopped). Poll it for progress.", nil, fixed("board", "--json")),
+		{Name: "loom_board", Description: "Task board, compact. The first call lists every task; later calls return only what changed since the last one (or 'no changes'). Pass full to list everything again.",
+			Schema: schema(map[string]string{"full": "boolean:list every task again"}),
+			Call: func(a map[string]any) (string, error) {
+				dir, err := projectDir(a)
+				if err != nil {
+					return "", err
+				}
+				raw, err := runQuick(exe, dir, []string{"board", "--json"})
+				if err != nil {
+					return "", err
+				}
+				return boardDelta(dir, raw, on(a, "full"))
+			}},
 		quick("loom_ps", "Tasks with state, agent and branch.", nil, fixed("ps", "--json")),
 		quick("loom_check", "Run the done-when command of one task and report.", map[string]string{"id": "string:task id, e.g. T-001"}, withID("check", "--json"), "id"),
 		quick("loom_task_logs", "Attempts of one task: what each agent tried and why it failed.", map[string]string{"id": "string:task id"}, withID("logs", "--json"), "id"),
@@ -203,8 +217,8 @@ func mcpTools(exe string) []mcp.Tool {
 				content, _ := a["content"].(string)
 				return writeSpec(dir, str(a, "path"), content, on(a, "force"))
 			}},
-		{Name: "loom_log", Description: "Tail of a detached run's log (latest by default).",
-			Schema: schema(map[string]string{"name": "string:log file name from loom_up output", "lines": "number:how many lines (default 40)"}),
+		{Name: "loom_log", Description: "New lines of a detached run's log since your last call (latest log by default; the first call returns the tail). Pass full for the tail again.",
+			Schema: schema(map[string]string{"name": "string:log file name from loom_up output", "lines": "number:max lines (default 40)", "full": "boolean:ignore what you already read"}),
 			Call: func(a map[string]any) (string, error) {
 				dir, err := projectDir(a)
 				if err != nil {
@@ -214,7 +228,7 @@ func mcpTools(exe string) []mcp.Tool {
 				if n <= 0 {
 					n = 40
 				}
-				return tailLog(dir, str(a, "name"), n)
+				return tailLog(dir, str(a, "name"), n, on(a, "full"))
 			}},
 		heavy("loom_apply", "Plan the spec into task contracts WITHOUT running them. Do this first so you can set each task's permissions with loom_task_set, then start them with loom_run. Poll loom_board until the tasks appear.",
 			map[string]string{"file": "string:spec path (defaults to loom.spec.yml)"},
@@ -346,26 +360,112 @@ func runDetached(exe, dir string, args []string) (string, error) {
 	}
 }
 
-func tailLog(dir, name string, n int) (string, error) {
+var (
+	vistoMu    sync.Mutex
+	vistoBoard = map[string]map[string]string{} // dir → id → "estado|detalle"
+	vistoLog   = map[string]int{}               // ruta del log → bytes ya leídos
+)
+
+// boardDelta turns the board JSON into one line per task and, after the
+// first call, only the lines that changed: a polling chat should not pay
+// for the whole board every time.
+func boardDelta(dir, raw string, full bool) (string, error) {
+	var cols map[string][]map[string]any
+	if err := json.Unmarshal([]byte(raw), &cols); err != nil {
+		return "", err
+	}
+	ahora := map[string]string{}
+	titulos := map[string]string{}
+	for estado, filas := range cols {
+		for _, f := range filas {
+			id, _ := f["id"].(string)
+			detalle, _ := f["detalle"].(string)
+			ahora[id] = estado + "|" + detalle
+			titulos[id], _ = f["titulo"].(string)
+		}
+	}
+	vistoMu.Lock()
+	antes, hubo := vistoBoard[dir]
+	vistoBoard[dir] = ahora
+	vistoMu.Unlock()
+
+	ids := make([]string, 0, len(ahora))
+	for id := range ahora {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var b strings.Builder
+	cambios := 0
+	for _, id := range ids {
+		estado, detalle, _ := strings.Cut(ahora[id], "|")
+		if hubo && !full {
+			if antes[id] == ahora[id] {
+				continue
+			}
+			prev, _, _ := strings.Cut(antes[id], "|")
+			if prev != "" && prev != estado {
+				estado = prev + "→" + estado
+			}
+		}
+		cambios++
+		fmt.Fprintf(&b, "%s %s", id, estado)
+		if !hubo || full {
+			fmt.Fprintf(&b, " %s", titulos[id])
+		}
+		if detalle != "" {
+			fmt.Fprintf(&b, " · %s", detalle)
+		}
+		b.WriteString("\n")
+	}
+	if hubo && !full {
+		for id := range antes {
+			if _, sigue := ahora[id]; !sigue {
+				cambios++
+				fmt.Fprintf(&b, "%s removed\n", id)
+			}
+		}
+	}
+	if cambios == 0 {
+		if len(ahora) == 0 {
+			return "no tasks", nil
+		}
+		return fmt.Sprintf("no changes · %d tasks", len(ahora)), nil
+	}
+	return strings.TrimRight(b.String(), "\n"), nil
+}
+
+func tailLog(dir, name string, n int, full bool) (string, error) {
 	d := corridasDir(dir)
 	if name == "" {
 		entries, _ := os.ReadDir(d)
 		for _, e := range entries {
 			if strings.HasSuffix(e.Name(), ".log") {
-				name = e.Name() // sorted by name = by time
+				name = e.Name() // ordenados por nombre = por hora
 			}
 		}
 		if name == "" {
 			return "", errors.New("no runs yet")
 		}
 	}
-	data, err := os.ReadFile(filepath.Join(d, filepath.Base(name)))
+	ruta := filepath.Join(d, filepath.Base(name))
+	data, err := os.ReadFile(ruta)
 	if err != nil {
 		return "", err
 	}
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	vistoMu.Lock()
+	leido := vistoLog[ruta]
+	vistoLog[ruta] = len(data)
+	vistoMu.Unlock()
+	if full || leido > len(data) {
+		leido = 0
+	}
+	nuevo := strings.TrimRight(string(data[leido:]), "\n")
+	if nuevo == "" {
+		return "no new lines", nil
+	}
+	lines := strings.Split(nuevo, "\n")
 	if len(lines) > n {
-		lines = lines[len(lines)-n:]
+		lines = append([]string{fmt.Sprintf("… %d earlier lines skipped", len(lines)-n)}, lines[len(lines)-n:]...)
 	}
 	return strings.Join(lines, "\n"), nil
 }

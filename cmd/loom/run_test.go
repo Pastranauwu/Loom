@@ -128,17 +128,22 @@ func TestModeloParaTarea(t *testing.T) {
 	if got := modeloParaTarea(cfg, "flag-model", task.Task{Peso: "pesada"}); got != "flag-model" {
 		t.Errorf("flag = %q, quiero flag-model", got)
 	}
-	// peso explícito
-	if got := modeloParaTarea(cfg, "", task.Task{Peso: "pesada"}); got != "claude-sonnet" {
-		t.Errorf("peso pesada = %q, quiero claude-sonnet", got)
+	// un constructor de peso pesada usa el modelo medio: el pesado es del arquitecto
+	if got := modeloParaTarea(cfg, "", task.Task{Peso: "pesada"}); got != "glm-5.2" {
+		t.Errorf("peso pesada = %q, quiero glm-5.2", got)
 	}
+	cfg.HeavyBuilder = "claude-sonnet"
+	if got := modeloParaTarea(cfg, "", task.Task{Peso: "pesada"}); got != "claude-sonnet" {
+		t.Errorf("heavy_builder = %q, quiero claude-sonnet", got)
+	}
+	cfg.HeavyBuilder = ""
 	// sin peso, usa la estrategia
 	if got := modeloParaTarea(cfg, "", task.Task{}); got != "glm-5.2" {
 		t.Errorf("estrategia equilibrada = %q, quiero glm-5.2", got)
 	}
 	// peso sin modelo mapeado cae al ejecutor
 	cfg2 := config.Config{Modelos: map[string]string{"media": "glm-5.2"}, Proveedores: map[string]config.Proveedor{"ejecutor": {Modelo: "default"}}}
-	if got := modeloParaTarea(cfg2, "", task.Task{Peso: "pesada"}); got != "default" {
+	if got := modeloParaTarea(cfg2, "", task.Task{Peso: "liviana"}); got != "default" {
 		t.Errorf("peso sin mapeo = %q, quiero default", got)
 	}
 }
@@ -262,8 +267,8 @@ func TestResolverAgenteTarea(t *testing.T) {
 	// 5b. Con `modelos:` declarado, el peso de la tarea manda
 	cfgPesos := config.Config{Modelos: map[string]string{"liviana": "chico", "media": "mediano", "pesada": "grande"}}
 	_, modeloPesado, _, _ := resolverAgenteTarea(cfgPesos, nil, "", task.Task{ID: "T-005", Agente: "backend", Peso: "pesada"})
-	if modeloPesado != "grande" {
-		t.Errorf("modeloPesado = %q, quiero grande", modeloPesado)
+	if modeloPesado != "mediano" {
+		t.Errorf("modeloPesado = %q, quiero mediano (el pesado es del arquitecto)", modeloPesado)
 	}
 	if len(skillsBack) == 0 {
 		t.Error("skillsBack no debe estar vacío")

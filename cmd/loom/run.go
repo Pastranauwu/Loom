@@ -592,7 +592,7 @@ func modeloParaTarea(cfg config.Config, flagModelo string, t task.Task) string {
 	if peso == "" {
 		peso = cfg.PesoPorDefecto()
 	}
-	if m := cfg.ModeloPeso(peso); m != "" {
+	if m := cfg.ModeloConstructor(peso); m != "" {
 		return m
 	}
 	return config.ModeloRol(cfg, "ejecutor")
