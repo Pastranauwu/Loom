@@ -134,6 +134,15 @@ func runDoctor() error {
 		checks = append(checks, chequeoDoctor{"npx", true, ""})
 	}
 
+	// tmux y claude: opcionales, solo hacen falta para loom ide
+	for _, bin := range []string{"tmux", "claude"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			checks = append(checks, chequeoDoctor{bin, false, "no instalado · loom ide no va a poder abrirse"})
+		} else {
+			checks = append(checks, chequeoDoctor{bin, true, ""})
+		}
+	}
+
 	if err := out.Data(checks); err != nil {
 		return err
 	}
@@ -143,7 +152,7 @@ func runDoctor() error {
 			out.Line("✓ %s%s", idioma.T(c.Nombre), detalleDoctor(c))
 		} else {
 			out.Line("✗ %s  · %s", idioma.T(c.Nombre), idioma.T(c.Detalle))
-			if c.Nombre != "keys" && c.Nombre != "npx" && c.Nombre != "remoto" {
+			if c.Nombre != "keys" && c.Nombre != "npx" && c.Nombre != "tmux" && c.Nombre != "claude" && c.Nombre != "remoto" {
 				critico = true
 			}
 		}

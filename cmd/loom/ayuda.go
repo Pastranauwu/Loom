@@ -43,7 +43,9 @@ func traducirAyuda(c *cobra.Command) {
 }
 
 var ayudaEn = map[string]textoAyuda{
-	"loom": {Short: "you design the pattern, loom weaves the code with AI agents", Flags: map[string]string{"json": "structured JSON output", "plain": "plain text output, one line per event"}},
+	"loom ide": {Short: "open the loom workspace: Claude (2/3) with board, map and usage (1/3)"},
+	"loom mcp": {Short: "serve loom to an MCP client (Claude Desktop, Cursor, opencode) over stdio"},
+	"loom":     {Short: "you design the pattern, loom weaves the code with AI agents", Flags: map[string]string{"json": "structured JSON output", "plain": "plain text output, one line per event"}},
 	"loom apply": {Short: "apply a declarative spec of tasks (Requirements as Code)",
 		Long:  "Reads a declarative spec (loom.spec.yml by default), validates the task\ncontracts, assigns consecutive ids to the ones without, and saves them in\n.loom/tasks/ ready to be verified or run.\n\nWith --run (or -r) it starts the parallel run right away (loom run).",
 		Flags: map[string]string{"dry-run": "validate the spec without writing files", "file": "path to the spec file (.yml)", "run": "run the tasks right after applying them"}},

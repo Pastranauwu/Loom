@@ -180,6 +180,7 @@ func runInit(cwd, pruebasFlag, plantilla, cli string, in io.Reader, sinSkills bo
 	}
 	out.Line(idioma.T("✓ configuración creada en .loom/"))
 	out.Line(idioma.T("· nuevo en loom · corre loom tutorial para un recorrido guiado"))
+	out.Line(idioma.T("· loom ide abre el espacio de trabajo: Claude conectado a loom, tablero, mapa y consumo"))
 	if sinSkills {
 		out.Line(idioma.T("· skills sin traer · corre loom skills sync cuando quieras"))
 	} else {

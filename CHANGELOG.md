@@ -2,7 +2,9 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
-## v2.1.0 (26 oct 2026)
+## v2.1.0 (27 oct 2026)
+`loom mcp` sirve loom a un cliente MCP por stdio, sin dependencias nuevas: las herramientas rápidas (`loom_map`, `loom_board`, `loom_check`, `loom_apply_dry_run`...) responden en vivo y las pesadas (`loom_up`, `loom_run`, `loom_ship`, `loom_redteam`, `loom_heal`) arrancan desprendidas y devuelven pid y registro. El modelo del chat entrevista al humano, escribe el spec (`loom_spec_write`) y fija los permisos de cada tarea (`loom_task_set`: `only_touch`, `dont_touch`, peso, intentos); el código revierte lo que se salga. `loom ide` abre una sesión de tmux con Claude ya conectado a loom a la izquierda (2/3) y, a la derecha (1/3), tablero, mapa y consumo en vivo; se oculta con ctrl+b d y se retoma con `loom ide`. `loom doctor` revisa tmux y claude.
+
 `loom redteam`: un saboteur escribe pruebas hostiles contra lo que una tarea expone, en un worktree efímero que siempre se borra, con una sola llamada al modelo por tarea. Solo ataca invariantes reales (ids del spec, reglas, aceptación, ADN activo o clases de robustez) y el código decide qué prueba: un crash o carrera dentro del código de la tarea que se reproduce dos veces es *confirmado*, una aserción inventada es solo una *afirmación* y un test que no compila se descarta. `--reopen` mete el test reproductor en el contrato de la tarea dueña de la firma y la reabre; `--keep-tests` lo conserva en `.loom/redteam/`. `redteam: off|warn|block` en `config.yml` (o `loom ship --redteam`) lo suma a la esclusa de salida como paso `redteam`; con `block` solo frena un crash confirmado. Mensajes de los paquetes internos (esclusa, bucle, spec, contratos) también en inglés o español según el idioma elegido.
 
 ## v2.0.1 (26 oct 2026)

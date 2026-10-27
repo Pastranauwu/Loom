@@ -77,6 +77,8 @@ func newRootCmd() *cobra.Command {
 		newTutorialCmd(),
 		newRedteamCmd(),
 		newMCPCmd(),
+		newIDECmd(),
+		newPanelCmd(),
 	)
 
 	return root

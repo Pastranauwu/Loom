@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,8 +14,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/mcp"
 	"github.com/Pastranauwu/loom/internal/spec"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 const specGuide = `loom.spec.yml declares WHAT must exist; loom builds it with isolated agents.
@@ -77,7 +80,11 @@ func schema(props map[string]string, required ...string) map[string]any {
 	p := map[string]any{"dir": map[string]any{"type": "string", "description": "project directory (defaults to the server's)"}}
 	for k, v := range props {
 		typ, desc, _ := strings.Cut(v, ":")
-		p[k] = map[string]any{"type": typ, "description": desc}
+		prop := map[string]any{"type": typ, "description": desc}
+		if typ == "array" {
+			prop["items"] = map[string]any{"type": "string"}
+		}
+		p[k] = prop
 	}
 	s := map[string]any{"type": "object", "properties": p}
 	if len(required) > 0 {
@@ -173,6 +180,17 @@ func mcpTools(exe string) []mcp.Tool {
 				return args, nil
 			}),
 		quick("loom_stop", "Stop running tasks.", nil, fixed("stop", "--json")),
+		{Name: "loom_task_show", Description: "Contract of one task: what it may touch, what it may not, weight, retries.",
+			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
+			Call: func(a map[string]any) (string, error) {
+				return editTask(a, false)
+			}},
+		{Name: "loom_task_set", Description: "Set the permissions of a task before it runs: only_touch (globs it may edit), dont_touch (globs it may not), weight (light|medium|heavy), max_retries, depends_on. Fields you omit stay as they are. Out-of-scope edits are reverted by code, so this is the real boundary.",
+			Schema: schema(map[string]string{"id": "string:task id", "only_touch": "array:globs the task may edit", "dont_touch": "array:globs the task may not edit",
+				"weight": "string:light, medium or heavy", "max_retries": "number:attempt limit", "depends_on": "array:task ids that must finish first"}, "id"),
+			Call: func(a map[string]any) (string, error) {
+				return editTask(a, true)
+			}},
 		{Name: "loom_spec_guide", Description: "Format of loom.spec.yml and how to interview the human to fill it.",
 			Schema: schema(nil), Call: func(map[string]any) (string, error) { return specGuide, nil }},
 		{Name: "loom_spec_write", Description: "Validate and write a spec you drafted from the interview. Refuses to overwrite unless force.",
@@ -364,4 +382,67 @@ func writeSpec(dir, path, content string, force bool) (string, error) {
 		return "", err
 	}
 	return "wrote " + path + " · validate with loom_apply_dry_run", nil
+}
+
+func list(a map[string]any, k string) ([]string, bool) {
+	raw, ok := a[k].([]any)
+	if !ok {
+		return nil, false
+	}
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+			out = append(out, strings.TrimSpace(s))
+		}
+	}
+	return out, true
+}
+
+func editTask(a map[string]any, set bool) (string, error) {
+	dir, err := projectDir(a)
+	if err != nil {
+		return "", err
+	}
+	root, err := config.RepoRoot(dir)
+	if err != nil {
+		return "", err
+	}
+	tasks := config.TasksDir(root)
+	id := str(a, "id")
+	if !task.ValidID(id) {
+		return "", errors.New("id must look like T-001")
+	}
+	t, err := task.Load(tasks, id)
+	if err != nil {
+		return "", err
+	}
+	if set {
+		if v, ok := list(a, "only_touch"); ok {
+			t.TocarSolo = v
+		}
+		if v, ok := list(a, "dont_touch"); ok {
+			t.NoTocar = v
+		}
+		if v, ok := list(a, "depends_on"); ok {
+			t.DependeDe = v
+		}
+		if w := str(a, "weight"); w != "" {
+			t.Peso = task.NormalizarPeso(w)
+		}
+		if n := num(a, "max_retries"); n > 0 {
+			t.LimiteIntentos = n
+		}
+		if errs := t.Validate(); len(errs) > 0 {
+			msgs := make([]string, len(errs))
+			for i, e := range errs {
+				msgs[i] = e.Error()
+			}
+			return "", errors.New(id + " would be invalid · " + strings.Join(msgs, " · "))
+		}
+		if err := task.Save(tasks, t); err != nil {
+			return "", err
+		}
+	}
+	data, err := json.MarshalIndent(t, "", "  ")
+	return string(data), err
 }
