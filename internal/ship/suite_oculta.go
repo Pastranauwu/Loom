@@ -40,7 +40,7 @@ func verificarSuiteOculta(ctx context.Context, root, roomPath string, t task.Tas
 	// repo principal salvo que este examen la consuma (ver abajo)
 	defer func() { _ = os.Remove(hiddenPath) }()
 
-	salida, code := runComando(ctx, roomPath, pruebas, timeout)
+	salida, code := runComando(ctx, roomPath, pruebas, timeout, t.Red)
 	pasaron, fallaron := loop.ParseTestCounts(salida)
 	brechaVal := calcularBrecha(root, t.ID, pasaron, fallaron)
 

@@ -22,6 +22,7 @@ const TimeoutSuitePorDefecto = 10 * time.Minute
 type Suite struct {
 	ID          string
 	ListoCuando string
+	Red         bool // sus pruebas necesitan red (task.Red)
 }
 
 // ResultadoFuncional es el tercer nivel del solapamiento: qué pasó al correr las
@@ -125,7 +126,7 @@ func CheckFuncional(ctx context.Context, root string, res Resultado, a, b Suite,
 	rf.Corrio = true
 	var salidas []string
 	for _, s := range []Suite{a, b} {
-		ok, out := correrSuite(ctx, dir, s.ListoCuando, timeoutSuite)
+		ok, out := correrSuite(ctx, dir, s.ListoCuando, timeoutSuite, s.Red)
 		if !ok {
 			rf.Rompen = append(rf.Rompen, s.ID)
 			salidas = append(salidas, s.ID+" · "+tail(out))
@@ -161,12 +162,11 @@ func commitDeArbol(ctx context.Context, root, arbol, ramaA, ramaB string) (strin
 // correrSuite corre un listo_cuando dentro del worktree de la fusión.
 // Devuelve si pasó y la salida, que es lo que el humano necesita para
 // entender qué se rompió.
-func correrSuite(ctx context.Context, dir, listoCuando string, timeout time.Duration) (bool, string) {
+func correrSuite(ctx context.Context, dir, listoCuando string, timeout time.Duration, red bool) (bool, string) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", task.SinTerminal(listoCuando))
+	cmd := task.Shell(ctx, dir, listoCuando, red)
 	cmd.Env = append(os.Environ(), room.Entorno(dir)...)
-	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		return false, "la suite se pasó del tiempo"

@@ -19,7 +19,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -79,7 +78,7 @@ func Run(ctx context.Context, root string, cfg config.Config, t task.Task, otras
 	ejecutable := checkEjecutable(root, t)
 	res.Chequeos = append(res.Chequeos, ejecutable)
 	if ejecutable.OK {
-		res.Chequeos = append(res.Chequeos, checkFallaHoy(ctx, root, t.ListoCuando, timeout))
+		res.Chequeos = append(res.Chequeos, checkFallaHoy(ctx, root, t.ListoCuando, timeout, t.Red))
 	} else {
 		res.Chequeos = append(res.Chequeos, Check{
 			Nombre: "falla hoy",
@@ -213,17 +212,11 @@ func programas(cmd string) []string {
 
 // checkFallaHoy: the command must fail today. It runs for real with a
 // timeout; a zero exit rejects the task as pointless.
-func checkFallaHoy(ctx context.Context, root, listoCuando string, timeout time.Duration) Check {
+func checkFallaHoy(ctx context.Context, root, listoCuando string, timeout time.Duration, red bool) Check {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/c", task.SinTerminal(listoCuando))
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", task.SinTerminal(listoCuando))
-	}
-	cmd.Dir = root
+	cmd := task.Shell(ctx, root, listoCuando, red)
 
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {

@@ -288,16 +288,16 @@ func (r Resultado) PrimerMotivo() string {
 // tarea (con esqueleto, la suite sigue roja hasta rellenar todo). En los
 // dos casos la suite completa la exige el paso integradas.
 func bisectable(ctx context.Context, o Opciones) (string, bool) {
-	detalle, ok := verificarBisectable(ctx, o.Room.Path, o.Config.Pruebas, o.Timeout)
+	detalle, ok := verificarBisectable(ctx, o.Room.Path, o.Config.Pruebas, o.Timeout, o.Task.Red)
 	if ok {
 		return detalle, true
 	}
 	switch {
 	case o.SuiteAlIntegrar:
-		detalle, ok = verificarBisectable(ctx, o.Room.Path, o.Task.ListoCuando, o.Timeout)
+		detalle, ok = verificarBisectable(ctx, o.Room.Path, o.Task.ListoCuando, o.Timeout, o.Task.Red)
 		return "la suite no pasa en la rama de la tarea · " + detalle + " · la suite completa se exige al integrar, sobre la base actual", ok
-	case suiteYaFallaba(ctx, o.Room.Path, o.Base, o.Config.Pruebas, o.Timeout):
-		detalle, ok = verificarBisectable(ctx, o.Room.Path, o.Task.ListoCuando, o.Timeout)
+	case suiteYaFallaba(ctx, o.Room.Path, o.Base, o.Config.Pruebas, o.Timeout, o.Task.Red):
+		detalle, ok = verificarBisectable(ctx, o.Room.Path, o.Task.ListoCuando, o.Timeout, o.Task.Red)
 		return "la suite ya fallaba al empezar la tarea · " + detalle + " · la suite completa se exige al integrar", ok
 	}
 	return detalle, false

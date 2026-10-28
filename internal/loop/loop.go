@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -462,7 +461,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		var salida string
 		var code *int
 		if detener == nil {
-			salida, code = runPrueba(ctx, o.Room.Path, o.Task.ListoCuando, o.PruebaTimeout, o.Env)
+			salida, code = runPrueba(ctx, o.Room.Path, o.Task.ListoCuando, o.PruebaTimeout, o.Env, o.Task.Red)
 			// verde sin la prueba de la tarea: el runner ignoró el archivo
 			// que listo_cuando nombra y todavía no existe, y corrió solo las
 			// pruebas viejas. El comportamiento nuevo no lo juzgó nadie.
@@ -748,17 +747,11 @@ func commitWip(roomPath, id string, intento int) error {
 
 // runPrueba ejecuta listo_cuando dentro del cuarto y devuelve la salida
 // combinada y su código de salida (nil si ni siquiera arrancó).
-func runPrueba(ctx context.Context, dir, cmdStr string, timeout time.Duration, env []string) (string, *int) {
+func runPrueba(ctx context.Context, dir, cmdStr string, timeout time.Duration, env []string, red bool) (string, *int) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/c", task.SinTerminal(cmdStr))
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", task.SinTerminal(cmdStr))
-	}
-	cmd.Dir = dir
+	cmd := task.Shell(ctx, dir, cmdStr, red)
 	cmd.Env = append(os.Environ(), env...)
 
 	out, err := cmd.CombinedOutput()
@@ -823,7 +816,7 @@ func pruebaComplaciente(ctx context.Context, o Options, inicio string) bool {
 			return false
 		}
 	}
-	salida, code := runPrueba(ctx, o.Room.Path, o.Task.ListoCuando, o.PruebaTimeout, o.Env)
+	salida, code := runPrueba(ctx, o.Room.Path, o.Task.ListoCuando, o.PruebaTimeout, o.Env, o.Task.Red)
 	return code != nil && *code == 0 && !SinPruebas(salida)
 }
 

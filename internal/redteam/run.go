@@ -63,10 +63,6 @@ func Atacar(ctx context.Context, o Opciones) (Informe, error) {
 			return inf, nil
 		}
 		o.Superficie.Crate, inf.Dir = nombre, crate
-		var err error
-		if cargoTarget, err = os.MkdirTemp("", "loom-redteam-cargo-"); err == nil {
-			defer os.RemoveAll(cargoTarget)
-		}
 	}
 	if o.Timeout <= 0 {
 		o.Timeout = 2 * time.Minute
@@ -92,6 +88,10 @@ func Atacar(ctx context.Context, o Opciones) (Informe, error) {
 		return inf, err
 	}
 	defer limpiar()
+	if leng == "rust" {
+		// dentro del worktree: el sandbox solo deja escribir ahí, y se borra con él
+		cargoTarget = filepath.Join(wt, ".loom-cargo-target")
+	}
 
 	for i, a := range validos {
 		r, nombre, contenido := correr(ctx, wt, dir, leng, o.Tarea, o.Superficie, i+1, a, o.Timeout, cargoTarget)
@@ -165,29 +165,28 @@ func correr(ctx context.Context, wt, dir, leng string, t task.Task, s Superficie
 	}
 	nombre := filepath.Base(rn.archivo)
 	if rn.compilar != nil {
-		if salida, ok := ejecutar(ctx, rn.cwd, rn.compilar, rn.env, timeout); !ok {
+		if salida, ok := ejecutar(ctx, rn.cwd, rn.compilar, rn.env, timeout, t.Red); !ok {
 			if mal, det := noCompila(leng, salida, nombre); mal {
 				r.Clase, r.Detalle = FallaAtacante, det
 				return r, nombre, rn.contenido
 			}
 		}
 	}
-	salida, ok := ejecutar(ctx, rn.cwd, rn.correr, rn.env, timeout)
+	salida, ok := ejecutar(ctx, rn.cwd, rn.correr, rn.env, timeout, t.Red)
 	r.Clase, r.Detalle = Clasificar(salida, leng, ok)
 	if r.Clase == Confirmado {
 		// a crash that does not repeat is not proof
-		if _, otra := ejecutar(ctx, rn.cwd, rn.correr, rn.env, timeout); otra {
+		if _, otra := ejecutar(ctx, rn.cwd, rn.correr, rn.env, timeout, t.Red); otra {
 			r.Clase, r.Detalle = Afirmacion, "did not reproduce on the second run"
 		}
 	}
 	return r, nombre, rn.contenido
 }
 
-func ejecutar(ctx context.Context, dir string, args, env []string, timeout time.Duration) (string, bool) {
+func ejecutar(ctx context.Context, dir string, args, env []string, timeout time.Duration, red bool) (string, bool) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	cmd.Dir = dir
+	cmd := task.Argv(ctx, dir, red, args[0], args[1:]...)
 	cmd.Env = append(os.Environ(), env...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err == nil

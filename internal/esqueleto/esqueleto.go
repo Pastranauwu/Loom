@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -473,13 +472,8 @@ func SuiteBase(ctx context.Context, dir, comando string, timeout time.Duration, 
 func correr(ctx context.Context, dir, cmdStr string, timeout time.Duration, env []string) (string, *int) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/c", task.SinTerminal(cmdStr))
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", task.SinTerminal(cmdStr))
-	}
-	cmd.Dir = dir
+	// verify instala y compila el proyecto entero: FS aislado, red abierta
+	cmd := task.Shell(ctx, dir, cmdStr, true)
 	cmd.Env = append(os.Environ(), env...)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {

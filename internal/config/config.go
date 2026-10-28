@@ -42,7 +42,9 @@ type Config struct {
 	// Entrega fija a dónde va el PR: "local" deja la rama y su descripción
 	// en el repo aunque haya origin; "remoto" o vacío sube y abre el PR
 	// cuando hay origin.
-	Entrega         string   `json:"entrega,omitempty"`
+	Entrega string `json:"entrega,omitempty"`
+	// Sandbox es auto (vacío: bwrap si sirve) u off: las pruebas corren sin aislar.
+	Sandbox         string   `json:"sandbox,omitempty"`
 	ZonasProhibidas []string `json:"zonas_prohibidas"`
 	// DNA names the design archetypes (internal/dna) injected into prompts.
 	DNA            []string `json:"dna,omitempty"`
@@ -281,6 +283,9 @@ func (c Config) Save(root string) error {
 	}
 	if c.Cli != "" {
 		fmt.Fprintf(&b, "cli: %s\n", c.Cli)
+	}
+	if c.Sandbox != "" {
+		fmt.Fprintf(&b, "aislamiento: %s\n", c.Sandbox)
 	}
 	if c.Entrega != "" {
 		fmt.Fprintf(&b, "entrega: %s\n", c.Entrega)
@@ -576,6 +581,11 @@ func Parse(data []byte) (Config, error) {
 			cfg.Pruebas = kv.Unquote(p.Value)
 		case "cli":
 			cfg.Cli = kv.Unquote(p.Value)
+		case "aislamiento":
+			cfg.Sandbox = kv.Unquote(p.Value)
+			if cfg.Sandbox != "auto" && cfg.Sandbox != "off" {
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · sandbox es auto u off, no %q"), p.Line, cfg.Sandbox)
+			}
 		case "entrega":
 			cfg.Entrega = kv.Unquote(p.Value)
 			if cfg.Entrega != EntregaLocal && cfg.Entrega != "remoto" {

@@ -408,14 +408,14 @@ func TestFallaHoyNoRechazaSiFaltaLaPruebaNombrada(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	if c := checkFallaHoy(ctx, root, "true && (true tests/nuevo.test.ts tests/viejo.test.ts)", time.Minute); !c.OK || !strings.Contains(c.Motivo, "tests/nuevo.test.ts") {
+	if c := checkFallaHoy(ctx, root, "true && (true tests/nuevo.test.ts tests/viejo.test.ts)", time.Minute, false); !c.OK || !strings.Contains(c.Motivo, "tests/nuevo.test.ts") {
 		t.Errorf("con una prueba sin escribir no puede decir que ya pasa: %+v", c)
 	}
 	// la ruta es relativa a un cd: basta con que exista en algún lado
-	if c := checkFallaHoy(ctx, root, "cd frontend && true tests/viejo.test.ts", time.Minute); c.OK {
+	if c := checkFallaHoy(ctx, root, "cd frontend && true tests/viejo.test.ts", time.Minute, false); c.OK {
 		t.Errorf("todas las pruebas existen y pasan: la tarea no tiene sentido: %+v", c)
 	}
-	if c := checkFallaHoy(ctx, root, "true", time.Minute); c.OK {
+	if c := checkFallaHoy(ctx, root, "true", time.Minute, false); c.OK {
 		t.Errorf("sin pruebas nombradas, verde es ya pasa: %+v", c)
 	}
 }

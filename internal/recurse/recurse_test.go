@@ -423,13 +423,13 @@ func TestParseDictamen(t *testing.T) {
 
 func TestListoPadreVerde(t *testing.T) {
 	dir := t.TempDir()
-	if listoPadreVerde(context.Background(), dir, "test -f ok.txt", 0) {
+	if listoPadreVerde(context.Background(), dir, "test -f ok.txt", 0, false) {
 		t.Error("ok.txt no existe, debía fallar")
 	}
 	if err := os.WriteFile(filepath.Join(dir, "ok.txt"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !listoPadreVerde(context.Background(), dir, "test -f ok.txt", 0) {
+	if !listoPadreVerde(context.Background(), dir, "test -f ok.txt", 0, false) {
 		t.Error("ok.txt existe, debía pasar")
 	}
 }

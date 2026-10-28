@@ -588,8 +588,8 @@ func correrPruebas(ctx context.Context, dir, cmdStr string, timeout time.Duratio
 func correrPruebasCrudo(ctx context.Context, dir, cmdStr string, timeout time.Duration) (crudo, resumen string, ok bool) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", task.SinTerminal(cmdStr))
-	cmd.Dir = dir
+	// el conjunto y la aceptación del feature: FS aislado, red abierta
+	cmd := task.Shell(ctx, dir, cmdStr, true)
 	cmd.Env = append(os.Environ(), room.Entorno(dir)...)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {

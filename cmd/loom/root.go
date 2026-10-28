@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 	"github.com/Pastranauwu/loom/internal/ui"
 )
 
@@ -32,6 +34,7 @@ func newRootCmd() *cobra.Command {
 			}
 			plainMode = plain
 			out = ui.New(os.Stdout, jsonOut)
+			configurarSandbox()
 		},
 	}
 
@@ -116,4 +119,26 @@ var aliasBanderas = map[string]string{
 	"pruebas":           "tests",
 	"pruebas-plantilla": "tests-template",
 	"sin-skills":        "no-skills",
+}
+
+// configurarSandbox lee sandbox: de config.yml y manda el aviso de bwrap a
+// la salida del comando en modo texto; en la TUI va a stderr.
+func configurarSandbox() {
+	if plainMode || out.JSON() {
+		task.Aviso = func(s string) { out.Line("%s", s) }
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	if root, err := config.RepoRoot(cwd); err == nil {
+		if cfg, err := config.Parse(leerSinError(config.Path(root))); err == nil {
+			task.Sandbox = cfg.Sandbox
+		}
+	}
+}
+
+func leerSinError(ruta string) []byte {
+	b, _ := os.ReadFile(ruta)
+	return b
 }

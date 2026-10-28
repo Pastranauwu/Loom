@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
@@ -16,11 +15,11 @@ import (
 // verificarBisectable corre el comando de pruebas del proyecto sobre el
 // commit aplanado: cada commit debe compilar y pasar pruebas.
 // Con un solo commit, es correr la suite una vez y exigir verde.
-func verificarBisectable(ctx context.Context, roomPath, pruebas string, timeout time.Duration) (string, bool) {
+func verificarBisectable(ctx context.Context, roomPath, pruebas string, timeout time.Duration, red bool) (string, bool) {
 	if strings.TrimSpace(pruebas) == "" {
 		return "sin comando de pruebas · decláralo en config.yml", false
 	}
-	salida, code := runComando(ctx, roomPath, pruebas, timeout)
+	salida, code := runComando(ctx, roomPath, pruebas, timeout, red)
 	if code != nil && *code == 0 {
 		return "verde · " + pruebas, true
 	}
@@ -29,7 +28,7 @@ func verificarBisectable(ctx context.Context, roomPath, pruebas string, timeout 
 
 // suiteYaFallaba corre pruebas sobre el commit base de la tarea, en el
 // mismo cuarto (sus dependencias instaladas sirven), y vuelve a la rama.
-func suiteYaFallaba(ctx context.Context, roomPath, base, pruebas string, timeout time.Duration) bool {
+func suiteYaFallaba(ctx context.Context, roomPath, base, pruebas string, timeout time.Duration, red bool) bool {
 	if strings.TrimSpace(pruebas) == "" || base == "" {
 		return false
 	}
@@ -41,21 +40,15 @@ func suiteYaFallaba(ctx context.Context, roomPath, base, pruebas string, timeout
 		return false
 	}
 	defer exec.Command("git", "-C", roomPath, "checkout", "--quiet", strings.TrimSpace(string(rama))).Run()
-	_, code := runComando(ctx, roomPath, pruebas, timeout)
+	_, code := runComando(ctx, roomPath, pruebas, timeout, red)
 	return code == nil || *code != 0
 }
 
-func runComando(ctx context.Context, dir, cmdStr string, timeout time.Duration) (string, *int) {
+func runComando(ctx context.Context, dir, cmdStr string, timeout time.Duration, red bool) (string, *int) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/c", task.SinTerminal(cmdStr))
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", task.SinTerminal(cmdStr))
-	}
-	cmd.Dir = dir
+	cmd := task.Shell(ctx, dir, cmdStr, red)
 	cmd.Env = append(os.Environ(), room.Entorno(dir)...)
 
 	out, err := cmd.CombinedOutput()

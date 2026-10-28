@@ -23,13 +23,13 @@ func TestSuiteYaFallabaMiraLaBaseYVuelveALaRama(t *testing.T) {
 	r := cuartoConWip(t, root)
 
 	suite := "test ! -e rojo"
-	if !suiteYaFallaba(context.Background(), r.Path, base, suite, time.Minute) {
+	if !suiteYaFallaba(context.Background(), r.Path, base, suite, time.Minute, false) {
 		t.Fatal("la suite fallaba en la base y no se vio")
 	}
 	if rama := strings.TrimSpace(gitCmd(t, r.Path, "rev-parse", "--abbrev-ref", "HEAD")); rama != r.Rama {
 		t.Fatalf("el cuarto quedó en %q", rama)
 	}
-	if suiteYaFallaba(context.Background(), r.Path, base, "true", time.Minute) {
+	if suiteYaFallaba(context.Background(), r.Path, base, "true", time.Minute, false) {
 		t.Fatal("una suite verde en la base no justifica relajar la esclusa")
 	}
 }

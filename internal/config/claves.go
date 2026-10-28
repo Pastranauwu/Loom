@@ -17,7 +17,7 @@ var clavesTop = [][2]string{ // Spanish, English
 	{"tope_arquitecto_usd", "architect_cap_usd"}, {"timeout_agente", "agent_timeout"}, {"timeout_pruebas", "tests_timeout"},
 	{"recursion_max", "max_recursion"}, {"subagentes", "subagents"}, {"presupuesto_tokens", "token_budget"},
 	{"estrategia", "strategy"}, {"reglas_import", "import_rules"}, {"presupuesto", "budget"}, {"modelos", "models"},
-	{"proveedores", "providers"}, {"agentes", "agents"},
+	{"proveedores", "providers"}, {"agentes", "agents"}, {"aislamiento", "sandbox"},
 }
 
 // children of a block, by the block's Spanish name

@@ -31,7 +31,6 @@ import (
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os/exec"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -254,7 +253,7 @@ func (a Agent) Run(ctx context.Context, req loop.Request) (loop.Result, error) {
 	}
 	// el padre puede haber quedado verde pese a las hojas rojas: la
 	// última palabra la tiene listo_cuando, no el árbol
-	if listoPadreVerde(ctx, req.RoomPath, a.Task.ListoCuando, a.Cfg.TimeoutPruebas) {
+	if listoPadreVerde(ctx, req.RoomPath, a.Task.ListoCuando, a.Cfg.TimeoutPruebas, a.Task.Red) {
 		return loop.Result{ExitCode: 0, Tokens: tokens}, nil
 	}
 	var partes []string
@@ -665,7 +664,7 @@ func (a Agent) promptSupervisor(sub task.Task, motivo string) string {
 // listoPadreVerde corre el listo_cuando del padre en su cuarto. Es la
 // última palabra cuando quedan hojas rojas: si pasó, las hojas rojas eran
 // opcionales y el árbol se da por bueno.
-func listoPadreVerde(ctx context.Context, dir, cmd string, timeoutSeg int) bool {
+func listoPadreVerde(ctx context.Context, dir, cmd string, timeoutSeg int, red bool) bool {
 	if strings.TrimSpace(cmd) == "" {
 		return false
 	}
@@ -676,13 +675,7 @@ func listoPadreVerde(ctx context.Context, dir, cmd string, timeoutSeg int) bool 
 	ctx, cancel := context.WithTimeout(ctx, to)
 	defer cancel()
 
-	var c *exec.Cmd
-	if runtime.GOOS == "windows" {
-		c = exec.CommandContext(ctx, "cmd", "/c", task.SinTerminal(cmd))
-	} else {
-		c = exec.CommandContext(ctx, "sh", "-c", task.SinTerminal(cmd))
-	}
-	c.Dir = dir
+	c := task.Shell(ctx, dir, cmd, red)
 	var salida strings.Builder
 	c.Stdout = &salida
 	c.Stderr = &salida

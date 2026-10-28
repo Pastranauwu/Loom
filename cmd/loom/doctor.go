@@ -15,6 +15,7 @@ import (
 	"github.com/Pastranauwu/loom/internal/executor"
 	"github.com/Pastranauwu/loom/internal/overlap"
 	"github.com/Pastranauwu/loom/internal/ship"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 type chequeoDoctor struct {
@@ -119,6 +120,18 @@ func runDoctor() error {
 		}
 	}
 
+	// sandbox: opcional; sin bwrap las pruebas corren sin aislar
+	switch task.EstadoSandbox() {
+	case "activo":
+		checks = append(checks, chequeoDoctor{"sandbox", true, "bwrap"})
+	case "apagado":
+		checks = append(checks, chequeoDoctor{"sandbox", false, "apagado en config.yml (sandbox: off) · las pruebas corren sin aislar"})
+	case "bloqueado":
+		checks = append(checks, chequeoDoctor{"sandbox", false, "bwrap no puede crear user namespaces · las pruebas corren sin aislar"})
+	default:
+		checks = append(checks, chequeoDoctor{"sandbox", false, "bwrap no instalado · las pruebas corren sin aislar"})
+	}
+
 	if err := out.Data(checks); err != nil {
 		return err
 	}
@@ -128,7 +141,7 @@ func runDoctor() error {
 			out.Line("✓ %s%s", idioma.T(c.Nombre), detalleDoctor(c))
 		} else {
 			out.Line("✗ %s  · %s", idioma.T(c.Nombre), idioma.T(c.Detalle))
-			if c.Nombre != "npx" && c.Nombre != "tmux" && c.Nombre != "claude" && c.Nombre != "remoto" {
+			if c.Nombre != "npx" && c.Nombre != "tmux" && c.Nombre != "claude" && c.Nombre != "remoto" && c.Nombre != "sandbox" {
 				critico = true
 			}
 		}

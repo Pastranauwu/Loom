@@ -44,3 +44,22 @@ func TestTsconfigObsoletoRecorreElProyecto(t *testing.T) {
 		t.Errorf("problemas = %v · node_modules no cuenta", p)
 	}
 }
+
+func TestSandboxEnConfig(t *testing.T) {
+	cfg, err := Parse([]byte("base: main\nsandbox: off\n"))
+	if err != nil || cfg.Sandbox != "off" {
+		t.Fatalf("sandbox: off = %q, %v", cfg.Sandbox, err)
+	}
+	if _, err := Parse([]byte("base: main\nsandbox: quizas\n")); err == nil {
+		t.Error("un valor desconocido es error")
+	}
+	dir := t.TempDir()
+	os.MkdirAll(Dir(dir), 0o755)
+	if err := (Config{Base: "main", Sandbox: "off"}).Save(dir); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(Path(dir))
+	if !strings.Contains(string(b), "sandbox: off") {
+		t.Errorf("se escribe en inglés:\n%s", b)
+	}
+}

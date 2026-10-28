@@ -826,8 +826,8 @@ func checkFuncionalOla(ctx context.Context, root string, cfg config.Config, tare
 				continue
 			}
 			rf := overlap.CheckFuncional(ctx, root, r,
-				overlap.Suite{ID: a.ID, ListoCuando: a.ListoCuando},
-				overlap.Suite{ID: b.ID, ListoCuando: b.ListoCuando},
+				overlap.Suite{ID: a.ID, ListoCuando: a.ListoCuando, Red: a.Red},
+				overlap.Suite{ID: b.ID, ListoCuando: b.ListoCuando, Red: b.Red},
 				timeout)
 			if alerta := rf.Alerta(); alerta != "" {
 				alertas = append(alertas, alerta)
