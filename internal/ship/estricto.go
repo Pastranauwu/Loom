@@ -11,6 +11,7 @@ import (
 
 var (
 	tsPermisivo   = regexp.MustCompile(`@ts-(ignore|nocheck)|\bas any\b|:\s*any\b|<any>`)
+	tsAnyFirma    = regexp.MustCompile(`:\s*any\b|<\s*any\s*[,>]|,\s*any\s*>|\bany\s*\[\]|\|\s*any\b|\bany\s*\||=>\s*any\b`)
 	rustUnsafe    = regexp.MustCompile(`\bunsafe\b`)
 	pyDef         = regexp.MustCompile(`^\s*(?:async\s+)?def\s+(\w+)\s*\(`)
 	tsExtensiones = map[string]bool{".ts": true, ".tsx": true, ".mts": true, ".cts": true}
@@ -46,9 +47,11 @@ func lenguajeEstricto(archivo string) string {
 func escanearEstricto(diff string, t task.Task) []Hallazgo {
 	var h []Hallazgo
 	justificado := strings.Contains(strings.ToLower(t.Riesgos+" "+t.Notas+" "+strings.Join(t.Expone, " ")), "unsafe")
+	ts := false
 	for _, ad := range parseDiffAnadido(diff) {
 		switch lenguajeEstricto(ad.nombre) {
 		case "ts":
+			ts = true
 			for _, l := range ad.lineas {
 				if tsPermisivo.MatchString(l) {
 					h = append(h, Hallazgo{Tipo: idioma.T("TypeScript permisivo"), Archivo: ad.nombre, Detalle: recortar(l)})
@@ -65,6 +68,15 @@ func escanearEstricto(diff string, t task.Task) []Hallazgo {
 				if falta := sinTipos(l); falta != "" {
 					h = append(h, Hallazgo{Tipo: idioma.T("Python sin tipos: ") + falta, Archivo: ad.nombre, Detalle: recortar(l)})
 				}
+			}
+		}
+	}
+	// lo que otras tareas importan sin leer el cuerpo: un any ahí apaga el
+	// compilador en cada consumidor
+	if ts {
+		for _, e := range t.Expone {
+			if tsAnyFirma.MatchString(e) {
+				h = append(h, Hallazgo{Tipo: idioma.T("contrato TypeScript con any"), Archivo: "expone", Detalle: recortar(e)})
 			}
 		}
 	}

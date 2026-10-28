@@ -57,7 +57,7 @@ func DetectTestCommand(root string) (string, bool) {
 		return "make test", true
 	}
 	if fileExists(filepath.Join(root, "go.mod")) {
-		return "go test ./...", true
+		return "go vet ./... && go test ./...", true
 	}
 	// Django antes que pyproject: su runner arma la base de pruebas
 	if fileExists(filepath.Join(root, "manage.py")) {

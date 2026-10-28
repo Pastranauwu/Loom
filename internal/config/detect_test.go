@@ -165,7 +165,7 @@ func TestDetectTestCommand(t *testing.T) {
 		{
 			name:  "go.mod",
 			files: map[string]string{"go.mod": "module x\n\ngo 1.22\n"},
-			want:  "go test ./...",
+			want:  "go vet ./... && go test ./...",
 			ok:    true,
 		},
 		{

@@ -53,3 +53,19 @@ func TestEstrictoPythonTipos(t *testing.T) {
 		t.Errorf("las pruebas están exentas: %v", h)
 	}
 }
+
+func TestEstrictoContratoTypeScriptSinAny(t *testing.T) {
+	d := diffEstricto("src/a.ts", "export function parse(s: string): Item[] { return [] }")
+	for _, firma := range []string{"parse(s: any): Item[]", "load(): Promise<any>", "map(xs: Array<string, any>)", "f(): any[]", "g(x: string | any)"} {
+		h := escanearEstricto(d, task.Task{Expone: []string{firma}})
+		if len(h) != 1 || h[0].Archivo != "expone" {
+			t.Errorf("%q en expone debe frenar: %v", firma, h)
+		}
+	}
+	if h := escanearEstricto(d, task.Task{Expone: []string{"parse(s: string): Item[]", "anyOf(xs: Item[]): boolean"}}); len(h) != 0 {
+		t.Errorf("contrato tipado no frena: %v", h)
+	}
+	if h := escanearEstricto(diffEstricto("internal/a.go", "x := 1"), task.Task{Expone: []string{"parse(s: any)"}}); len(h) != 0 {
+		t.Errorf("sin TypeScript en el diff el contrato no se juzga como TS: %v", h)
+	}
+}

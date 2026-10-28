@@ -28,9 +28,9 @@ func PlantillasListoCuando(stack string) []string {
 	switch strings.ToLower(strings.TrimSpace(stack)) {
 	case "go":
 		return []string{
-			"go test ./internal/<paquete>/...",
-			"go test ./... -run Test<Nombre>",
-			"go test ./cmd/<bin>/...",
+			"go vet ./internal/<paquete>/... && go test ./internal/<paquete>/...",
+			"go vet ./... && go test ./... -run Test<Nombre>",
+			"go vet ./cmd/<bin>/... && go test ./cmd/<bin>/...",
 		}
 	case "node", "jest":
 		return []string{

@@ -67,19 +67,15 @@ const Base = `How to work:
 - Commit your work on the current branch.
 - Do not narrate what you do: act. Keep the final reply short.
 
-Clean code:
-- Names that say what they are, no cryptic abbreviations.
-- Short functions that do one thing, with few parameters and no hidden effects.
+Code is machine IR: the human audits the contracts (spec, DNA, exposes), not function bodies; the compiler and the tests are the readers.
+- Type-driven design: make invalid states unrepresentable. Newtypes for domain values, exhaustive enums or discriminated unions for states, strict signatures. No stringly-typed data, no boolean flags that encode a state, no null where absence is not a real state.
+- Machine efficiency over surface aesthetics: performance, determinism and memory safety first; no unnecessary allocations or copies; no syntactic sugar that costs either.
 - Reuse what already exists before writing something new; nothing duplicated.
-- Explicit errors: do not swallow them or return magic values.
-- No debug prints.
-
-Code for agents, not for people:
-- Dense and direct: the minimum that meets the contract, no filler.
-- Zero comments for humans: no "do not touch", "hack", "TODO", "no idea why this works" and no docstrings that repeat the name. Only tool directives (//go:build, //nolint).
-- Zero commented-out or dead code.
-- Do not create 2 or 3 line functions just to name an intermediate step; keep the internal logic compact.
-- Only what exposes declares gets a descriptive signature and name: other agents use it without reading the body.
+- Errors are typed values: do not swallow them or return magic values.
+- Zero explanatory comments: only tool directives (//go:build, //nolint, #[allow(...)]).
+- Zero dead or commented-out code, zero debug prints.
+- Zero redundant wrappers: no 2 or 3 line functions or layers just to name a step.
+- Only what exposes declares gets a descriptive public name and signature: other agents call it without reading the body.
 - If you implement a skeleton stub, delete its Idea:/Cases: block when done.`
 
 // UI es lo que recibe toda tarea que toca archivos de interfaz (TocaUI),
