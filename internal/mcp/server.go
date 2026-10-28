@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -42,10 +44,16 @@ type response struct {
 
 // Serve reads requests from in until EOF and writes replies to out. Each
 // request runs in its own goroutine so a slow tool does not block ping.
-func Serve(in io.Reader, out io.Writer, name, version string, tools []Tool) error {
-	byName := make(map[string]Tool, len(tools))
-	for _, t := range tools {
-		byName[t.Name] = t
+// dyn tools are read again on every request, so a tool added on disk shows
+// up without a restart; when a call changes them the client gets
+// notifications/tools/list_changed. A dynamic tool never shadows a static one.
+func Serve(in io.Reader, out io.Writer, name, version string, tools []Tool, dyn ...func() []Tool) error {
+	actuales := func() []Tool {
+		all := append([]Tool{}, tools...)
+		for _, d := range dyn {
+			all = append(all, d()...)
+		}
+		return all
 	}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -55,6 +63,11 @@ func Serve(in io.Reader, out io.Writer, name, version string, tools []Tool) erro
 		mu.Lock()
 		defer mu.Unlock()
 		_ = enc.Encode(r)
+	}
+	notify := func(method string) {
+		mu.Lock()
+		defer mu.Unlock()
+		_ = enc.Encode(map[string]any{"jsonrpc": "2.0", "method": method})
 	}
 
 	sc := bufio.NewScanner(in)
@@ -71,27 +84,54 @@ func Serve(in io.Reader, out io.Writer, name, version string, tools []Tool) erro
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			send(handle(req, byName, tools, name, version))
+			antes := ""
+			if len(dyn) > 0 && req.Method == "tools/call" {
+				antes = nombres(actuales())
+			}
+			send(handle(req, actuales(), name, version))
+			if antes != "" && nombres(actuales()) != antes {
+				notify("notifications/tools/list_changed")
+			}
 		}()
 	}
 	wg.Wait()
 	return sc.Err()
 }
 
-func handle(req request, byName map[string]Tool, tools []Tool, name, version string) response {
+func nombres(tools []Tool) string {
+	ns := make([]string, len(tools))
+	for i, t := range tools {
+		ns[i] = t.Name
+	}
+	sort.Strings(ns)
+	return strings.Join(ns, ",")
+}
+
+func handle(req request, tools []Tool, name, version string) response {
+	byName := make(map[string]Tool, len(tools))
+	for _, t := range tools {
+		if _, ya := byName[t.Name]; !ya {
+			byName[t.Name] = t
+		}
+	}
 	res := response{ID: req.ID}
 	switch req.Method {
 	case "initialize":
 		res.Result = map[string]any{
 			"protocolVersion": protocolVersion,
-			"capabilities":    map[string]any{"tools": map[string]any{}},
+			"capabilities":    map[string]any{"tools": map[string]any{"listChanged": true}},
 			"serverInfo":      map[string]any{"name": name, "version": version},
 		}
 	case "ping":
 		res.Result = map[string]any{}
 	case "tools/list":
 		list := make([]map[string]any, 0, len(tools))
+		visto := map[string]bool{}
 		for _, t := range tools {
+			if visto[t.Name] {
+				continue
+			}
+			visto[t.Name] = true
 			list = append(list, map[string]any{"name": t.Name, "description": t.Description, "inputSchema": t.Schema})
 		}
 		res.Result = map[string]any{"tools": list}

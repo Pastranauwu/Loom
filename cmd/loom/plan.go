@@ -92,7 +92,7 @@ func runPlan(frase, modelo, ejecutor, exportSpec string, aprobar bool) error {
 	var borradores []plan.Borrador
 	err = esperarPlan("generando plan · "+modelo, func(avance func(string)) error {
 		var err error
-		borradores, err = plan.Generar(context.Background(), planGuardado{generadorPlan{ex: ex, modelo: modelo, root: root, effort: "medium", avance: avance}, root}, ctx, frase)
+		borradores, err = plan.Generar(context.Background(), planGuardado{generadorPlan{ex: ex, modelo: modelo, root: root, effort: "medium", avance: avance}, root, ""}, ctx, frase)
 		return err
 	})
 	if err != nil {
@@ -655,16 +655,21 @@ func esperarPlan(titulo string, trabajo func(avance func(string)) error) error {
 // pagado que falló por parseo o validación se recompone con el código
 // arreglado en vez de replanearse desde cero.
 type planGuardado struct {
-	gen  plan.Generador
-	root string
+	gen     plan.Generador
+	root    string
+	archivo string // vacío: plan-crudo.json
 }
 
 func (g planGuardado) Generar(ctx context.Context, prompt string) (string, error) {
-	ruta := filepath.Join(config.Dir(g.root), "plan-crudo.json")
+	archivo := g.archivo
+	if archivo == "" {
+		archivo = "plan-crudo.json"
+	}
+	ruta := filepath.Join(config.Dir(g.root), archivo)
 	suma := fmt.Sprintf("%x", sha256.Sum256([]byte(prompt)))
 	var guardado struct{ Prompt, Texto string }
 	if b, err := os.ReadFile(ruta); err == nil && json.Unmarshal(b, &guardado) == nil && guardado.Prompt == suma {
-		out.Line(idioma.T("· reusando la respuesta guardada del planificador · borra .loom/plan-crudo.json para replanear"))
+		out.Line(idioma.T("· reusando la respuesta guardada del planificador · borra .loom/%s para replanear"), archivo)
 		return guardado.Texto, nil
 	}
 	texto, err := g.gen.Generar(ctx, prompt)

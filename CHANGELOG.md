@@ -2,6 +2,9 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.3.0 (28 oct 2026)
+`loom wrap` convierte un CLI local (`--cli`, con su `--help` o `man`), una llamada cURL (`--curl`), una captura HAR (`--har`) o un spec OpenAPI/Swagger (`--openapi`, por código y sin modelo) en un puente `.loom/bridges/<nombre>.json`; `loom mcp` sirve cada herramienta como `bridge_<nombre>_<herramienta>`, relee los puentes en cada petición y avisa al cliente con `notifications/tools/list_changed`. La compuerta (`wrap.Verify`) rechaza shells e intérpretes, variables que no sean propiedades requeridas del `inputSchema` y binarios fuera del PATH; los argumentos viajan como elementos del argv, nunca por una shell, y los secretos de encabezados no llegan al modelo. `wrap list|show|rm`. MCP: nuevas `loom_wrap`, `loom_wrap_list`, `loom_wrap_show`, `loom_wrap_rm` y `loom_dna`; `loom_redteam` acepta `reopen`, `keep_tests` y `dry_run`, `loom_heal` acepta `dry_run` y `loom_map` acepta `format: tree|mermaid`.
+
 ## v2.2.0 (27 oct 2026)
 Modelos por rol: el pesado solo lo usan el arquitecto, el planificador y `heal`; el chat de `loom ide` corre en el medio (`--model`, nunca Opus) y un constructor de tarea `weight: heavy` usa el medio salvo que `heavy_builder:` en `config.yml` diga otra cosa. `loom_board` y `loom_log` del MCP devuelven solo lo que cambió desde la última llamada. Cuatro lenguajes de primera clase en la esclusa: nuevo paso `estricto` que frena `@ts-ignore`, `@ts-nocheck` y `any` en TypeScript, `unsafe` en Rust si el contrato no lo justifica (`risks`, `notes` o `exposes` lo nombran) y funciones Python sin tipos completos en argumentos y retorno; las plantillas de pruebas pasan a la forma estricta (`go vet`, `cargo check` + `clippy -D warnings`, `tsc --noEmit --strict` + vitest, `mypy --strict` + `ruff` + pytest) y el arquitecto recibe esas formas para `verify`. El examinador ciego sigue sin cubrir Rust.
 

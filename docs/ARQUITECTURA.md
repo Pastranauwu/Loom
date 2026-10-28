@@ -154,3 +154,9 @@ En la entrega conjunta (`ship --todas` → `ship.EntregarTodas`) la secuencia so
 - Disponible en `loom up --fondo` y `loom run --fondo`.
 - Realiza las preguntas interactivas primero; una vez listo el entorno, se desprende de la terminal (`setsid` en Unix, flags de proceso desacoplado en Windows) y redirige la salida a `.loom/corridas/<fecha>.log`.
 - Sobrevive al cierre de terminal o pérdida de conexión.
+
+## Puentes (`loom wrap`)
+- Fuente → manifiesto: `--cli` lee `--help` (o `man -P cat`, 16 KB), `--curl` y `--har` se reducen a llamadas con forma de cuerpo y respuesta (secretos de encabezados como `{variable}`); las tres pasan por el planificador (`wrap.Prompt`/`wrap.Parse`, respuesta guardada en `.loom/wrap-crudo.json`). `--openapi` se convierte por código (`wrap.FromOpenAPI`): solo parámetros requeridos y campos escalares requeridos del cuerpo.
+- Compuerta (`wrap.Verify`) antes de guardar: nombres `[a-z0-9_]`, un solo `exec` o `http` por herramienta, `bin` simple y fuera de la lista de shells e intérpretes, toda `{var}` es propiedad requerida del `inputSchema`, url http(s); prueba de humo `--version`/`--help` (binario ausente rechaza, mudo avisa).
+- Ejecución (`wrap.Invoke`): tipos del schema comprobados, sustitución en una pasada y por elemento del argv; en http, la url escapa con `QueryEscape` y el cuerpo con escape JSON.
+- `loom mcp` relee `.loom/bridges/*.json` en cada petición (`mcp.Serve(..., dyn)`); una herramienta dinámica nunca pisa a una estática.

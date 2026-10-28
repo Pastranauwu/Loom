@@ -67,7 +67,7 @@ func completarSpec(root string, s *spec.Spec) error {
 	var bs []plan.Borrador
 	err = esperarPlan(fmt.Sprintf("completando %d tareas · %s", n, modelo), func(avance func(string)) error {
 		var err error
-		bs, err = plan.Completar(context.Background(), planGuardado{generadorPlan{ex: ex, modelo: modelo, root: root, effort: "medium", avance: avance}, root}, pctx, s.Feature, s.Reglas, s.Tasks)
+		bs, err = plan.Completar(context.Background(), planGuardado{generadorPlan{ex: ex, modelo: modelo, root: root, effort: "medium", avance: avance}, root, ""}, pctx, s.Feature, s.Reglas, s.Tasks)
 		return err
 	})
 	if err != nil {

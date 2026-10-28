@@ -76,6 +76,7 @@ func newRootCmd() *cobra.Command {
 		newLanguageCmd(),
 		newTutorialCmd(),
 		newRedteamCmd(),
+		newWrapCmd(),
 		newMCPCmd(),
 		newIDECmd(),
 		newPanelCmd(),

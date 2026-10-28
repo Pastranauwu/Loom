@@ -256,7 +256,7 @@ func TestPlanGuardadoReusaMismoPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 	n := 0
-	g := planGuardado{generadorContado{&n}, root}
+	g := planGuardado{generadorContado{&n}, root, ""}
 	for _, p := range []string{"diseña snake", "diseña snake", "diseña tetris"} {
 		if texto, err := g.Generar(context.Background(), p); err != nil || texto != "plan" {
 			t.Fatalf("Generar(%q) = %q, %v", p, texto, err)

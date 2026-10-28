@@ -20,6 +20,7 @@ import (
 	"github.com/Pastranauwu/loom/internal/mcp"
 	"github.com/Pastranauwu/loom/internal/spec"
 	"github.com/Pastranauwu/loom/internal/task"
+	"github.com/Pastranauwu/loom/internal/wrap"
 )
 
 const specGuide = `loom.spec.yml declares WHAT must exist; loom builds it with isolated agents.
@@ -50,7 +51,8 @@ func newMCPCmd() *cobra.Command {
 		Long: `Speaks the Model Context Protocol on stdin/stdout. Quick tools (map, board,
 check, apply dry-run) answer live; heavy ones (up, run, ship, heal, redteam)
 start detached and return a pid and a log, so the chat never blocks. Poll them
-with loom_board and loom_log.`,
+with loom_board and loom_log. Bridges in .loom/bridges (loom wrap) are served
+as bridge_<name>_<tool> and reloaded on every request.`,
 		Example: `  claude mcp add loom -- loom mcp`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -58,7 +60,7 @@ with loom_board and loom_log.`,
 			if err != nil {
 				return err
 			}
-			return mcp.Serve(os.Stdin, os.Stdout, "loom", version, mcpTools(exe))
+			return mcp.Serve(os.Stdin, os.Stdout, "loom", version, mcpTools(exe), bridgeTools)
 		},
 	}
 }
@@ -157,7 +159,21 @@ func mcpTools(exe string) []mcp.Tool {
 	}
 
 	return []mcp.Tool{
-		quick("loom_map", "Map of the repo: modules by layer with their tasks and contracts. Read it before writing a spec.", nil, fixed("map", "--json")),
+		quick("loom_map", "Map of the repo: modules by layer with their tasks, exposed contracts, gates and active DNA. Read it before writing a spec.",
+			map[string]string{"format": "string:json (default), tree for compact ASCII, or mermaid", "all": "boolean:include modules without tasks or contracts"},
+			func(a map[string]any) ([]string, error) {
+				args := []string{"map", "--json"}
+				switch str(a, "format") {
+				case "tree":
+					args = []string{"map", "--plain"}
+				case "mermaid":
+					args = []string{"map", "--mermaid", "--plain"}
+				}
+				if on(a, "all") {
+					args = append(args, "--all")
+				}
+				return args, nil
+			}),
 		{Name: "loom_board", Description: "Task board, compact. The first call lists every task; later calls return only what changed since the last one (or 'no changes'). Pass full to list everything again.",
 			Schema: schema(map[string]string{"full": "boolean:list every task again"}),
 			Call: func(a map[string]any) (string, error) {
@@ -274,17 +290,27 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return args, nil
 			}),
-		heavy("loom_redteam", "A saboteur attacks a task; only a reproduced crash counts.", map[string]string{"id": "string:task id", "all": "boolean:every ready task"},
+		heavy("loom_redteam", "A saboteur attacks a task; only a reproduced crash counts. The report lands in the log.",
+			map[string]string{"id": "string:task id", "all": "boolean:every ready task", "reopen": "boolean:reopen the task with each confirmed crash in its contract",
+				"keep_tests": "boolean:keep the attack tests in the repo", "dry_run": "boolean:say what would be attacked, no model call"},
 			func(a map[string]any) ([]string, error) {
+				args := []string{"redteam"}
 				if id := str(a, "id"); id != "" {
-					return []string{"redteam", id}, nil
+					args = append(args, id)
+				} else if on(a, "all") {
+					args = append(args, "--all")
+				} else {
+					return nil, errors.New("pass id or all")
 				}
-				if on(a, "all") {
-					return []string{"redteam", "--all"}, nil
+				for k, flag := range map[string]string{"reopen": "--reopen", "keep_tests": "--keep-tests", "dry_run": "--dry-run"} {
+					if on(a, k) {
+						args = append(args, flag)
+					}
 				}
-				return nil, errors.New("pass id or all")
+				return args, nil
 			}),
-		heavy("loom_heal", "Diagnose a crash log and open a corrective task.", map[string]string{"log": "string:stacktrace or log text"},
+		heavy("loom_heal", "Diagnose a crash log, add the missing rule and acceptance criterion to the spec and run a corrective task.",
+			map[string]string{"log": "string:stacktrace or log text", "dry_run": "boolean:only show the diagnosis"},
 			func(a map[string]any) ([]string, error) {
 				log := str(a, "log")
 				if log == "" {
@@ -302,8 +328,55 @@ func mcpTools(exe string) []mcp.Tool {
 				if _, err := f.WriteString(log); err != nil {
 					return nil, err
 				}
-				return []string{"heal", "--from", f.Name()}, nil
+				args := []string{"heal", "--from", f.Name()}
+				if on(a, "dry_run") {
+					args = append(args, "--dry-run")
+				}
+				return args, nil
 			}, "log"),
+		quick("loom_dna", "Design archetypes the agents follow (hexagonal, zero-deps...): list them, show the active block, add or remove one.",
+			map[string]string{"action": "string:list, show, add or rm", "name": "string:archetype name for add and rm"},
+			func(a map[string]any) ([]string, error) {
+				act := str(a, "action")
+				switch act {
+				case "list", "show":
+					return []string{"dna", act, "--json"}, nil
+				case "add", "rm":
+					if str(a, "name") == "" {
+						return nil, errors.New("name is required for " + act)
+					}
+					return []string{"dna", act, str(a, "name"), "--plain"}, nil
+				}
+				return nil, errors.New("action must be list, show, add or rm")
+			}, "action"),
+		{Name: "loom_wrap", Description: "Turn a local CLI, a cURL command, a HAR file or an OpenAPI spec into a bridge: its tools appear in this server as bridge_<name>_<tool> right away. Pass exactly one source.",
+			Schema: schema(map[string]string{"cli": "string:binary on the PATH", "curl": "string:full curl command or a file with it", "har": "string:HAR file path",
+				"openapi": "string:OpenAPI/Swagger path or URL", "name": "string:bridge name", "dry_run": "boolean:show the manifest without saving"}),
+			Call: func(a map[string]any) (string, error) {
+				dir, err := projectDir(a)
+				if err != nil {
+					return "", err
+				}
+				args := []string{"wrap", "--plain"}
+				for _, k := range []string{"cli", "curl", "har", "openapi", "name"} {
+					if v := str(a, k); v != "" {
+						args = append(args, "--"+k, v)
+					}
+				}
+				if on(a, "dry_run") {
+					args = append(args, "--dry-run")
+				}
+				return runQuickT(exe, dir, args, 15*time.Minute)
+			}},
+		quick("loom_wrap_list", "Bridges in .loom/bridges with their tool names.", nil, fixed("wrap", "list", "--json")),
+		quick("loom_wrap_show", "Manifest of one bridge: tools, input schemas and exec/http templates.", map[string]string{"name": "string:bridge name"},
+			func(a map[string]any) ([]string, error) {
+				return []string{"wrap", "show", str(a, "name"), "--json"}, nil
+			}, "name"),
+		quick("loom_wrap_rm", "Delete a bridge; its tools disappear from this server.", map[string]string{"name": "string:bridge name"},
+			func(a map[string]any) ([]string, error) {
+				return []string{"wrap", "rm", str(a, "name"), "--plain"}, nil
+			}, "name"),
 	}
 }
 
@@ -313,8 +386,34 @@ func corridasDir(dir string) string {
 	return d
 }
 
+// bridgeTools reads the manifests of the server's repo on every request:
+// a bridge written by loom_wrap is callable without restarting the server.
+func bridgeTools() []mcp.Tool {
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	if root, err := config.RepoRoot(dir); err == nil {
+		dir = root
+	}
+	ms, _ := wrap.List(dir)
+	var tools []mcp.Tool
+	for _, m := range ms {
+		for _, t := range m.Tools {
+			t := t
+			tools = append(tools, mcp.Tool{Name: m.ToolName(t), Description: t.Description, Schema: t.InputSchema,
+				Call: func(a map[string]any) (string, error) { return wrap.Invoke(t, a) }})
+		}
+	}
+	return tools
+}
+
 func runQuick(exe, dir string, args []string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	return runQuickT(exe, dir, args, 2*time.Minute)
+}
+
+func runQuickT(exe, dir string, args []string, limite time.Duration) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), limite)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe, args...)
 	cmd.Dir = dir
