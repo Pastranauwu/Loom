@@ -189,3 +189,16 @@ func TestTieneMarcaAceptaLaAnterior(t *testing.T) {
 		t.Error("TieneMarca debe aceptar ambos nombres")
 	}
 }
+
+func TestProblemasRechazaBloquesNarrativosYTsconfigObsoleto(t *testing.T) {
+	dir := planoPython(t)
+	escribir(t, dir, "web/parse.ts", "/**\n * Parses the input.\n * Idea: split.\n * Cases: parse(\"\") -> []\n */\nexport function parse(s: string): string[] { throw new Error(\""+Marca+"\") }\n")
+	escribir(t, dir, "tsconfig.json", `{"compilerOptions": {"moduleResolution": "node"}}`)
+	r := Resultado{Verificar: "true", Tareas: []plan.Borrador{tarea("parse", "npx vitest run web", "web/parse.ts")}}
+	todo := strings.Join(Problemas(context.Background(), Verificacion{Dir: dir, Timeout: time.Minute}, r), "\n")
+	for _, quiero := range []string{"web/parse.ts documents its stubs with a /** ... */ block", `deprecated TypeScript config: tsconfig.json: moduleResolution "node"`} {
+		if !strings.Contains(todo, quiero) {
+			t.Errorf("falta %q en:\n%s", quiero, todo)
+		}
+	}
+}

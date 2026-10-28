@@ -118,17 +118,18 @@ YOUR DELIVERABLE IS A BLUEPRINT IN CODE, NOT AN IMPLEMENTATION
 You write no logic and no tests: every line you write is paid by the expensive model, and that is the part the cheap agents do. Your job is that they fit together without seeing each other: where each thing goes, which classes and methods exist, what each receives and returns, who calls whom.
 
 1. Structure and stack: folders, manifests (package.json, pyproject.toml, go.mod, ...), build and test-runner configuration, and .gitignore. Install the dependencies.
+   TypeScript: tsconfig with "moduleResolution": "bundler" (apps, bundlers) or "node16"/"nodenext" (Node libraries), never "node", "node10" or "classic", and none of the options TypeScript 5 deprecated (importsNotUsedAsValues, preserveValueImports, suppressImplicitAnyIndexErrors, target ES3...).
    Web interface: use the design system and components the project already has. Only if there are none and the rules ask for nothing else: Tailwind CSS and the standard component library of its framework (e.g. shadcn/ui on React), configured with its CLI without questions (--yes/--defaults), and the base components the app will use added with that CLI: they are generated code, do not write them yourself. The theme (colors, radii, typography) lives in one place.
 2. ` + Documento + ` at the root: style (modular, hexagonal or layered according to the problem, not by fashion), each module with its file and responsibility, which module may depend on which, data flow of the main case, and how each module is tested. If there is a web interface, a UI section: the design system (where the theme and components live), the page template (layout, header, loading/empty/error states) and which component is used for what. It is the source of truth every agent reads and the next change evolves.
 3. Shared types, entities, interfaces and ports: DECLARATIONS only (fields, method signatures). No bodies with logic.
-4. Everything NEW is a STUB, including new wiring (main, routes, container, App): every public class, function and method with its exact signature (input and output types) and a contract comment above it with
+4. Everything NEW is a STUB, including new wiring (main, routes, container, App): every public class, function and method with its exact signature (input and output types) and a contract written as line comments right above it (// in Go, TypeScript and Rust, # in Python; never a /** ... */ block of narrative prose) with
    - what it does, inputs, output and errors;
    - whom it calls (module and method) and who uses it;
    - "Idea:" how it is solved, already thought through by you: algorithm, data structures, order of the steps and the traps (edge cases, what looks obvious and is wrong). Telegraphic, 1 to 8 lines, no code or full sentences: you already solved the problem while planning and the agent only writes it. Do not repeat what the signature already says.
    - "Cases:" 2 to 5 concrete examples of input → output or error, which the agent will turn into its test.
    The labels "Idea:" and "Cases:" are LITERAL: the word and the colon attached, nothing in between, also in the "how" of a change to existing code. "Cases (with mocks):" or "Examples:" do not count: loom looks for the exact text and sends the blueprint back to you.
    The body only throws an error with the exact text "` + Marca + `".
-5. Nothing else. Write no tests, reference implementations, sample data or code outside the repository. Run nothing except what is needed for "verify" to pass.
+5. Nothing else. Write no tests, reference implementations, sample data or code outside the repository. Run nothing except what is needed for "verify" to pass. No debugging commands left in the project: no "node -e", "sh -c", interactive shells or temporary scripts in package.json, manifests or tool configs.
 `)
 	if !p.SinDocker {
 		b.WriteString(`6. Docker deployment (it is configuration: you write it, complete). One Dockerfile per service (multi-stage, final image without development tools), a compose.yaml at the root that brings everything up with "docker compose up --build" (services, database if any, volumes for data, ports, variables from .env) and a .env.example, and a .dockerignore that leaves out dependencies, local builds, .git and .env. The README starts with that command. If they already exist, evolve them. "docker compose config" must pass.
@@ -285,6 +286,9 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 	if v.Docker {
 		out = append(out, docker(ctx, dir, v.Timeout, v.Env)...)
 	}
+	for _, p := range config.TsconfigObsoleto(dir) {
+		out = append(out, "deprecated TypeScript config: "+p)
+	}
 	archivos := versionables(ctx, dir)
 	previos := enCommit(ctx, dir, v.Base)
 	integracion := false
@@ -358,6 +362,9 @@ func contrato(dir, nombre string, t plan.Borrador, archivos []string, previos ma
 				continue
 			}
 			marca = marca || TieneMarca(string(b))
+			if TieneMarca(string(b)) && strings.Contains(string(b), "/**") {
+				out = append(out, fmt.Sprintf(idioma.T("%s: %s documents its stubs with a /** ... */ block; write the contract as line comments (//) right above each stub"), nombre, f))
+			}
 			casos = casos || idioma.Tiene(string(b), idioma.Casos)
 			idea = idea || idioma.Tiene(string(b), idioma.Idea)
 		}

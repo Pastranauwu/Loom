@@ -69,3 +69,9 @@ func TestEstrictoContratoTypeScriptSinAny(t *testing.T) {
 		t.Errorf("sin TypeScript en el diff el contrato no se juzga como TS: %v", h)
 	}
 }
+
+func TestTocaTSActivaElPasoTsconfig(t *testing.T) {
+	if !tocaTS([]string{"web/src/a.ts"}) || !tocaTS([]string{"tsconfig.app.json"}) || tocaTS([]string{"main.go", "README.md"}) {
+		t.Error("el paso tsconfig solo corre si el diff toca TypeScript o un tsconfig")
+	}
+}

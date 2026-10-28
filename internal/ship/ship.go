@@ -204,6 +204,15 @@ func Run(ctx context.Context, o Opciones) Resultado {
 		apuntar(Paso{"estricto", true, idioma.T("sin código permisivo")})
 	}
 
+	// 6.8 tsconfig — opciones deprecadas que harían rebotar la suite, antes de correrla
+	if tocaTS(archivos) {
+		if p := config.TsconfigObsoleto(o.Room.Path); len(p) > 0 {
+			apuntar(Paso{"tsconfig", false, strings.Join(p, " · ")})
+			return res
+		}
+		apuntar(Paso{"tsconfig", true, idioma.T("sin opciones deprecadas")})
+	}
+
 	// 7. bisectable — el commit compila y pasa las pruebas
 	detalle, ok := bisectable(ctx, o)
 	if !ok {

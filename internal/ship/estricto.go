@@ -28,6 +28,17 @@ func aplicaEstricto(archivos []string) bool {
 	return false
 }
 
+// tocaTS: el diff toca TypeScript o un tsconfig.
+func tocaTS(archivos []string) bool {
+	for _, a := range archivos {
+		b := path.Base(a)
+		if lenguajeEstricto(a) == "ts" || strings.HasPrefix(b, "tsconfig") && strings.HasSuffix(b, ".json") {
+			return true
+		}
+	}
+	return false
+}
+
 func lenguajeEstricto(archivo string) string {
 	ext := strings.ToLower(path.Ext(archivo))
 	switch {

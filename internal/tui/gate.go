@@ -24,7 +24,7 @@ import (
 // el contador llegaba a 9/8.
 var NombresPasos = []string{
 	"base", "historial", "ruido", "secretos", "presupuesto",
-	"interfaces", "dependencias", "dna", "estricto", "bisectable", "redteam", "suite_oculta",
+	"interfaces", "dependencias", "dna", "estricto", "tsconfig", "bisectable", "redteam", "suite_oculta",
 	"handoff", "pr",
 }
 
@@ -33,7 +33,7 @@ var NombresPasos = []string{
 // mismo orden que NombresPasos — lo verifica TestEtiquetasAlineadas.
 var nombresCortos = []string{
 	"base", "hist", "ruido", "secr", "presu",
-	"iface", "deps", "dna", "estr", "bisec", "red", "oculta",
+	"iface", "deps", "dna", "estr", "tscfg", "bisec", "red", "oculta",
 	"hand", "pr",
 }
 
@@ -144,6 +144,9 @@ const anchoPaso = 8
 // en una terminal más angosta se partía en dos renglones desalineados, así
 // que ahí los pasos van en lista. Si la terminal es baja, sin logo.
 // width o alto en 0 = sin límite.
+// anchoCelda es el ancho de un paso en la vista angosta: glifo y nombre largo.
+const anchoCelda = 16
+
 func renderGate(id string, pasos []ship.Paso, terminado bool, tick, width, alto int) string {
 	e := clasificar(pasos, terminado)
 	const marco = 6 // borde y relleno de la tarjeta
@@ -152,8 +155,17 @@ func renderGate(id string, pasos []ship.Paso, terminado bool, tick, width, alto 
 	cuerpo.WriteString(estiloTitulo.Render(idioma.T("ESCLUSA DE SALIDA · ")+id) + "\n\n")
 
 	if width > 0 && width < len(e)*anchoPaso+marco {
-		for i := range e {
-			cuerpo.WriteString(renderGlifo(e[i], tick) + " " + renderNombre(e[i], idioma.T(NombresPasos[i])) + "\n")
+		// en dos columnas si caben: una por línea ya no entra en 24 filas
+		cols := 1
+		if width-marco >= 2*anchoCelda {
+			cols = 2
+		}
+		for i := 0; i < len(e); i += cols {
+			var fila strings.Builder
+			for j := i; j < i+cols && j < len(e); j++ {
+				fila.WriteString(acomodar(renderGlifo(e[j], tick)+" "+renderNombre(e[j], idioma.T(NombresPasos[j])), anchoCelda))
+			}
+			cuerpo.WriteString(strings.TrimRight(fila.String(), " ") + "\n")
 		}
 	} else {
 		var glifos, nombres strings.Builder
