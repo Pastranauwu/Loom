@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -20,14 +21,6 @@ import (
 	"github.com/Pastranauwu/loom/internal/loop"
 	"github.com/Pastranauwu/loom/internal/ventanas"
 )
-
-// usoClaude es la salida JSON de la utilización real de la cuenta.
-type usoClaude struct {
-	Accesible bool   `json:"accesible"`
-	CincoH    *int   `json:"5h,omitempty"`
-	Semanal   *int   `json:"semanal,omitempty"`
-	Motivo    string `json:"motivo,omitempty"`
-}
 
 func newUsageCmd() *cobra.Command {
 	var sonda bool
@@ -91,22 +84,36 @@ func runUsage(sonda bool) error {
 		return err
 	}
 
-	// utilización real de la cuenta Claude, si la sonda puede leerla
-	uso := ventanas.SondaCached(context.Background(), ventanas.KeyClaude(cfg.KeyEnvDe("claude")), sonda)
-	if err := out.Data(usoClaude{Accesible: uso.Accesible, CincoH: uso.CincoH, Semanal: uso.Semanal}); err != nil {
+	// uso real de las cuentas: lo mismo que muestra el /usage de cada CLI
+	cuentas := []ventanas.Cuenta{ventanas.CuentaClaudeCached(context.Background(), sonda), ventanas.CuentaCodex()}
+	if c := &cuentas[0]; c.Motivo != "" {
+		// sin sesión de suscripción, una API key todavía da las cabeceras de uso
+		if uso := ventanas.SondaCached(context.Background(), ventanas.KeyClaude(cfg.KeyEnvDe("claude")), sonda); uso.Accesible {
+			c.Motivo = ""
+			for nombre, p := range map[string]*int{"5h": uso.CincoH, "semana": uso.Semanal} {
+				if p != nil {
+					c.Medidores = append(c.Medidores, ventanas.Medidor{Nombre: nombre, Pct: *p})
+				}
+			}
+		}
+	}
+	if err := out.Data(cuentas); err != nil {
 		return err
 	}
-	if uso.Accesible {
+	for _, c := range cuentas {
+		if c.Motivo != "" {
+			out.Line(idioma.T("cuenta %s · %s"), c.Proveedor, idioma.T(c.Motivo))
+			continue
+		}
 		var partes []string
-		if uso.CincoH != nil {
-			partes = append(partes, fmt.Sprintf("5h %d%%", *uso.CincoH))
+		for _, m := range c.Medidores {
+			p := fmt.Sprintf("%s %d%%", idioma.T(m.Nombre), m.Pct)
+			if !m.Reinicia.IsZero() && m.Reinicia.After(time.Now()) {
+				p += " (" + idioma.T("reinicia") + " " + m.Reinicia.Local().Format("02 Jan 15:04") + ")"
+			}
+			partes = append(partes, p)
 		}
-		if uso.Semanal != nil {
-			partes = append(partes, fmt.Sprintf("semanal %d%%", *uso.Semanal))
-		}
-		out.Line(idioma.T("cuenta real (claude) · %s"), strings.Join(partes, " · "))
-	} else {
-		out.Line(idioma.T("cuenta real (claude) · no accesible · loom mide su propio gasto en las ventanas; la cuenta la leés en claude.ai o con una key en ANTHROPIC_API_KEY"))
+		out.Line(idioma.T("cuenta %s · %s"), strings.TrimSpace(c.Proveedor+" "+c.Plan), strings.Join(partes, " · "))
 	}
 	return nil
 }

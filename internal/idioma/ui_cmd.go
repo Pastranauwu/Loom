@@ -238,8 +238,6 @@ var comandos = map[string]string{
 	"· ojo: %s":                                                                                      "· note: %s",
 	"· ya no dependen de ella: %s · revisa que sigan teniendo sentido sin %s":                        "· they no longer depend on it: %s · check they still make sense without %s",
 	"· %s  %s · incompleta: %s":                                                                      "· %s  %s · incomplete: %s",
-	"cuenta real (claude) · %s":                                                                      "real account (claude) · %s",
-	"cuenta real (claude) · no accesible · loom mide su propio gasto en las ventanas; la cuenta la leés en claude.ai o con una key en ANTHROPIC_API_KEY": "real account (claude) · not accessible · loom measures its own spend in the windows; you can read the account on claude.ai or with a key in ANTHROPIC_API_KEY",
-	"uso inválido en %s: %w": "invalid usage in %s: %w",
+	"uso inválido en %s: %w":                                                                         "invalid usage in %s: %w",
 	"usd = precio de lista informado por el CLI, no cargo de la suscripción · incluye implementación, arquitectura y examinador; otros roles pueden faltar": "usd = list price reported by the CLI, not a subscription charge · includes implementation, architecture and examiner; other roles may be missing",
 }

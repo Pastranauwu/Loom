@@ -115,7 +115,7 @@ func crearIDE(root, exe, s string) error {
 	pasos := [][]string{
 		{"new-session", "-d", "-s", s, "-c", root, claude},
 		{"split-window", "-h", "-t", s, "-l", "34%", "-c", root, panel("nav")},
-		{"split-window", "-v", "-t", s + ":.1", "-l", "6", "-c", root, panel("usage")},
+		{"split-window", "-v", "-t", s + ":.1", "-l", "9", "-c", root, panel("usage")},
 		{"set-option", "-t", s, "mouse", "on"},
 		{"set-option", "-t", s, "pane-border-status", "top"},
 		{"set-option", "-t", s, "pane-border-format", " #{pane_title} "},
@@ -163,8 +163,8 @@ func newPanelCmd() *cobra.Command {
 				})
 			case "usage":
 				for {
-					ancho, _ := tui.Terminal(os.Stdout.Fd())
-					fmt.Print("\033[H\033[2J", tui.Consumo(root, ancho))
+					ancho, alto := tui.Terminal(os.Stdout.Fd())
+					fmt.Print("\033[H\033[2J", tui.Consumo(root, ancho, alto))
 					time.Sleep(2 * time.Second)
 				}
 			}

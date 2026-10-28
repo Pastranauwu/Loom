@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/Pastranauwu/loom/internal/idioma"
-	"github.com/Pastranauwu/loom/internal/state"
 )
 
 func rgbColor(c [3]int) lipgloss.Color { return lipgloss.Color(mezclar(c, c, 0)) }
@@ -20,24 +19,6 @@ func pintar(ls []lineaSticker, ancho int) []string {
 		out[i] = lipgloss.NewStyle().Foreground(rgbColor(l.color)).MaxWidth(ancho).Render(l.texto)
 	}
 	return out
-}
-
-// Consumo is the small usage panel: task counts and the spend windows,
-// colored and cut to ancho.
-func Consumo(root string, ancho int) string {
-	ls := []lineaSticker{{texto: strings.ToUpper(idioma.T("uso")), color: rgbPresion}}
-	if filas, err := Tablero(root); err == nil {
-		n := map[string]int{}
-		for _, f := range filas {
-			n[f.Estado]++
-		}
-		ls = append(ls, lineaSticker{color: rgbTinta, texto: fmt.Sprintf("✓ %d  ◐ %d  ⏸ %d  · %d",
-			n[state.Lista], n[state.EnCurso], n[state.Detenida], n[state.Pendiente])})
-	}
-	for _, l := range lineasPresupuesto(root) {
-		ls = append(ls, lineaSticker{texto: l, color: rgbApagado})
-	}
-	return strings.Join(pintar(ls, ancho), "\n")
 }
 
 type (
