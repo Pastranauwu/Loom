@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Pastranauwu/loom/internal/examiner"
 	"github.com/Pastranauwu/loom/internal/task"
 )
 
@@ -32,13 +33,40 @@ type Opciones struct {
 func Atacar(ctx context.Context, o Opciones) (Informe, error) {
 	inf := Informe{Tarea: o.Tarea.ID}
 	leng := lenguajeDe(o.Tarea)
+	dir := dirDe(o.Tarea.TocarSolo)
+	inf.Lenguaje, inf.Dir = leng, dir
 	switch {
 	case len(o.Tarea.Expone) == 0:
 		inf.Omitido = "the task exposes nothing to attack"
 		return inf, nil
 	case leng == "":
-		inf.Omitido = "only Go and Python tasks can be attacked for now"
+		inf.Omitido = "no attack runner for this task's language (Go, Python, TypeScript, Rust)"
 		return inf, nil
+	}
+	// lo que deja sin ataque posible se decide antes de pagar al modelo
+	var cargoTarget string
+	switch leng {
+	case "typescript", "javascript":
+		pkg := examiner.ToolchainDir(o.Root, path.Join(dir, "x.ts"))
+		if o.Superficie.Runner = runnerNode(pkg); o.Superficie.Runner == "" {
+			inf.Omitido = "no vitest or jest in package.json"
+			return inf, nil
+		}
+		inf.Runner = o.Superficie.Runner
+		if rel, err := filepath.Rel(o.Root, pkg); err == nil {
+			inf.Dir = filepath.ToSlash(rel)
+		}
+	case "rust":
+		crate, nombre := examiner.CrateExaminable(o.Root, o.Tarea.TocarSolo)
+		if nombre == "" {
+			inf.Omitido = "the crate has no library: integration tests cannot import it"
+			return inf, nil
+		}
+		o.Superficie.Crate, inf.Dir = nombre, crate
+		var err error
+		if cargoTarget, err = os.MkdirTemp("", "loom-redteam-cargo-"); err == nil {
+			defer os.RemoveAll(cargoTarget)
+		}
 	}
 	if o.Timeout <= 0 {
 		o.Timeout = 2 * time.Minute
@@ -65,42 +93,14 @@ func Atacar(ctx context.Context, o Opciones) (Informe, error) {
 	}
 	defer limpiar()
 
-	dir := dirDe(o.Tarea.TocarSolo)
 	for i, a := range validos {
-		r := correr(ctx, wt, dir, leng, i+1, a, o.Timeout)
+		r, nombre, contenido := correr(ctx, wt, dir, leng, o.Tarea, o.Superficie, i+1, a, o.Timeout, cargoTarget)
 		inf.Resultados = append(inf.Resultados, r)
-		if o.Conservar != "" && (r.Clase == Confirmado || r.Clase == Afirmacion) {
-			guardar(o.Conservar, o.Tarea.ID, leng, i+1, a)
+		if o.Conservar != "" && nombre != "" && (r.Clase == Confirmado || r.Clase == Afirmacion) {
+			guardar(o.Conservar, o.Tarea.ID, nombre, contenido)
 		}
 	}
 	return inf, nil
-}
-
-func lenguajeDe(t task.Task) string {
-	for _, f := range t.TocarSolo {
-		if task.EsArchivoDePrueba(f) {
-			continue
-		}
-		g := f
-		if i := strings.IndexAny(g, "*?["); i >= 0 {
-			g = g[:i]
-		}
-		switch path.Ext(g) {
-		case ".go":
-			return "go"
-		case ".py":
-			return "python"
-		}
-	}
-	for _, e := range t.Expone {
-		if strings.Contains(e, "func ") || strings.Contains(e, "(") && !strings.Contains(e, "def ") && !strings.Contains(e, ":") {
-			return "go"
-		}
-		if strings.Contains(e, "def ") {
-			return "python"
-		}
-	}
-	return ""
 }
 
 // dirDe is the directory a task's non-test scope points to.
@@ -142,49 +142,45 @@ func worktreeEfimero(ctx context.Context, root, ref string) (string, func(), err
 	}, nil
 }
 
-func correr(ctx context.Context, wt, dir, leng string, n int, a Ataque, timeout time.Duration) Resultado {
+func correr(ctx context.Context, wt, dir, leng string, t task.Task, s Superficie, n int, a Ataque, timeout time.Duration, cargoTarget string) (Resultado, string, string) {
 	r := Resultado{Ataque: a}
-	abs := filepath.Join(wt, filepath.FromSlash(dir))
-	var archivo string
-	var args []string
-	var env []string
-	switch leng {
-	case "python":
-		archivo = filepath.Join(abs, fmt.Sprintf("test_loom_redteam_%d.py", n))
-		if err := os.WriteFile(archivo, []byte(ArmarPython(a.Imports, a.Test)), 0o644); err != nil {
-			r.Clase, r.Detalle = FallaAtacante, err.Error()
-			return r
-		}
-		args = []string{"python3", "-m", "pytest", "-q", "-x", "--no-header", "-p", "no:cacheprovider", archivo}
-		env = []string{"PYTHONPATH=" + wt}
-	default:
-		pkg := paqueteGo(abs)
-		if pkg == "" {
-			r.Clase, r.Detalle = FallaAtacante, "no Go package at "+dir
-			return r
-		}
-		archivo = filepath.Join(abs, fmt.Sprintf("loom_redteam_%d_test.go", n))
-		if err := os.WriteFile(archivo, []byte(ArmarGo(pkg, a.Imports, a.Test)), 0o644); err != nil {
-			r.Clase, r.Detalle = FallaAtacante, err.Error()
-			return r
-		}
-		args = []string{"go", "test", "-count=1", "-run", "TestRedTeam"}
-		if a.Invariante == "concurrency" && hayRace() {
-			args = append(args, "-race")
-		}
-		args = append(args, "./"+strings.TrimPrefix(dir, "./"))
+	rn, falla := prepararRunner(wt, dir, leng, t, s, n, a, cargoTarget)
+	if falla != "" {
+		r.Clase, r.Detalle = FallaAtacante, falla
+		return r, "", ""
 	}
-	defer os.Remove(archivo)
-
-	salida, ok := ejecutar(ctx, wt, args, env, timeout)
+	defer func() {
+		os.Remove(rn.archivo)
+		for _, e := range rn.extras {
+			os.Remove(e)
+		}
+	}()
+	if err := os.MkdirAll(filepath.Dir(rn.archivo), 0o755); err != nil {
+		r.Clase, r.Detalle = FallaAtacante, err.Error()
+		return r, "", ""
+	}
+	if err := os.WriteFile(rn.archivo, []byte(rn.contenido), 0o644); err != nil {
+		r.Clase, r.Detalle = FallaAtacante, err.Error()
+		return r, "", ""
+	}
+	nombre := filepath.Base(rn.archivo)
+	if rn.compilar != nil {
+		if salida, ok := ejecutar(ctx, rn.cwd, rn.compilar, rn.env, timeout); !ok {
+			if mal, det := noCompila(leng, salida, nombre); mal {
+				r.Clase, r.Detalle = FallaAtacante, det
+				return r, nombre, rn.contenido
+			}
+		}
+	}
+	salida, ok := ejecutar(ctx, rn.cwd, rn.correr, rn.env, timeout)
 	r.Clase, r.Detalle = Clasificar(salida, leng, ok)
 	if r.Clase == Confirmado {
 		// a crash that does not repeat is not proof
-		if _, otra := ejecutar(ctx, wt, args, env, timeout); otra {
+		if _, otra := ejecutar(ctx, rn.cwd, rn.correr, rn.env, timeout); otra {
 			r.Clase, r.Detalle = Afirmacion, "did not reproduce on the second run"
 		}
 	}
-	return r
+	return r, nombre, rn.contenido
 }
 
 func ejecutar(ctx context.Context, dir string, args, env []string, timeout time.Duration) (string, bool) {
@@ -268,15 +264,10 @@ func ArmarPython(imports []string, test string) string {
 	return b.String() + "\n\n" + strings.TrimSpace(test) + "\n"
 }
 
-func guardar(dir, id, leng string, n int, a Ataque) {
+func guardar(dir, id, nombre, contenido string) {
 	d := filepath.Join(dir, id)
 	if os.MkdirAll(d, 0o755) != nil {
 		return
-	}
-	nombre := fmt.Sprintf("loom_redteam_%d_test.go", n)
-	contenido := ArmarGo("pkg", a.Imports, a.Test)
-	if leng == "python" {
-		nombre, contenido = fmt.Sprintf("test_loom_redteam_%d.py", n), ArmarPython(a.Imports, a.Test)
 	}
 	_ = os.WriteFile(filepath.Join(d, nombre), []byte(contenido), 0o644)
 }
@@ -285,8 +276,9 @@ var reNombreTest = regexp.MustCompile(`(?m)^(?:func (Test\w+)\(|def (test_\w+)\(
 
 // Reabrir turns a confirmed attack into the contract of the task that owns the
 // target: the hostile test joins its scope and its done_when, and its source
-// goes in the notes so the agent can write it before fixing the code.
-func Reabrir(t task.Task, r Resultado, leng string) task.Task {
+// goes in the notes so the agent can write it before fixing the code. inf
+// carries the language, runner and directory the attack ran with.
+func Reabrir(t task.Task, r Resultado, inf Informe) task.Task {
 	dir := dirDe(t.TocarSolo)
 	n := reNombreTest.FindStringSubmatch(r.Ataque.Test)
 	nombre := ""
@@ -294,13 +286,30 @@ func Reabrir(t task.Task, r Resultado, leng string) task.Task {
 		nombre = n[1] + n[2]
 	}
 	var ruta, comando string
-	if leng == "python" {
+	switch inf.Lenguaje {
+	case "python":
 		ruta = path.Join(dir, "test_loom_redteam_"+t.ID+".py")
 		comando = "python3 -m pytest -q " + ruta
 		if nombre != "" {
 			comando += " -k " + nombre
 		}
-	} else {
+	case "typescript", "javascript":
+		ext := ".test.ts"
+		if inf.Lenguaje == "javascript" {
+			ext = ".test.js"
+		}
+		rel := "tests/" + objetivoAtaque(t.ID) + ext
+		ruta = path.Join(inf.Dir, rel)
+		comando = strings.Join(comandoNode(inf.Runner, rel), " ")
+		comando = strings.Replace(comando, "npx --no-install", "npx", 1)
+		if inf.Dir != "" && inf.Dir != "." {
+			comando = "cd " + inf.Dir + " && " + comando
+		}
+	case "rust":
+		obj := objetivoAtaque(t.ID)
+		ruta = path.Join(inf.Dir, "tests", obj+".rs")
+		comando = "cargo " + strings.Join(examiner.ArgsCargo(inf.Dir, obj, false), " ")
+	default:
 		ruta = path.Join(dir, "loom_redteam_"+strings.ToLower(strings.ReplaceAll(t.ID, "-", "_"))+"_test.go")
 		comando = "go test ./" + dir + " -run '^" + nombre + "$'"
 	}
@@ -311,9 +320,13 @@ func Reabrir(t task.Task, r Resultado, leng string) task.Task {
 	if t.Peso == "" || t.Peso == "liviana" {
 		t.Peso = "media"
 	}
+	fuente := strings.TrimSpace(r.Ataque.Test)
+	if inf.Lenguaje != "go" && inf.Lenguaje != "" && len(r.Ataque.Imports) > 0 {
+		fuente = strings.Join(r.Ataque.Imports, "\n") + "\n\n" + fuente
+	}
 	t.Notas = strings.TrimSpace(t.Notas) + "\n\nRED TEAM. An attack broke what this task exposes (" + r.Ataque.Objetivo + ").\n" +
 		"Invariant: " + r.Ataque.Invariante + "\nFailure: " + r.Detalle + "\n" +
 		"Write this test in " + ruta + " first (it must fail for that reason), then fix the code until it passes. Do not weaken the test or any existing one.\n" +
-		"```\n" + strings.TrimSpace(r.Ataque.Test) + "\n```"
+		"```\n" + fuente + "\n```"
 	return t
 }

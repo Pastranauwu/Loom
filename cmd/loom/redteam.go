@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -248,11 +247,7 @@ func reabrirContratos(root string, objetivo []task.Task, informes map[string]red
 			out.Line(idioma.T("· %s tiene un crash confirmado pero no está lista · arréglala con loom run"), t.ID)
 			continue
 		}
-		leng := "go"
-		if strings.HasSuffix(strings.TrimSuffix(t.TocarSolo[0], "**"), ".py") {
-			leng = "python"
-		}
-		if err := task.Save(dir, redteam.Reabrir(t, conf[0], leng)); err != nil {
+		if err := task.Save(dir, redteam.Reabrir(t, conf[0], informes[t.ID])); err != nil {
 			return reabiertas, err
 		}
 		if err := state.Save(root, state.State{ID: t.ID, Estado: state.Pendiente, Rama: st.Rama, Puerto: st.Puerto, Commit: st.Commit}); err != nil {

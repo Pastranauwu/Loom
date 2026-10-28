@@ -146,7 +146,7 @@ func TestAtacarDeVerdadEnUnWorktreeEfimero(t *testing.T) {
 
 func TestReabrirMeteElTestEnElContrato(t *testing.T) {
 	r := Resultado{Ataque: Ataque{Objetivo: "pkg.Boom(p *int) int", Invariante: "nil_edge", Test: "func TestRedTeam1(t *testing.T) { Boom(nil) }"}, Detalle: "panic · pkg.go:4"}
-	n := Reabrir(tareaDePrueba(), r, "go")
+	n := Reabrir(tareaDePrueba(), r, Informe{Lenguaje: "go"})
 	if !strings.Contains(n.ListoCuando, "go test ./pkg -run '^TestRedTeam1$'") || n.Peso != "media" {
 		t.Errorf("contrato: %+v", n)
 	}

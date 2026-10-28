@@ -53,6 +53,9 @@ type Informe struct {
 	Resultados  []Resultado `json:"results"`
 	Descartados []string    `json:"discarded,omitempty"`
 	Omitido     string      `json:"skipped,omitempty"`
+	Lenguaje    string      `json:"language,omitempty"`
+	Runner      string      `json:"runner,omitempty"` // vitest or jest
+	Dir         string      `json:"dir,omitempty"`    // package, crate or Go/Python directory attacked
 }
 
 // Confirmados are the attacks that proved a real crash.
@@ -73,7 +76,9 @@ type Superficie struct {
 	Aceptacion []string
 	DNA        string // the active DNA block, or ""
 	Diff       string // the task's diff, already capped
-	Lenguaje   string // "go" or "python"
+	Lenguaje   string // go, python, typescript, javascript or rust
+	Runner     string // vitest or jest, for TypeScript/JavaScript
+	Crate      string // import name of the crate, for Rust
 }
 
 // Prompt asks for hostile tests, bounded to real invariants.
@@ -110,7 +115,7 @@ func Prompt(t task.Task, s Superficie) string {
 	if s.Diff != "" {
 		b.WriteString("\nTHE TASK'S DIFF (aim at it)\n```diff\n" + s.Diff + "\n```\n")
 	}
-	fmt.Fprintf(&b, "\nWrite at most %d attacks in %s. Each is ONE test function named TestRedTeam<N> (Python: test_redteam_<n>) that calls an exposed signature with hostile input and asserts the contract holds. Prefer attacks that crash or race: those need no assertion about expected values. No comments in the code.\n\n", MaxAtaques, s.Lenguaje)
+	fmt.Fprintf(&b, "\nWrite at most %d attacks in %s. %s Each calls an exposed signature with hostile input and asserts the contract holds. Prefer attacks that crash or race: those need no assertion about expected values. No comments in the code.\n\n", MaxAtaques, s.Lenguaje, reglasAtaque(s))
 	b.WriteString("Return ONLY this JSON, no text around it:\n")
 	b.WriteString(`{"attacks": [{"name": "short name", "invariant": "one of the invariants above", "target": "the exposed signature attacked, copied exactly", "imports": ["extra imports the test needs"], "test": "the complete test function"}]}`)
 	b.WriteString(idioma.Instruccion())
@@ -212,8 +217,13 @@ func Clasificar(salida, lenguaje string, ok bool) (Clase, string) {
 	if ok {
 		return Resistio, ""
 	}
-	if lenguaje == "python" {
+	switch lenguaje {
+	case "python":
 		return clasificarPython(salida)
+	case "typescript", "javascript":
+		return clasificarNode(salida)
+	case "rust":
+		return clasificarRust(salida)
 	}
 	return clasificarGo(salida)
 }
