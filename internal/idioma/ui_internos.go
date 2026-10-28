@@ -202,6 +202,7 @@ var internos = map[string]string{
 	"falta el bloque --- de cierre":                                                            "missing the closing --- block",
 	"version inválida: %s · usa version: %d":                                                   "invalid version: %s · use version: %d",
 	"examen_esqueleto inválido: %s · usa true o false":                                         "invalid examen_esqueleto: %s · use true or false",
+	"network inválido: %s · usa true o false":                                                  "invalid network: %s · use true or false",
 	"recursivo inválido: %s · usa true o false":                                                "invalid recursivo: %s · use true or false",
 	"falta version · agrega version: %d al contrato":                                           "missing version · add version: %d to the contract",
 	"id inválido: %q · usa el formato T-001":                                                   "invalid id: %q · use the format T-001",

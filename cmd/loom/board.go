@@ -20,11 +20,14 @@ import (
 )
 
 type boardRow struct {
-	ID      string     `json:"id"`
-	Titulo  string     `json:"titulo"`
-	Estado  string     `json:"estado"`
-	Detalle string     `json:"detalle,omitempty"`
-	Hijos   []boardRow `json:"hijos,omitempty"`
+	ID         string     `json:"id"`
+	Titulo     string     `json:"titulo"`
+	Estado     string     `json:"estado"`
+	Detalle    string     `json:"detalle,omitempty"`
+	Weight     string     `json:"weight,omitempty"`
+	Exposes    []string   `json:"exposes,omitempty"`
+	MaxRetries int        `json:"max_retries,omitempty"`
+	Hijos      []boardRow `json:"hijos,omitempty"`
 }
 
 func newBoardCmd() *cobra.Command {
@@ -76,7 +79,8 @@ func runBoard() error {
 		if err != nil {
 			return err
 		}
-		row := boardRow{ID: t.ID, Titulo: t.Titulo, Estado: s.Estado, Hijos: hijosBoardRow(root, nodos, t.ID)}
+		row := boardRow{ID: t.ID, Titulo: t.Titulo, Estado: s.Estado, Hijos: hijosBoardRow(root, nodos, t.ID),
+			Weight: task.PesoEn(t.Peso), Exposes: t.Expone, MaxRetries: t.LimiteIntentos}
 		// una tarea en curso puede tener encima una corrida muerta: el
 		// estado en disco dice `en_curso` para siempre porque nadie lo
 		// bajó. Decirlo es el punto del tablero — antes se pintaba igual

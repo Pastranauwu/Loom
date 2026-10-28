@@ -85,6 +85,9 @@ func schema(props map[string]string, required ...string) map[string]any {
 	for k, v := range props {
 		typ, desc, _ := strings.Cut(v, ":")
 		prop := map[string]any{"type": typ, "description": desc}
+		if opciones, ok := strings.CutPrefix(typ, "enum("); ok {
+			prop["type"], prop["enum"] = "string", strings.Split(strings.TrimSuffix(opciones, ")"), "|")
+		}
 		if typ == "array" {
 			prop["items"] = map[string]any{"type": "string"}
 		}
@@ -210,14 +213,21 @@ func mcpTools(exe string) []mcp.Tool {
 				return args, nil
 			}),
 		quick("loom_stop", "Stop running tasks.", nil, fixed("stop", "--json")),
-		{Name: "loom_task_show", Description: "Contract of one task: what it may touch, what it may not, weight, retries.",
+		{Name: "loom_task_show", Description: "Contract of one task: what it may touch, what it may not, exposes, weight, retries, network.",
 			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
 			Call: func(a map[string]any) (string, error) {
 				return editTask(a, false)
 			}},
-		{Name: "loom_task_set", Description: "Set the permissions of a task before it runs: only_touch (globs it may edit), dont_touch (globs it may not), weight (light|medium|heavy), max_retries, depends_on. Fields you omit stay as they are. Out-of-scope edits are reverted by code, so this is the real boundary.",
+		{Name: "loom_task_get", Description: "Same as loom_task_show: the contract of one task.",
+			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
+			Call: func(a map[string]any) (string, error) {
+				return editTask(a, false)
+			}},
+		{Name: "loom_task_set", Description: "Set the contract of a task before it runs: only_touch (globs it may edit), dont_touch (globs it may not), exposes (public signatures it must provide), weight, max_retries, depends_on, network (its tests need the network). Fields you omit stay as they are. Out-of-scope edits are reverted by code, so this is the real boundary.",
 			Schema: schema(map[string]string{"id": "string:task id", "only_touch": "array:globs the task may edit", "dont_touch": "array:globs the task may not edit",
-				"weight": "string:light, medium or heavy", "max_retries": "number:attempt limit", "depends_on": "array:task ids that must finish first"}, "id"),
+				"exposes": "array:public signatures other tasks rely on, e.g. wol.Send(mac, addr string) error",
+				"weight":  "enum(light|medium|heavy):model weight of the task", "max_retries": "integer:attempts before the task stops",
+				"depends_on": "array:task ids that must finish first", "network": "boolean:its tests need network access (the sandbox keeps only loopback otherwise)"}, "id"),
 			Call: func(a map[string]any) (string, error) {
 				return editTask(a, true)
 			}},
@@ -634,6 +644,12 @@ func editTask(a map[string]any, set bool) (string, error) {
 		if v, ok := list(a, "depends_on"); ok {
 			t.DependeDe = v
 		}
+		if v, ok := list(a, "exposes"); ok {
+			t.Expone = v
+		}
+		if v, ok := a["network"].(bool); ok {
+			t.Red = v
+		}
 		if w := str(a, "weight"); w != "" {
 			t.Peso = task.NormalizarPeso(w)
 		}
@@ -651,6 +667,16 @@ func editTask(a map[string]any, set bool) (string, error) {
 			return "", err
 		}
 	}
-	data, err := json.MarshalIndent(t, "", "  ")
+	data, err := json.MarshalIndent(vistaTarea(t), "", "  ")
 	return string(data), err
+}
+
+// vistaTarea es el contrato con las mismas llaves que acepta loom_task_set.
+func vistaTarea(t task.Task) map[string]any {
+	return map[string]any{
+		"id": t.ID, "title": t.Titulo, "why": t.Porque, "done_when": t.ListoCuando,
+		"only_touch": t.TocarSolo, "dont_touch": t.NoTocar, "depends_on": t.DependeDe,
+		"exposes": t.Expone, "uses": t.Usa, "weight": task.PesoEn(t.Peso),
+		"max_retries": t.LimiteIntentos, "max_lines": t.LimiteLineas, "network": t.Red,
+	}
 }

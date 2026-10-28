@@ -8,7 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/mcp"
+	"github.com/Pastranauwu/loom/internal/task"
+	"github.com/Pastranauwu/loom/internal/ui"
 )
 
 func TestBoardDeltaSoloCambios(t *testing.T) {
@@ -97,5 +100,70 @@ func TestBridgeToolsLeeElRepo(t *testing.T) {
 	tools := bridgeTools()
 	if len(tools) != 1 || tools[0].Name != "bridge_api_ping" {
 		t.Fatalf("tools = %+v", tools)
+	}
+}
+
+func TestTaskSetSchemaTipado(t *testing.T) {
+	for _, tl := range mcpTools("loom") {
+		if tl.Name != "loom_task_set" {
+			continue
+		}
+		props := tl.Schema["properties"].(map[string]any)
+		peso := props["weight"].(map[string]any)
+		if peso["type"] != "string" || strings.Join(peso["enum"].([]string), ",") != "light,medium,heavy" {
+			t.Errorf("weight = %v", peso)
+		}
+		if props["max_retries"].(map[string]any)["type"] != "integer" || props["exposes"].(map[string]any)["type"] != "array" || props["network"].(map[string]any)["type"] != "boolean" {
+			t.Errorf("props = %v", props)
+		}
+		return
+	}
+	t.Fatal("falta loom_task_set")
+}
+
+func TestTaskSetPersisteElContratoYSeLee(t *testing.T) {
+	root, _ := repoDeRedteam(t)
+	set := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"loom_task_set","arguments":{"dir":"` + root + `","id":"T-001","exposes":["pkg.Boom(p *int) int","pkg.Safe(p *int) (int, error)"],"weight":"heavy","max_retries":5,"network":true}}}` + "\n"
+	var resp bytes.Buffer
+	if err := mcp.Serve(strings.NewReader(set), &resp, "loom", "t", mcpTools("loom")); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(resp.String(), `"isError":true`) {
+		t.Fatalf("set falló: %s", resp.String())
+	}
+	crudo, _ := os.ReadFile(filepath.Join(config.TasksDir(root), "T-001.md"))
+	for _, quiero := range []string{"exposes: [", "pkg.Safe(p *int) (int, error)", "weight: heavy", "max_retries: 5", "network: true"} {
+		if !strings.Contains(string(crudo), quiero) {
+			t.Errorf("el contrato en disco no trae %q:\n%s", quiero, crudo)
+		}
+	}
+	tk, err := task.Load(config.TasksDir(root), "T-001")
+	if err != nil || len(tk.Expone) != 2 || tk.LimiteIntentos != 5 || !tk.Red || task.PesoEn(tk.Peso) != "heavy" {
+		t.Fatalf("releído = %+v, %v", tk, err)
+	}
+
+	get := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"loom_task_get","arguments":{"dir":"` + root + `","id":"T-001"}}}` + "\n"
+	resp.Reset()
+	_ = mcp.Serve(strings.NewReader(get), &resp, "loom", "t", mcpTools("loom"))
+	for _, quiero := range []string{`\"weight\": \"heavy\"`, `\"max_retries\": 5`, `\"network\": true`, `pkg.Safe`} {
+		if !strings.Contains(resp.String(), quiero) {
+			t.Errorf("loom_task_get no trae %s:\n%s", quiero, resp.String())
+		}
+	}
+
+	var tablero bytes.Buffer
+	prevOut, prevDir := out, mustGetwd()
+	out = ui.New(&tablero, true)
+	defer func() { out = prevOut; os.Chdir(prevDir) }()
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := runBoard(); err != nil {
+		t.Fatal(err)
+	}
+	for _, quiero := range []string{`"weight": "heavy"`, `"max_retries": 5`, `"exposes": [`} {
+		if !strings.Contains(tablero.String(), quiero) {
+			t.Errorf("board --json no trae %s:\n%s", quiero, tablero.String())
+		}
 	}
 }

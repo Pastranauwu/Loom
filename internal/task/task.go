@@ -75,6 +75,9 @@ type Task struct {
 	// cuarto (internal/recurse). Sin esta marca, cero recursión — nunca
 	// es una decisión del modelo, siempre del contrato.
 	Recursivo bool `json:"recursivo,omitempty"`
+	// Red: las pruebas de la tarea necesitan red. Sin ella el sandbox
+	// las corre con --unshare-net (solo loopback).
+	Red bool `json:"red,omitempty"`
 	// LimiteSubtareas topa cuántas subtareas puede proponer la
 	// descomposición, mismo espíritu que LimiteIntentos: sin techo, una
 	// tarea recursiva puede gastar tokens sin límite.
@@ -291,6 +294,15 @@ func Parse(data []byte) (Task, error) {
 			}
 		case "limite_subtareas":
 			t.LimiteSubtareas, err = kv.ParseInt(p.Value)
+		case "network", "red":
+			switch kv.Unquote(p.Value) {
+			case "true":
+				t.Red = true
+			case "false":
+				t.Red = false
+			default:
+				err = fmt.Errorf(idioma.T("network inválido: %s · usa true o false"), p.Value)
+			}
 		default:
 			// campos desconocidos o del futuro: se toleran con aviso para
 			// que contratos con campos nuevos no rompan binarios existentes ni reportes.
@@ -399,6 +411,9 @@ func (t Task) Marshal() []byte {
 	if t.ExamenEsqueleto {
 		fmt.Fprintf(&b, "examen_esqueleto: true\n")
 		fmt.Fprintf(&b, "examen_visible: %s\n", t.ExamenVisible)
+	}
+	if t.Red {
+		fmt.Fprintf(&b, "network: true\n")
 	}
 	if t.Recursivo {
 		fmt.Fprintf(&b, "recursivo: true\n")
