@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,6 +23,12 @@ import (
 	"github.com/Pastranauwu/loom/internal/state"
 	"github.com/Pastranauwu/loom/internal/task"
 	"github.com/Pastranauwu/loom/internal/tui"
+)
+
+// releaseFlag y tagFlag piden un release formal: solo ahí entra docker.
+var (
+	releaseFlag bool
+	tagFlag     string
 )
 
 func newShipCmd() *cobra.Command {
@@ -46,6 +53,12 @@ requests que se pisan entre sí.`,
 			if redteamFlag != "" && redteamFlag != "warn" && redteamFlag != "block" {
 				return errors.New(idioma.T("--redteam acepta warn o block"))
 			}
+			if tagFlag != "" {
+				releaseFlag = true
+			}
+			if releaseFlag && !todas {
+				return errors.New(idioma.T("--release y --tag van con --all · las imágenes se construyen sobre el conjunto integrado"))
+			}
 			if todas {
 				if len(args) > 0 {
 					return errors.New(idioma.T("--all entrega todas las tareas listas · no lleva id"))
@@ -65,6 +78,8 @@ requests que se pisan entre sí.`,
 	cmd.Flags().BoolVar(&integrar, "merge", false, "revisa y, si no pide cambios, mergea el PR por rebase sin esperarte")
 	cmd.Flags().StringVar(&redteamFlag, "redteam", "", "a saboteur attacks the task before it ships: warn or block")
 	cmd.Flags().Lookup("redteam").NoOptDefVal = "warn"
+	cmd.Flags().BoolVar(&releaseFlag, "release", false, "release formal: además construye las imágenes de docker compose sobre el conjunto (va con --all)")
+	cmd.Flags().StringVar(&tagFlag, "tag", "", "release con versión: como --release y deja un tag anotado local en la punta entregada")
 	cmd.Flags().BoolVar(&local, "local", false, "deja el PR en el repo (rama y descripción) aunque haya remoto; igual que entrega: local en config.yml")
 	return cmd
 }
@@ -171,6 +186,7 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 		Commits: commits,
 		Titulo:  titulo,
 		DryRun:  dryRun,
+		Release: releaseFlag,
 		Spec:    hashDelSpec(root),
 		Progreso: func(p ship.Paso) {
 			if p.OK {
@@ -224,6 +240,13 @@ func runShipTodas(dryRun bool, titulo string, integrar, revisar, local bool) err
 	if dryRun {
 		out.Line(idioma.T("entregable · %d tareas en la rama %s · --dry-run, sin PR"), len(listas), e.Rama)
 		return nil
+	}
+	if tagFlag != "" {
+		if salida, err := exec.Command("git", "-C", root, "tag", "-a", tagFlag, "-m", "loom release "+tagFlag, e.Rama).CombinedOutput(); err != nil {
+			out.Line(idioma.T("· no se pudo crear el tag %s · %s"), tagFlag, strings.TrimSpace(string(salida)))
+		} else {
+			out.Line(idioma.T("✓ tag %s en %s · súbelo con git push origin %s"), tagFlag, e.Rama, tagFlag)
+		}
 	}
 	if err := ship.RegistrarEntrega(root, e.Rama, ids); err != nil {
 		out.Line(idioma.T("· no se pudo registrar la entrega · %s · el próximo ship puede volver a incluir estas tareas"), err)

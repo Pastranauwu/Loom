@@ -160,3 +160,10 @@ En la entrega conjunta (`ship --todas` → `ship.EntregarTodas`) la secuencia so
 - Compuerta (`wrap.Verify`) antes de guardar: nombres `[a-z0-9_]`, un solo `exec` o `http` por herramienta, `bin` simple y fuera de la lista de shells e intérpretes, toda `{var}` es propiedad requerida del `inputSchema`, url http(s); prueba de humo `--version`/`--help` (binario ausente rechaza, mudo avisa).
 - Ejecución (`wrap.Invoke`): tipos del schema comprobados, sustitución en una pasada y por elemento del argv; en http, la url escapa con `QueryEscape` y el cuerpo con escape JSON.
 - `loom mcp` relee `.loom/bridges/*.json` en cada petición (`mcp.Serve(..., dyn)`); una herramienta dinámica nunca pisa a una estática.
+
+## Sandbox de verificación (bwrap)
+- Todo `listo_cuando`, `pruebas`, aceptación y ataque del red team corre por `task.Shell`/`task.Argv`. Con bwrap usable (sonda única): raíz en solo lectura, `/tmp` limpio, el cuarto y el `.git` común en escritura, cachés del usuario (`~/.cache`, `~/.npm`, `~/.cargo`, `~/go`...) montadas, y `--unshare-net` salvo `network: true` en la tarea. El esqueleto y la entrega conjunta conservan la red (instalan y compilan todo).
+- Sin bwrap, o con user namespaces bloqueados, corre nativo en el cuarto con un aviso. `sandbox: off` en `config.yml` lo apaga; `loom doctor` dice el estado.
+
+## Docker solo en release
+- El bucle diario y `ship` normal nunca construyen imágenes. `loom ship --all --release` (o `--tag <versión>`, que además deja un tag anotado local) suma el paso `docker` (`docker compose build`) sobre el conjunto integrado, fuera del sandbox.

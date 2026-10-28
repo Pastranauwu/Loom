@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Pastranauwu/loom/internal/esqueleto"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"net"
 	"os"
@@ -55,6 +56,9 @@ type OpcionesEntrega struct {
 	// del humano.
 	Integrar bool
 	DryRun   bool
+	// Release construye las imágenes de docker compose sobre el conjunto
+	// integrado. Fuera de un release, docker no entra a la entrega.
+	Release  bool
 	Progreso func(Paso)
 }
 
@@ -377,6 +381,15 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 		apuntar(Paso{"integradas", true, pruebas})
 	}
 	for _, command := range o.Acceptance {
+		// las imágenes son del paso docker, fuera del sandbox y solo en release
+		if esDocker(command) {
+			motivo := idioma.T("omitido · docker solo corre con --release")
+			if o.Release {
+				motivo = idioma.T("lo construye el paso docker")
+			}
+			apuntar(Paso{"aceptación", true, command + " · " + motivo})
+			continue
+		}
 		if crudo, salida, ok := correrPruebasCrudo(ctx, path, command, o.Timeout); !ok {
 			// vitest sin archivos cierra con su lista de exclusiones: el
 			// motivo real es que la prueba no existe en lo entregado
@@ -394,6 +407,15 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 			return e
 		}
 		apuntar(Paso{"aceptación", true, command})
+	}
+
+	if o.Release {
+		if detalle, ok := construirImagenes(ctx, path, o.Timeout); !ok {
+			apuntar(Paso{"docker", false, detalle})
+			return e
+		} else {
+			apuntar(Paso{"docker", true, detalle})
+		}
 	}
 
 	// capturas del resultado integrado para el humano: el juicio estético
@@ -869,4 +891,37 @@ func puertoLibre() int {
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port
+}
+
+// esDocker reconoce la aceptación de imágenes que specs anteriores a v2.4
+// guardaron ("docker compose build"): el bucle diario no la corre.
+func esDocker(command string) bool {
+	c := strings.TrimSpace(command)
+	return strings.HasPrefix(c, "docker ") || strings.HasPrefix(c, "docker-compose ")
+}
+
+// construirImagenes es el paso docker de un release: con un compose en la
+// raíz, docker compose build sobre lo integrado. Sin compose no hay nada que
+// construir; con compose y sin docker, el release no se puede validar.
+func construirImagenes(ctx context.Context, path string, timeout time.Duration) (string, bool) {
+	hay := false
+	for _, c := range esqueleto.Composes {
+		if _, err := os.Stat(filepath.Join(path, c)); err == nil {
+			hay = true
+		}
+	}
+	if !hay {
+		return idioma.T("sin compose · nada que construir"), true
+	}
+	if _, err := exec.LookPath("docker"); err != nil {
+		return idioma.T("el release construye las imágenes del compose y docker no está instalado · instálalo o entrega sin --release"), false
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "docker", "compose", "build")
+	cmd.Dir = path
+	if salida, err := cmd.CombinedOutput(); err != nil {
+		return "docker compose build · " + tail(string(salida)), false
+	}
+	return "docker compose build", true
 }

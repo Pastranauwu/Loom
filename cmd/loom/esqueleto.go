@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -411,16 +410,8 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	if res.Verificar != "" {
 		s.Acceptance = append(s.Acceptance, spec.Acceptance{Criterion: "build y typecheck del proyecto integrado", Command: res.Verificar})
 	}
-	// las imágenes se construyen sobre lo integrado: ahí aparece lo que
-	// solo falla dentro del contenedor (una dependencia que no existe, un
-	// archivo que .dockerignore deja fuera)
-	if !sinDocker {
-		if _, err := exec.LookPath("docker"); err == nil {
-			s.Acceptance = append(s.Acceptance, spec.Acceptance{Criterion: "las imágenes de docker compose construyen", Command: "docker compose build"})
-		} else {
-			out.Line(idioma.T("· docker no está instalado · la entrega no va a construir las imágenes del compose"))
-		}
-	}
+	// las imágenes no entran a la aceptación diaria: se construyen solo en
+	// un release (loom ship --all --release), sobre lo integrado
 	if res.Integracion != "" {
 		s.Acceptance = append(s.Acceptance, spec.Acceptance{Criterion: "flujo de punta a punta del esqueleto", Command: res.Integracion})
 	}

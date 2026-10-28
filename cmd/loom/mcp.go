@@ -285,7 +285,8 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return args, nil
 			}),
-		heavy("loom_ship", "Deliver one ready task, or all of them in one PR.", map[string]string{"id": "string:task id", "all": "boolean:ship every ready task", "dry_run": "boolean:run the gate only"},
+		heavy("loom_ship", "Deliver one ready task, or all of them in one PR.", map[string]string{"id": "string:task id", "all": "boolean:ship every ready task", "dry_run": "boolean:run the gate only",
+			"release": "boolean:formal release: also build the docker compose images (with all)", "tag": "string:release version; like release and leaves a local annotated tag"},
 			func(a map[string]any) ([]string, error) {
 				args := []string{"ship"}
 				if id := str(a, "id"); id != "" {
@@ -297,6 +298,11 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				if on(a, "dry_run") {
 					args = append(args, "--dry-run")
+				}
+				if tag := str(a, "tag"); tag != "" {
+					args = append(args, "--tag", tag)
+				} else if on(a, "release") {
+					args = append(args, "--release")
 				}
 				return args, nil
 			}),

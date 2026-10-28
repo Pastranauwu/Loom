@@ -594,3 +594,51 @@ func TestEntregarTodasQuedaLocalSiElRemotoNoAbreElPR(t *testing.T) {
 		t.Fatal("la rama de entrega no quedó para revisarla")
 	}
 }
+
+// docker solo entra en un release: fuera de él, la aceptación de imágenes
+// que guardó un spec viejo se omite y docker ni se llama.
+func TestDockerSoloConRelease(t *testing.T) {
+	root := repoConCommit(t)
+	sinIdentidadGit(t, root)
+	if err := os.WriteFile(filepath.Join(root, "compose.yaml"), []byte("services: {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitCmd(t, root, "add", "compose.yaml")
+	gitCmd(t, root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "compose")
+	cuartoDeTarea(t, root, "T-001", "a.go")
+
+	bin := t.TempDir()
+	registro := filepath.Join(t.TempDir(), "docker.log")
+	if err := os.WriteFile(filepath.Join(bin, "docker"), []byte("#!/bin/sh\necho \"$@\" >> "+registro+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	for _, release := range []bool{false, true} {
+		os.Remove(registro)
+		e := EntregarTodas(context.Background(), OpcionesEntrega{
+			Root: root, Config: config.Config{Base: "main", Pruebas: "true"}, Base: "main",
+			Tareas:     []task.Task{tareaEntrega("T-001", "a.go")},
+			Acceptance: []string{"docker compose build"},
+			DryRun:     true,
+			Release:    release,
+		})
+		_ = limpiarEntrega(root, roomPathDe(root, "_entrega"))
+		if !e.Aprobado {
+			t.Fatalf("release=%v: %s", release, e.PrimerMotivo())
+		}
+		paso := ""
+		for _, p := range e.Pasos {
+			if p.Nombre == "docker" {
+				paso = p.Detalle
+			}
+		}
+		_, llamado := os.Stat(registro)
+		switch {
+		case !release && (paso != "" || llamado == nil):
+			t.Errorf("sin release docker no corre · paso %q · llamado %v", paso, llamado == nil)
+		case release && (paso != "docker compose build" || llamado != nil):
+			t.Errorf("con release se construyen las imágenes · paso %q · llamado %v", paso, llamado == nil)
+		}
+	}
+}
