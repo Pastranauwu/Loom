@@ -126,14 +126,14 @@ func (agenteQueFalla) Run(context.Context, loop.Request) (loop.Result, error) {
 
 func TestSoportado(t *testing.T) {
 	// donde hay examinador ciego, la veda de pruebas tiene sentido
-	for _, l := range []string{"go", "", "python", "pytest"} {
+	for _, l := range []string{"go", "", "python", "pytest", "rust"} {
 		if !Soportado(l) {
 			t.Errorf("Soportado(%q) = false, quiero true", l)
 		}
 	}
 	// donde no lo hay, prohibirle al implementador escribir pruebas deja
 	// la tarea sin nadie que la haga
-	for _, l := range []string{"node", "rust", "elixir"} {
+	for _, l := range []string{"node", "elixir"} {
 		if Soportado(l) {
 			t.Errorf("Soportado(%q) = true, quiero false", l)
 		}

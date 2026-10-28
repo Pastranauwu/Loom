@@ -26,13 +26,13 @@ const timeoutSintaxis = 15 * time.Second
 // nunca toca las pruebas) solo tiene sentido si hay un examinador que las
 // escriba. Este indicador describe los contratos tradicionales; Node
 // solo está habilitado para tareas con contrato de esqueleto.
-// Donde no lo hay — Node antiguo, Rust — prohibirle además al
+// Donde no lo hay — Node antiguo — prohibirle además al
 // implementador escribirlas deja la tarea sin nadie que la haga: el
 // planificador apunta el listo_cuando a un archivo de prueba, el
 // implementador no puede crearlo, y la tarea queda roja para siempre.
 func Soportado(lenguaje string) bool {
 	switch lenguajeExamen(lenguaje) {
-	case "go", "python":
+	case "go", "python", "rust":
 		return true
 	default:
 		return false
@@ -57,10 +57,8 @@ func lenguajeExamen(l string) string {
 	case "node", "typescript", "javascript":
 		return "typescript"
 	case "rust":
-		// rust pide otro enfoque: la stdlib de Go no parsea rust, así que
-		// validar exige el crate syn o `cargo check`, y eso arrastra el
-		// toolchain completo dentro del cuarto. Fase aparte.
-		return ""
+		// se valida con el cargo del host (validarRust); sin cargo degrada
+		return "rust"
 	default:
 		// el resto: todavía sin examinador.
 		return ""
@@ -78,6 +76,8 @@ func lenguajeDeTarea(detectado string, t task.Task) string {
 			return "python"
 		case ".go":
 			return "go"
+		case ".rs":
+			return "rust"
 		case ".ts", ".tsx":
 			return "typescript"
 		case ".js", ".jsx", ".mjs", ".cjs":
@@ -99,6 +99,8 @@ func nombresSuite(lenguaje string) (visible, oculta string) {
 		return "loom_visible.test.ts", "loom_hidden.test.ts"
 	case "javascript":
 		return "loom_visible.test.js", "loom_hidden.test.js"
+	case "rust":
+		return "loom_blind_visible.rs", "loom_blind_hidden.rs"
 	default:
 		return VisibleFileName, HiddenFileName
 	}
@@ -106,9 +108,16 @@ func nombresSuite(lenguaje string) (visible, oculta string) {
 
 // RutasSuite devuelve dónde van la suite visible y la oculta dentro del
 // cuarto, relativas a su raíz. El examinador automático la usa al escribir
-// y `loom task seal` al sellar a mano: un solo camino para los dos.
-func RutasSuite(tocarSolo []string, lenguaje string) (visible, oculta string) {
-	_, relDir := inferDirFromTocarSolo(tocarSolo, "")
+// y `loom task seal` al sellar a mano: un solo camino para los dos. En Rust
+// son pruebas de integración en tests/ del crate, con el id en el nombre:
+// cada una es su propio target de cargo.
+func RutasSuite(t task.Task, lenguaje string) (visible, oculta string) {
+	if lenguajeDeTarea(lenguaje, t) == "rust" {
+		dir := filepath.Join(crateDeTarea(t.TocarSolo), "tests")
+		obj := objetivoRust(t.ID)
+		return toRelPath(filepath.Join(dir, obj+".rs")), toRelPath(filepath.Join(dir, obj+"_hidden.rs"))
+	}
+	_, relDir := inferDirFromTocarSolo(t.TocarSolo, "")
 	v, o := nombresSuite(lenguajeExamen(lenguaje))
 	return toRelPath(filepath.Join(relDir, v)), toRelPath(filepath.Join(relDir, o))
 }
@@ -120,6 +129,9 @@ func armarSuite(lenguaje, pkg, importPath string, imports, funcs []string) strin
 	}
 	if lenguaje == "typescript" || lenguaje == "javascript" {
 		return buildNodeFile(imports, funcs)
+	}
+	if lenguaje == "rust" {
+		return buildRustFile(pkg, imports, funcs)
 	}
 	return buildGoFile(pkg, importPath, imports, funcs)
 }
@@ -179,6 +191,9 @@ func validarSintaxis(lenguaje, contenido string) error {
 // validarSintaxisEnProyecto usa el parser del TypeScript instalado en el
 // cuarto. No ejecuta las aserciones: los stubs todavía deben fallarlas.
 func validarSintaxisEnProyecto(roomPath, lenguaje, nombre, contenido string) error {
+	if lenguaje == "rust" {
+		return validarRust(roomPath, nombre, contenido)
+	}
 	if lenguaje != "typescript" && lenguaje != "javascript" {
 		return validarSintaxis(lenguaje, contenido)
 	}
@@ -267,6 +282,14 @@ func ultimaLinea(s string) string {
 // lenguaje. Lo común (caja negra, 70/30, no implementar) vive en
 // buildPrompt.
 func reglasDe(lenguaje string) string {
+	if lenguaje == "rust" {
+		return `- Write Rust integration tests: each item is one complete ` + "`#[test] fn name() { ... }`" + ` function, independent of the others.
+- loom adds ` + "`use <crate>::*;`" + `: call the public API by its name. In "imports" put only extra ` + "`use`" + ` lines from std, core or the crate under test. No external crates, no ` + "`mod`" + `, no ` + "`extern crate`" + `.
+- Pin exact values with assert_eq!/matches!; use #[should_panic] only where the contract promises a panic.
+
+Return ONLY this JSON (no text around it, no markdown):
+{"imports": ["use std::collections::HashMap;"], "visible": ["#[test]\nfn parses_empty() {\n    assert_eq!(parse(\"\"), Ok(vec![]));\n}"], "hidden": ["#[test]\nfn rejects_nul() {\n    assert!(parse(\"\\0\").is_err());\n}"]}`
+	}
 	if lenguaje == "typescript" || lenguaje == "javascript" {
 		return `- Use the project's test runner (Vitest/Jest/node:test per package.json). Import only the module's public API.
 - In "imports" write complete import lines; the relative path is computed from the indicated visible test file.

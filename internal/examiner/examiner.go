@@ -164,6 +164,14 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		}
 	}
 
+	if lenguaje == "rust" {
+		// como go.mod en Go: sin Cargo.toml no hay nombre que importar, y un
+		// crate sin biblioteca no se importa desde tests/
+		if _, pkg = crateExaminable(roomPath, o.Task.TocarSolo); pkg == "" {
+			return false, nil
+		}
+	}
+
 	prompt := buildPrompt(o.Task, pkg, lenguaje)
 	if contrato != "" {
 		prompt += "\nFIRMAS Y CASOS DEL ESQUELETO (sin cuerpos de implementación):\n" + contrato + "\n"
@@ -212,7 +220,7 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		return false, fmt.Errorf(idioma.T("el examinador no devolvió ninguna prueba visible"))
 	}
 
-	visibleRelPath, hiddenRelPath := RutasSuite(o.Task.TocarSolo, lenguaje)
+	visibleRelPath, hiddenRelPath := RutasSuite(o.Task, lenguaje)
 	if o.Task.ExamenEsqueleto {
 		visibleRelPath = o.Task.ExamenVisible
 		_, hiddenName := nombresSuite(lenguaje)
@@ -346,6 +354,9 @@ func buildPrompt(t task.Task, pkg, lenguaje string) string {
 	fmt.Fprintf(&b, "Test language: %s · write ONLY in that language.\n", lenguaje)
 	if lenguaje == "go" {
 		fmt.Fprintf(&b, "Go package of the tests: %s_test\n", pkg)
+	}
+	if lenguaje == "rust" {
+		fmt.Fprintf(&b, "Rust crate under test: %s · the suite runs with: cargo %s\n", pkg, strings.Join(ArgsCargo(crateDeTarea(t.TocarSolo), objetivoRust(t.ID), false), " "))
 	}
 	b.WriteString(`
 Rules:

@@ -47,7 +47,7 @@ var wrapTextos = map[string]string{
 	"%s no es un HAR válido · %w":                                                          "%s is not a valid HAR · %w",
 	"%s no es un spec OpenAPI con paths":                                                   "%s is not an OpenAPI spec with paths",
 	"%s no está en el PATH · instálalo y reintenta":                                        "%s is not on the PATH · install it and retry",
-	"%s respondió %s":               "%s answered %s",
+	"%s respondió %s": "%s answered %s",
 	"el valor de un argumento no puede empezar con '-' (intento de inyección de banderas)": "argument value cannot start with '-' (flag injection attempt)",
 	"wrap · sintetizando el puente": "wrap · synthesizing the bridge",
 }

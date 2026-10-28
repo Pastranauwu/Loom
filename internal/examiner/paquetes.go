@@ -225,6 +225,10 @@ func Examinable(root string, t task.Task, lenguaje string) bool {
 	if len(t.Expone) == 0 || lenguajeDeTarea(lenguaje, t) == "" {
 		return false
 	}
+	if lenguajeDeTarea(lenguaje, t) == "rust" {
+		_, nombre := crateExaminable(root, t.TocarSolo)
+		return nombre != ""
+	}
 	if lenguajeDeTarea(lenguaje, t) != "go" {
 		return true
 	}

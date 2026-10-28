@@ -15,7 +15,7 @@ func TestLenguajeExamen(t *testing.T) {
 		"python": "python",
 		"pytest": "python",
 		"PYTHON": "python",
-		"rust":   "", // fase aparte: pide syn o cargo check
+		"rust":   "rust",
 		"node":   "typescript",
 	}
 	for entrada, quiere := range casos {
@@ -28,7 +28,7 @@ func TestLenguajeExamen(t *testing.T) {
 func TestRutasSuitePorLenguaje(t *testing.T) {
 	tocarSolo := []string{"src/export/**"}
 
-	visible, oculta := RutasSuite(tocarSolo, "python")
+	visible, oculta := RutasSuite(task.Task{TocarSolo: tocarSolo}, "python")
 	if visible != "src/export/test_loom_visible.py" {
 		t.Errorf("visible python = %q", visible)
 	}
@@ -40,7 +40,7 @@ func TestRutasSuitePorLenguaje(t *testing.T) {
 		t.Error("el nombre de python debe empezar con test_")
 	}
 
-	visible, oculta = RutasSuite(tocarSolo, "go")
+	visible, oculta = RutasSuite(task.Task{TocarSolo: tocarSolo}, "go")
 	if visible != "src/export/"+VisibleFileName {
 		t.Errorf("visible go = %q", visible)
 	}
@@ -94,7 +94,7 @@ func TestValidarSintaxisPythonSinInterpreteDegrada(t *testing.T) {
 	}
 }
 
-// rust y node no tienen validador: nunca bloquean.
+// el validador por defecto es el de go.
 func TestValidarSintaxisLenguajeSinValidador(t *testing.T) {
 	if err := validarSintaxis("", "fn main() {}"); err == nil {
 		t.Error("el default valida como go y debió rechazar rust")
@@ -129,9 +129,10 @@ func TestBuildPromptDiceElLenguaje(t *testing.T) {
 	}
 }
 
-// un stack sin examinador salta el examen aunque la tarea declare expone.
+// un stack sin examinador salta el examen aunque la tarea declare expone;
+// rust sin Cargo.toml en el cuarto, también.
 func TestRunSaltaLenguajeSinExaminador(t *testing.T) {
-	for _, lenguaje := range []string{"rust", "node"} {
+	for _, lenguaje := range []string{"rust", "node", "elixir"} {
 		sellada, err := Run(nil, t.TempDir(), Options{
 			Agent:    stubAgent{},
 			Lenguaje: lenguaje,

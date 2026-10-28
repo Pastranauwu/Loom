@@ -89,7 +89,7 @@ func verificarSuiteOculta(ctx context.Context, root, roomPath string, t task.Tas
 func noCompila(salida, archivo string) bool {
 	base := filepath.Base(archivo)
 	return base != "" && strings.Contains(salida, base) &&
-		(strings.Contains(salida, "build failed") || strings.Contains(salida, "setup failed"))
+		(strings.Contains(salida, "build failed") || strings.Contains(salida, "setup failed") || strings.Contains(salida, "could not compile"))
 }
 
 // guardarSalidaOculta deja la salida del examen oculto junto a los

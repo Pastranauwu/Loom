@@ -175,7 +175,7 @@ func runTaskSeal(root, id, visiblePath, ocultaPath string, forzar bool) error {
 		return err
 	}
 
-	rutaVisible, rutaOculta := examiner.RutasSuite(t.TocarSolo, config.DetectLanguage(root))
+	rutaVisible, rutaOculta := examiner.RutasSuite(t, config.DetectLanguage(root))
 	s := sealed.SuiteOculta{
 		Content:        oculta,
 		Archivo:        rutaOculta,
