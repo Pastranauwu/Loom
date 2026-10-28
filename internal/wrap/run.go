@@ -45,7 +45,7 @@ func Invoke(t Tool, args map[string]any) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), tiempoCorre)
 	defer cancel()
 	if t.Exec != nil {
-		return correr(ctx, *t.Exec, args)
+		return correr(ctx, *t.Exec, props, args)
 	}
 	return pedir(ctx, *t.HTTP, args)
 }
@@ -96,10 +96,18 @@ func sustituir(s string, args map[string]any, esc func(string) string) string {
 	})
 }
 
-func correr(ctx context.Context, e Exec, args map[string]any) (string, error) {
+// errBandera es determinista: el cliente MCP y las pruebas lo comparan.
+var errBandera = "el valor de un argumento no puede empezar con '-' (intento de inyección de banderas)"
+
+func correr(ctx context.Context, e Exec, props map[string]any, args map[string]any) (string, error) {
 	argv := make([]string, len(e.Args))
 	for i, a := range e.Args {
 		argv[i] = sustituir(a, args, nil)
+		// un valor que abre el token se leería como bandera; tras "--x=" o
+		// "-o" la plantilla ya fijó cuál es, y el valor no puede cambiarla
+		if strings.HasPrefix(argv[i], "-") && !strings.HasPrefix(a, "-") && !permiteGuion(a, props) {
+			return "", errors.New(idioma.T(errBandera))
+		}
 	}
 	cmd := exec.CommandContext(ctx, e.Bin, argv...)
 	var buf bytes.Buffer
@@ -110,6 +118,16 @@ func correr(ctx context.Context, e Exec, args map[string]any) (string, error) {
 		return "", errors.New(strings.TrimSpace(s + "\n" + err.Error()))
 	}
 	return s, nil
+}
+
+// permiteGuion: alguna variable del token declara allow_leading_dash: true.
+func permiteGuion(plantilla string, props map[string]any) bool {
+	for _, v := range reVar.FindAllStringSubmatch(plantilla, -1) {
+		if p, _ := props[v[1]].(map[string]any); p["allow_leading_dash"] == true {
+			return true
+		}
+	}
+	return false
 }
 
 func pedir(ctx context.Context, h HTTP, args map[string]any) (string, error) {

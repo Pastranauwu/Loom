@@ -18,7 +18,7 @@ Rules:
 - inputSchema is standard JSON Schema with "type": "object".
 - Templates use {var} placeholders. EVERY {var} must be a property of inputSchema AND listed in "required"; if an option may be absent, make a separate tool for it.
 - A tool has either "exec" or "http", never both.
-- "exec": "bin" is the bare binary name; "args" is a list, one entry per argv element ("--out", "{path}" are two entries). Never use sh, bash or any shell, and never join arguments into one string.
+- "exec": "bin" is the bare binary name; "args" is a list, one entry per argv element ("--out", "{path}" are two entries). Never use sh, bash or any shell, and never join arguments into one string. A value that opens its own argv entry is rejected at call time if it starts with "-"; prefer "--flag={var}", or set "allow_leading_dash": true on the property only when such values are legitimate (negative numbers).
 - "http": {"method": "GET", "url": "https://...", "headers": {"Name": "value"}, "body": "{\"k\": \"{v}\"}"}. Keep header placeholders like {authorization} for secrets and make them required string properties.
 - Only describe what the input below shows; do not invent flags or endpoints.`
 

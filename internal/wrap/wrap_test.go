@@ -119,6 +119,27 @@ esac
 	}
 }
 
+func TestBloqueaInyeccionDeBanderas(t *testing.T) {
+	fakeBin(t, "eco-banderas", `printf '%s ' "$@"`)
+	props := map[string]any{
+		"path":  map[string]any{"type": "string"},
+		"out":   map[string]any{"type": "string"},
+		"delta": map[string]any{"type": "string", "allow_leading_dash": true},
+	}
+	tool := Tool{Name: "t", InputSchema: map[string]any{"type": "object", "properties": props, "required": []any{"path", "out", "delta"}},
+		Exec: &Exec{Bin: "eco-banderas", Args: []string{"{path}", "--out={out}", "{delta}"}}}
+	for _, malo := range []string{"-rf", "--help", "--exec=sh"} {
+		_, err := Invoke(tool, map[string]any{"path": malo, "out": "x", "delta": "1"})
+		if err == nil || err.Error() != "argument value cannot start with '-' (flag injection attempt)" {
+			t.Errorf("%q como valor posicional: err = %v", malo, err)
+		}
+	}
+	salida, err := Invoke(tool, map[string]any{"path": "a", "out": "-raro", "delta": "-5"})
+	if err != nil || salida != "a --out=-raro -5 " {
+		t.Errorf("tras '=' o con allow_leading_dash el guion pasa: %q %v", salida, err)
+	}
+}
+
 func TestOpenAPIAManifiestoYLlamada(t *testing.T) {
 	var recibido map[string]any
 	var ruta string
