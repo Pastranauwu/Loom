@@ -35,7 +35,8 @@ func runModelos(cwd string) error {
 	if err != nil {
 		return err
 	}
-	cli, catalogo := detectarCatalogo(cfg.Cli)
+	cli, _ := detectarCatalogo(cfg.Cli)
+	catalogo := catalogoTotal(cli)
 	if len(catalogo) == 0 {
 		return errors.New(idioma.T("el CLI no devolvió catálogo de modelos · revisa loom doctor"))
 	}
@@ -43,17 +44,24 @@ func runModelos(cwd string) error {
 		for _, peso := range config.Pesos {
 			out.Line("%s: %s", peso, cfg.Modelos[peso])
 		}
+		out.Line(idioma.T("disponibles (de todos los CLIs instalados):"))
+		for _, m := range catalogo {
+			out.Line("  %s", m)
+		}
 		return errors.New(idioma.T("el panel necesita terminal · edita modelos: en .loom/config.yml"))
 	}
 	actual := cfg.Modelos
-	if cfg.Cli != cli || len(actual) == 0 {
+	if len(actual) == 0 {
 		actual = config.ElegirModelos(catalogo)
 	}
 	elegidos, err := elegirPorPeso(actual, catalogo)
 	if err != nil {
 		return err
 	}
-	cfg.Cli, cfg.Modelos = cli, elegidos
+	if cfg.Cli == "" {
+		cfg.Cli = cli
+	}
+	cfg.Modelos = elegidos
 	if err := cfg.Save(root); err != nil {
 		return err
 	}
@@ -61,4 +69,24 @@ func runModelos(cwd string) error {
 		out.Line("✓ %s: %s", peso, elegidos[peso])
 	}
 	return nil
+}
+
+// catalogoTotal junta el catálogo de cada CLI instalado, el de primero
+// adelante: modelos: mezcla CLIs (ejecutorPara), así que una key de
+// DeepSeek en opencode vale aunque cli: sea claude.
+func catalogoTotal(primero string) []string {
+	clis := []string{primero}
+	for _, c := range clisInstalados() {
+		if c != primero {
+			clis = append(clis, c)
+		}
+	}
+	var todo []string
+	for _, c := range clis {
+		if ex, err := elegirEjecutor(c); err == nil {
+			cat, _ := catalogoDe(ex)
+			todo = append(todo, cat...)
+		}
+	}
+	return todo
 }

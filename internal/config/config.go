@@ -945,7 +945,36 @@ var pistasPeso = map[string][]string{
 var preferidos = map[string][]string{
 	"pesada":  {"claude-opus-5-5", "gpt-6-astra", "kimi-k3", "grok-4.7", "grok-4.6"},
 	"media":   {"claude-sonnet-5-5", "claude-sonnet-5", "gpt-6-sol", "gpt-5.6-terra", "deepseek-v4-flash", "deepseek-v4.1-flash"},
-	"liviana": {"claude-haiku-5-5", "claude-haiku-4-5", "gpt-6-luna", "gpt-5.6-luna", "muse-spark-1.3-contributor", "muse-spark-1.3-contributor-free", "muse-spark-1.2-contributor"},
+	"liviana": {"claude-haiku-5-5", "claude-haiku-4-5", "gpt-6-luna", "gpt-5.6-luna", "deepseek-flash", "muse-spark-1.3-contributor", "muse-spark-1.3-contributor-free", "muse-spark-1.2-contributor"},
+}
+
+// pasarelas son los proveedores de opencode que cobran por suscripción
+// propia (Zen, Go): un modelo con la key del usuario (deepseek/…,
+// openrouter/…) va antes, porque la suscripción puede estar vencida y su
+// id sigue en el catálogo mientras quede la credencial vieja.
+var pasarelas = []string{"opencode/", "opencode-go/"}
+
+func dePasarela(m string) bool {
+	for _, p := range pasarelas {
+		if strings.HasPrefix(m, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// propiosPrimero ordena el catálogo con los modelos de key propia antes
+// que los de pasarela, sin cambiar el orden dentro de cada grupo.
+func propiosPrimero(catalogo []string) []string {
+	var propios, ajenos []string
+	for _, m := range catalogo {
+		if dePasarela(m) {
+			ajenos = append(ajenos, m)
+		} else {
+			propios = append(propios, m)
+		}
+	}
+	return append(propios, ajenos...)
 }
 
 // ElegirModelos reparte un catálogo real de ids de modelo entre los tres
@@ -960,11 +989,19 @@ func ElegirModelos(catalogo []string) map[string]string {
 	if len(catalogo) == 0 {
 		return nil
 	}
+	catalogo = propiosPrimero(catalogo)
+	// un preferido de pasarela solo gana si ninguno de key propia está
+	propios := 0
+	for propios < len(catalogo) && !dePasarela(catalogo[propios]) {
+		propios++
+	}
 	preferido := func(peso string) string {
-		for _, p := range preferidos[peso] {
-			for _, m := range catalogo {
-				if m == p || strings.HasSuffix(m, "/"+p) {
-					return m
+		for _, grupo := range [][]string{catalogo[:propios], catalogo[propios:]} {
+			for _, p := range preferidos[peso] {
+				for _, m := range grupo {
+					if m == p || strings.HasSuffix(m, "/"+p) {
+						return m
+					}
 				}
 			}
 		}

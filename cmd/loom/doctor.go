@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -170,7 +168,8 @@ func mustGetwd() string {
 }
 
 // chequearModelos contrasta cada modelo declarado en config.yml contra
-// el catálogo real del CLI por defecto.
+// el catálogo del CLI que lo corre (ejecutorPara): con cli: claude, un
+// deepseek/… es de opencode y no debe buscarse en el de claude.
 func chequearModelos(cfg config.Config, disponibles []string) chequeoDoctor {
 	nombre := cfg.Cli
 	if nombre == "" {
@@ -179,12 +178,6 @@ func chequearModelos(cfg config.Config, disponibles []string) chequeoDoctor {
 	ex, err := elegirEjecutor(nombre)
 	if err != nil {
 		return chequeoDoctor{"modelos", false, err.Error()}
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	catalogo, err := ex.Models(ctx)
-	if err != nil {
-		return chequeoDoctor{"modelos", true, idioma.T("catálogo no consultable · se usará el modelo por defecto de ") + ex.Name()}
 	}
 
 	var configurados []string
@@ -198,10 +191,32 @@ func chequearModelos(cfg config.Config, disponibles []string) chequeoDoctor {
 		configurados = append(configurados, p.Modelo)
 	}
 
-	if malos := config.ModelosValidos(configurados, catalogo); len(malos) > 0 {
+	catalogos := map[string][]string{}
+	var malos, sinCatalogo []string
+	for _, m := range configurados {
+		if m == "" {
+			continue
+		}
+		exM := ejecutorPara(ex, m)
+		cat, visto := catalogos[exM.Name()]
+		if !visto {
+			cat, _ = catalogoDe(exM)
+			catalogos[exM.Name()] = cat
+		}
+		if len(cat) == 0 {
+			sinCatalogo = append(sinCatalogo, exM.Name())
+			continue
+		}
+		for _, malo := range config.ModelosValidos([]string{m}, cat) {
+			malos = append(malos, malo+" ("+exM.Name()+")")
+		}
+	}
+	if len(malos) > 0 {
 		return chequeoDoctor{"modelos", false,
-			"no existen en " + ex.Name() + ": " + strings.Join(malos, ", ") +
-				" · corrígelos en .loom/config.yml (ver `" + ex.Name() + " models`)"}
+			"no existen: " + strings.Join(malos, ", ") + " · corrígelos en .loom/config.yml (ver loom models)"}
+	}
+	if len(sinCatalogo) > 0 && len(catalogos) == 1 {
+		return chequeoDoctor{"modelos", true, idioma.T("catálogo no consultable · se usará el modelo por defecto de ") + ex.Name()}
 	}
 	var declarados []string
 	for _, peso := range config.Pesos {

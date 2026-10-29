@@ -815,3 +815,19 @@ func TestAhorroYPantallasIdaYVuelta(t *testing.T) {
 		t.Error("screens_max 0 debía rechazarse")
 	}
 }
+
+func TestElegirModelosPrefiereKeyPropia(t *testing.T) {
+	cat := []string{"opencode/deepseek-v4.1-flash-free", "opencode-go/deepseek-v4-flash", "opencode-go/muse-spark-1.3-contributor",
+		"deepseek/deepseek-flash", "deepseek/deepseek-v4-pro"}
+	m := ElegirModelos(cat)
+	if m["liviana"] != "deepseek/deepseek-flash" {
+		t.Errorf("liviana = %q, quiero la de la key propia", m["liviana"])
+	}
+	if m["pesada"] != "deepseek/deepseek-v4-pro" {
+		t.Errorf("pesada = %q, quiero deepseek/deepseek-v4-pro", m["pesada"])
+	}
+	// solo pasarelas: se siguen usando
+	if m := ElegirModelos(cat[:3]); m["liviana"] == "" || !dePasarela(m["liviana"]) {
+		t.Errorf("sin key propia = %v", m)
+	}
+}
