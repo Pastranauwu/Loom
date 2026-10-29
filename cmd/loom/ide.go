@@ -26,7 +26,7 @@ How you talk to the human: never show code. Say what task runs, what it is for, 
 
 // herramientas de solo lectura: las que el chat puede llamar sin preguntar
 var mcpSoloLectura = []string{"loom_map", "loom_board", "loom_ps", "loom_check", "loom_task_logs", "loom_task_show",
-	"loom_doctor", "loom_usage", "loom_standup", "loom_spec_guide", "loom_log", "loom_apply_dry_run"}
+	"loom_doctor", "loom_usage", "loom_standup", "loom_spec_guide", "loom_manual", "loom_log", "loom_apply_dry_run"}
 
 func newIDECmd() *cobra.Command {
 	return &cobra.Command{

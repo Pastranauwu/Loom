@@ -138,7 +138,11 @@ func TestModeloParaTarea(t *testing.T) {
 		t.Errorf("heavy_builder = %q, quiero claude-sonnet", got)
 	}
 	cfg.HeavyBuilder = ""
-	// sin peso, usa la estrategia
+	// sin peso, usa la estrategia; con ahorro arranca un escalón abajo
+	if got := modeloParaTarea(cfg, "", task.Task{}); got != "glm-4" {
+		t.Errorf("estrategia equilibrada con ahorro = %q, quiero glm-4", got)
+	}
+	cfg.EscalarTras = -1
 	if got := modeloParaTarea(cfg, "", task.Task{}); got != "glm-5.2" {
 		t.Errorf("estrategia equilibrada = %q, quiero glm-5.2", got)
 	}

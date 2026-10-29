@@ -94,6 +94,11 @@ type Config struct {
 	// HeavyBuilder is the model of builders on heavy tasks. Empty = the
 	// medium model: the heavy one is for the architect and heal.
 	HeavyBuilder string `json:"heavy_builder,omitempty"`
+	// EscalarTras es cuántos intentos tiene el modelo barato antes de
+	// subir un escalón. 0 = DefaultEscalarTras; -1 (off) = las tareas
+	// medias arrancan en el modelo medio y escalar espera a que se
+	// agoten los intentos, como antes.
+	EscalarTras int `json:"escalar_tras,omitempty"`
 	// Language is the language of prose written for people: "en" (default) or "es".
 	Language string `json:"language,omitempty"`
 	// PresupuestoVentanas es el bloque `presupuesto:`: por proveedor, por
@@ -280,6 +285,19 @@ func (c Config) Save(root string) error {
 		if c.Pantallas.Script != "" {
 			fmt.Fprintf(&b, "pantallas_script: %s\n", kv.Quote(c.Pantallas.Script))
 		}
+		if c.Pantallas.Muestra != "" {
+			fmt.Fprintf(&b, "pantallas_muestra: %s\n", kv.Quote(c.Pantallas.Muestra))
+		}
+		if c.Pantallas.Max > 0 {
+			fmt.Fprintf(&b, "pantallas_max: %d\n", c.Pantallas.Max)
+		}
+	}
+	if c.EscalarTras != 0 {
+		v := strconv.Itoa(c.EscalarTras)
+		if c.EscalarTras < 0 {
+			v = "off"
+		}
+		fmt.Fprintf(&b, "escalar_tras: %s\n", v)
 	}
 	if c.Cli != "" {
 		fmt.Fprintf(&b, "cli: %s\n", c.Cli)
@@ -509,9 +527,7 @@ func (c Config) ModeloPeso(peso string) string {
 // Only the architect, the planner and heal use the heavy model: a builder
 // on a heavy task gets the medium one unless heavy_builder says otherwise.
 func (c Config) ModeloConstructor(peso string) string {
-	if peso == "" {
-		peso = c.PesoPorDefecto()
-	}
+	peso = c.PesoInicial(peso)
 	if peso == "pesada" {
 		if c.HeavyBuilder != "" {
 			return c.HeavyBuilder
@@ -536,6 +552,38 @@ func (c Config) ModeloPara(peso string) string {
 	return c.ModeloPeso(c.PesoPorDefecto())
 }
 
+// DefaultEscalarTras: dos intentos del barato y, si no sale, sube.
+const DefaultEscalarTras = 2
+
+// Ahorro reporta si las tareas arrancan un escalón abajo y escalan tras
+// EscalarTras intentos: haiku primero, sonnet si no sale.
+func (c Config) Ahorro() bool { return c.EscalarTras >= 0 }
+
+// IntentosAntesDeEscalar es el tope de intentos del modelo barato, o 0
+// si el ahorro está apagado.
+func (c Config) IntentosAntesDeEscalar() int {
+	switch {
+	case c.EscalarTras < 0:
+		return 0
+	case c.EscalarTras == 0:
+		return DefaultEscalarTras
+	}
+	return c.EscalarTras
+}
+
+// PesoInicial es el peso con que arranca el constructor: con ahorro, una
+// tarea media empieza en el modelo liviano y escala al medio si no sale.
+// La pesada no baja: ya corre en el medio (ModeloConstructor).
+func (c Config) PesoInicial(peso string) string {
+	if peso == "" {
+		peso = c.PesoPorDefecto()
+	}
+	if peso == "media" && c.Ahorro() && c.ModeloPeso("liviana") != "" {
+		return "liviana"
+	}
+	return peso
+}
+
 // ModeloEscalado devuelve el modelo del peso siguiente al dado
 // (liviana→media), o "" si no hay, si es el mismo que `actual` o si no
 // está mapeado. Es el paso del fallback: el barato falló con trabajo, se
@@ -545,9 +593,7 @@ func (c Config) ModeloPara(peso string) string {
 // tarea que ni el medio resuelve casi siempre tiene el contrato mal
 // hecho, no le falta modelo. Una tarea con peso pesada sí usa opus.
 func (c Config) ModeloEscalado(peso, actual string) string {
-	if peso == "" {
-		peso = c.PesoPorDefecto()
-	}
+	peso = c.PesoInicial(peso)
 	siguiente := ""
 	for i, p := range Pesos {
 		if p == peso && i+1 < len(Pesos) {
@@ -607,6 +653,24 @@ func Parse(data []byte) (Config, error) {
 			cfg.Pantallas.Script = kv.Unquote(p.Value)
 		case "pantallas_url":
 			cfg.Pantallas.URL = kv.Unquote(p.Value)
+		case "pantallas_muestra":
+			cfg.Pantallas.Muestra = kv.Unquote(p.Value)
+		case "pantallas_max":
+			n, err := kv.ParseInt(p.Value)
+			if err != nil || n < 1 {
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · pantallas_max inválido: %s · entero, mínimo 1"), p.Line, p.Value)
+			}
+			cfg.Pantallas.Max = n
+		case "escalar_tras":
+			if v := kv.Unquote(p.Value); v == "off" || v == "0" {
+				cfg.EscalarTras = -1
+				continue
+			}
+			n, err := kv.ParseInt(p.Value)
+			if err != nil || n < 1 {
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · escalar_tras inválido: %s · intentos con el modelo barato antes de subir, o off"), p.Line, p.Value)
+			}
+			cfg.EscalarTras = n
 		case "pantallas_rutas":
 			list, err := kv.ParseList(p.Value)
 			if err != nil {

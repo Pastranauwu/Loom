@@ -33,23 +33,28 @@ type revisorVisualEnBucle struct {
 }
 
 // revisorVisualPara arma el revisor visual con el rol `revisor_visual`, o
-// el modelo pesado: el gusto lo juzga el mejor modelo, y el tope de
-// críticas por tarea (loop.TopeVisual) acota el gasto. nil si el
-// proyecto no declara cómo levantar su interfaz.
+// el modelo medio: con opus y 38 capturas fue un tercio del gasto de una
+// tarea, y sonnet ve lo mismo en pocas fotos. El tope de críticas por
+// tarea (loop.TopeVisual) y de fotos por crítica (Pantallas.Tope) acotan
+// el gasto. nil si el proyecto no declara cómo levantar su interfaz.
 func revisorVisualPara(root string, cfg config.Config, ex executor.Executor) loop.RevisorVisual {
 	if cfg.Pantallas.Vacia() || ex == nil {
 		return nil
 	}
 	modelo := config.ModeloRol(cfg, "revisor_visual")
 	if modelo == "" {
-		modelo = cfg.ModeloPeso("pesada")
+		modelo = cfg.ModeloPeso("media")
 	}
 	return revisorVisualEnBucle{ex: ejecutorPara(ex, modelo), modelo: modelo, root: root, pantallas: cfg.Pantallas}
 }
 
 func (r revisorVisualEnBucle) Revisar(ctx context.Context, cuarto room.Room, t task.Task, intento int) (bool, string, loop.Tokens) {
 	dir := filepath.Join(loop.RunsDir(r.root), t.ID, fmt.Sprintf("visual-%d", intento))
-	fotos := tomarCapturas(ctx, cuarto.Path, r.pantallas, cuarto.Puerto, dir)
+	todas := tomarCapturas(ctx, cuarto.Path, r.pantallas, cuarto.Puerto, dir)
+	fotos := capturas.Elegir(todas, r.pantallas.Tope())
+	if len(fotos) < len(todas) {
+		out.Line(idioma.T("· %s · revisión visual con %d de %d capturas · sube pantallas_max en config.yml para ver más"), t.ID, len(fotos), len(todas))
+	}
 	pide := t.Titulo
 	if t.Porque != "" {
 		pide += "\nPor qué: " + t.Porque
@@ -86,9 +91,12 @@ func (r revisorVisualEnBucle) juzgar(ctx context.Context, dir string, fotos []st
 
 func promptVisual(pide string, fotos []string) string {
 	var b strings.Builder
-	b.WriteString("You are loom's VISUAL REVIEWER. Open these phone-size screenshots of the app with your file-reading tool. They are from now, of the current code:\n")
+	b.WriteString("You are loom's VISUAL REVIEWER. Open these screenshots of the app (phone and desktop) with your file-reading tool, all of them in ONE turn. They are from now, of the current code:\n")
 	for _, f := range fotos {
 		b.WriteString("- " + f + "\n")
+	}
+	if strings.HasPrefix(filepath.Base(fotos[0]), "00-muestra-") {
+		b.WriteString("The first ones are the component sheet: the visual identity (palette, typography, buttons, fields, cards, table, alerts) and a basic layout with everything together. Judge the identity there; the rest show it applied to real screens.\n")
 	}
 	fmt.Fprintf(&b, "\nWhat was asked:\n%s\n", pide)
 	b.WriteString("\nInterface criteria:\n" + skills.UI + "\n")

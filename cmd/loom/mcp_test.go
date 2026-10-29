@@ -167,3 +167,23 @@ func TestTaskSetPersisteElContratoYSeLee(t *testing.T) {
 		}
 	}
 }
+
+func TestManualEnMCP(t *testing.T) {
+	in := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}` + "\n" +
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"loom_manual","arguments":{}}}` + "\n"
+	mcp.Instructions = instruccionesMCP
+	defer func() { mcp.Instructions = "" }()
+	var out bytes.Buffer
+	if err := mcp.Serve(strings.NewReader(in), &out, "loom", "t", mcpTools("loom")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `"instructions"`) || !strings.Contains(out.String(), "loom_wrap") {
+		t.Fatalf("initialize sin instructions o manual vacío: %s", out.String())
+	}
+	// cada herramienta que existe aparece en el manual: uno nuevo sin documentar falla aquí
+	for _, tl := range mcpTools("loom") {
+		if !strings.Contains(manualAgentes, "`"+tl.Name+"`") {
+			t.Errorf("%s no está en manual.md", tl.Name)
+		}
+	}
+}

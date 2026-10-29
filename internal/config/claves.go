@@ -12,7 +12,7 @@ import (
 var clavesTop = [][2]string{ // Spanish, English
 	{"pruebas", "tests"}, {"entrega", "delivery"}, {"zonas_prohibidas", "forbidden_zones"},
 	{"pantallas_levantar", "screens_start"}, {"pantallas_semilla", "screens_seed"}, {"pantallas_script", "screens_script"},
-	{"pantallas_url", "screens_url"}, {"pantallas_rutas", "screens_routes"}, {"patrones_prueba", "test_patterns"},
+	{"pantallas_url", "screens_url"}, {"pantallas_rutas", "screens_routes"}, {"pantallas_muestra", "screens_sample"}, {"pantallas_max", "screens_max"}, {"escalar_tras", "escalate_after"}, {"patrones_prueba", "test_patterns"},
 	{"timeout_esclusa", "gate_timeout"}, {"arquitecto_economico", "economy_architect"}, {"agentes_pagados", "paid_agents"},
 	{"tope_arquitecto_usd", "architect_cap_usd"}, {"timeout_agente", "agent_timeout"}, {"timeout_pruebas", "tests_timeout"},
 	{"recursion_max", "max_recursion"}, {"subagentes", "subagents"}, {"presupuesto_tokens", "token_budget"},

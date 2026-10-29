@@ -2,6 +2,7 @@ package capturas
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -108,5 +109,27 @@ func TestScriptQueFallaNoEntregaCapturasYSeReporta(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "b", "flujos")); err == nil {
 		t.Fatal("los PNG de la prueba del script quedaron en disco")
+	}
+}
+
+func TestElegir(t *testing.T) {
+	var fotos []string
+	for i := 0; i < 20; i++ {
+		fotos = append(fotos, fmt.Sprintf("/x/flujos/%02d.png", i))
+	}
+	fotos = append(fotos, "/x/00-muestra-celular.png", "/x/00-muestra-escritorio.png")
+	got := Elegir(fotos, 5)
+	if len(got) != 5 || got[0] != "/x/00-muestra-celular.png" || got[1] != "/x/00-muestra-escritorio.png" {
+		t.Fatalf("la hoja de componentes va primero y el total es 5: %v", got)
+	}
+	// el resto se reparte, no son las primeras tres
+	if got[2] != "/x/flujos/00.png" || got[4] == "/x/flujos/02.png" {
+		t.Errorf("reparto = %v", got[2:])
+	}
+	if got := Elegir(fotos[:3], 5); len(got) != 3 {
+		t.Errorf("con menos fotos que el tope se mandan todas: %v", got)
+	}
+	if (Pantallas{}).Tope() != DefaultMax || (Pantallas{Max: 9}).Tope() != 9 {
+		t.Error("Tope")
 	}
 }

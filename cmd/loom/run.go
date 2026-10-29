@@ -1114,6 +1114,16 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 	}
 	opts.Proveedor = exTarea.Name()
 
+	// ahorro: el modelo barato tiene pocos intentos y, si no sale, el
+	// escalado se queda con los del contrato
+	if n := cfg.IntentosAntesDeEscalar(); n > 0 && !recursiva && cfg.ModeloEscalado(t.Peso, modeloTarea) != "" {
+		lim := t.LimiteIntentos
+		if lim <= 0 {
+			lim = task.DefaultLimiteIntentos
+		}
+		opts.Task.LimiteIntentos = min(lim, n)
+	}
+
 	outcome, err := loop.Run(ctx, opts)
 	if !outcome.Verde && err == nil && executor.SinSaldo(outcome.UltimoError) {
 		// sin escalar y sin detener: la tarea no falló, la cuenta no
@@ -1126,6 +1136,7 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 		// rojas; se sube un escalón reusando el cuarto, sin re-examinar
 		if m := cfg.ModeloEscalado(t.Peso, modeloTarea); m != "" && !outcome.NoEscalar && huboTrabajoRun(root, t.ID) {
 			escalado := opts
+			escalado.Task = t
 			escalado.Model = m
 			exEscalado := ejecutorPara(exTarea, m)
 			escalado.Agent = agenteExecutor{exEscalado}

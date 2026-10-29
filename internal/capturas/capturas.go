@@ -38,6 +38,56 @@ type Pantallas struct {
 	// formulario) y deja PNG en $CAPTURAS; recibe también $BASE_URL. Las
 	// pantallas que solo aparecen tras interactuar no tienen ruta. Opcional.
 	Script string `json:"script,omitempty"`
+	// Muestra es la ruta de una hoja de componentes: la identidad visual
+	// (paleta, tipografía, botones, campos, tarjetas, tabla, alertas) y un
+	// maquetado básico con todo junto. Se captura primero y es lo que el
+	// revisor visual mira antes que cualquier pantalla. Opcional.
+	Muestra string `json:"muestra,omitempty"`
+	// Max es cuántas capturas ve el revisor visual por intento: cada
+	// imagen se paga en tokens. 0 = DefaultMax.
+	Max int `json:"max,omitempty"`
+}
+
+// DefaultMax es el tope de capturas por revisión visual. En una corrida
+// real, 38 capturas en dos rondas fueron un tercio del gasto de la tarea.
+const DefaultMax = 5
+
+// Tope devuelve Max, o DefaultMax si no se declaró.
+func (p Pantallas) Tope() int {
+	if p.Max > 0 {
+		return p.Max
+	}
+	return DefaultMax
+}
+
+// prefijoMuestra nombra las capturas de la hoja de componentes, para que
+// Elegir las ponga primero.
+const prefijoMuestra = "00-muestra-"
+
+// Elegir deja como mucho n capturas: primero las de la hoja de
+// componentes y, con los lugares que sobran, una muestra repartida del
+// resto para cubrir pantallas distintas en vez de las primeras n.
+func Elegir(fotos []string, n int) []string {
+	if n <= 0 || len(fotos) <= n {
+		return fotos
+	}
+	var muestra, resto []string
+	for _, f := range fotos {
+		if strings.HasPrefix(filepath.Base(f), prefijoMuestra) {
+			muestra = append(muestra, f)
+		} else {
+			resto = append(resto, f)
+		}
+	}
+	if len(muestra) >= n {
+		return muestra[:n]
+	}
+	libres := n - len(muestra)
+	out := muestra
+	for i := 0; i < libres; i++ {
+		out = append(out, resto[i*len(resto)/libres])
+	}
+	return out
 }
 
 // Completar llena lo que p no declara con lo de otra: la config manda,
@@ -53,6 +103,7 @@ func (p Pantallas) Completar(o Pantallas) (Pantallas, bool) {
 	llenar(&p.URL, o.URL)
 	llenar(&p.Semilla, o.Semilla)
 	llenar(&p.Script, o.Script)
+	llenar(&p.Muestra, o.Muestra)
 	if len(p.Rutas) == 0 && len(o.Rutas) > 0 {
 		p.Rutas, cambio = o.Rutas, true
 	}
@@ -176,6 +227,17 @@ func tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 		_ = auxiliar(ctx, dir, p.Semilla, envApp, registro, 2*time.Minute)
 	}
 	var fotos []string
+	if rutas && strings.TrimSpace(p.Muestra) != "" {
+		// la hoja que falla no frena las demás: sin ella, Elegir reparte
+		for _, t := range Tamanios {
+			foto := filepath.Join(outDir, prefijoMuestra+t.Nombre+".png")
+			if err := capturar(ctx, nav, unir(base, p.Muestra), foto, t.Ancho, t.Alto); err != nil {
+				fmt.Fprintf(registro, "loom: sin hoja de componentes en %s · %v\n", p.Muestra, err)
+				continue
+			}
+			fotos = append(fotos, foto)
+		}
+	}
 	for i, ruta := range p.Rutas {
 		if !rutas {
 			break

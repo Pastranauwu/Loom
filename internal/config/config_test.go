@@ -171,8 +171,41 @@ func TestModeloParaYEscalado(t *testing.T) {
 		t.Errorf("ModeloPara(liviana) = %q, quiero barato", got)
 	}
 	// peso sin mapear cae al peso por defecto (media)
-	if got := cfg.ModeloPara(""); got != "medio" {
-		t.Errorf("ModeloPara('') = %q, quiero el de la estrategia (medio)", got)
+	// con ahorro (default) la media arranca en el barato y escala al medio
+	if got := cfg.ModeloPara(""); got != "barato" {
+		t.Errorf("ModeloPara('') con ahorro = %q, quiero barato", got)
+	}
+	if got := cfg.ModeloEscalado("media", "barato"); got != "medio" {
+		t.Errorf("ModeloEscalado(media, barato) = %q, quiero medio", got)
+	}
+	if got := cfg.IntentosAntesDeEscalar(); got != DefaultEscalarTras {
+		t.Errorf("IntentosAntesDeEscalar = %d, quiero %d", got, DefaultEscalarTras)
+	}
+	// sin ahorro, como antes: la media corre en el medio y no escala
+	sin := cfg
+	sin.EscalarTras = -1
+	if got := sin.ModeloPara(""); got != "medio" {
+		t.Errorf("ModeloPara('') sin ahorro = %q, quiero medio", got)
+	}
+	if got := sin.ModeloEscalado("media", "medio"); got != "" {
+		t.Errorf("ModeloEscalado(media) sin ahorro = %q, quiero nada", got)
+	}
+	if got := sin.IntentosAntesDeEscalar(); got != 0 {
+		t.Errorf("IntentosAntesDeEscalar sin ahorro = %d, quiero 0", got)
+	}
+	// sin modelo liviano no hay a dónde bajar
+	solo := Config{Modelos: map[string]string{"media": "medio"}}
+	if got := solo.ModeloPara("media"); got != "medio" {
+		t.Errorf("ModeloPara(media) sin liviano = %q, quiero medio", got)
+	}
+	for txt, quiero := range map[string]int{"escalate_after: off\n": -1, "escalate_after: 3\n": 3, "base: main\n": 0} {
+		c, err := Parse([]byte(txt))
+		if err != nil || c.EscalarTras != quiero {
+			t.Errorf("%q → %d %v, quiero %d", txt, c.EscalarTras, err, quiero)
+		}
+	}
+	if _, err := Parse([]byte("escalate_after: x\n")); err == nil {
+		t.Error("escalate_after no numérico debía rechazarse")
 	}
 	if got := cfg.ModeloEscalado("liviana", "barato"); got != "medio" {
 		t.Errorf("ModeloEscalado(liviana) = %q, quiero medio", got)
@@ -742,7 +775,7 @@ func TestRedteamEnConfig(t *testing.T) {
 
 func TestModeloConstructorYTechLead(t *testing.T) {
 	c := Config{Modelos: map[string]string{"liviana": "haiku", "media": "sonnet", "pesada": "opus"}}
-	for peso, quiero := range map[string]string{"liviana": "haiku", "media": "sonnet", "pesada": "sonnet"} {
+	for peso, quiero := range map[string]string{"liviana": "haiku", "media": "haiku", "pesada": "sonnet"} {
 		if got := c.ModeloConstructor(peso); got != quiero {
 			t.Errorf("constructor %s = %q, quiero %q", peso, got, quiero)
 		}
@@ -760,5 +793,25 @@ func TestModeloConstructorYTechLead(t *testing.T) {
 	c2, err := Parse([]byte("heavy_builder: sonnet\n"))
 	if err != nil || c2.HeavyBuilder != "sonnet" {
 		t.Errorf("heavy_builder no se lee: %v %q", err, c2.HeavyBuilder)
+	}
+}
+
+func TestAhorroYPantallasIdaYVuelta(t *testing.T) {
+	root := t.TempDir()
+	c := Config{Base: "main", Pruebas: "go test ./...", EscalarTras: -1}
+	c.Pantallas.Levantar, c.Pantallas.URL, c.Pantallas.Rutas = "serve", "http://localhost:$PORT", []string{"/"}
+	c.Pantallas.Muestra, c.Pantallas.Max = "/muestra", 8
+	if err := os.MkdirAll(Dir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	g, err := Load(root)
+	if err != nil || g.EscalarTras != -1 || g.Pantallas.Muestra != "/muestra" || g.Pantallas.Max != 8 {
+		t.Fatalf("ida y vuelta: %v %+v", err, g)
+	}
+	if _, err := Parse([]byte("screens_max: 0\n")); err == nil {
+		t.Error("screens_max 0 debía rechazarse")
 	}
 }

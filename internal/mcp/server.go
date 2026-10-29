@@ -47,6 +47,11 @@ type response struct {
 // dyn tools are read again on every request, so a tool added on disk shows
 // up without a restart; when a call changes them the client gets
 // notifications/tools/list_changed. A dynamic tool never shadows a static one.
+// Instructions viaja en la respuesta a initialize: es lo que Claude, codex
+// y opencode le meten al modelo al conectar, sin que llame nada. Corto: el
+// manual completo es una herramienta.
+var Instructions string
+
 func Serve(in io.Reader, out io.Writer, name, version string, tools []Tool, dyn ...func() []Tool) error {
 	actuales := func() []Tool {
 		all := append([]Tool{}, tools...)
@@ -121,6 +126,9 @@ func handle(req request, tools []Tool, name, version string) response {
 			"protocolVersion": protocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{"listChanged": true}},
 			"serverInfo":      map[string]any{"name": name, "version": version},
+		}
+		if Instructions != "" {
+			res.Result.(map[string]any)["instructions"] = Instructions
 		}
 	case "ping":
 		res.Result = map[string]any{}

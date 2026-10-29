@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,6 +43,19 @@ not mention, settle them as requirements or rules (prefix an unanswered one with
 "Assumption:"), then call loom_spec_write and loom_apply_dry_run. Read the repo
 first with loom_map.`
 
+// manualAgentes is the full manual for the model driving loom, served by
+// loom_manual and `loom manual`.
+//
+//go:embed manual.md
+var manualAgentes string
+
+// instruccionesMCP reach every MCP client on connect, so codex and opencode
+// get the same role the loom ide prompt gives claude.
+const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. Never write the builders' code yourself.
+Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply → loom_task_show/loom_task_set per task → loom_run → poll loom_board and loom_log → loom_ship (dry_run first).
+Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
+Call loom_manual once for the full guide before your first heavy tool.`
+
 // loom mcp: the chat model is the tech lead, loom the builders. Every tool
 // is this same binary run with --json, so the CLI stays the one source of
 // truth and the server adds no logic of its own.
@@ -61,6 +75,7 @@ as bridge_<name>_<tool> and reloaded on every request.`,
 			if err != nil {
 				return err
 			}
+			mcp.Instructions = instruccionesMCP
 			return mcp.Serve(os.Stdin, os.Stdout, "loom", version, mcpTools(exe), bridgeTools)
 		},
 	}
@@ -232,6 +247,8 @@ func mcpTools(exe string) []mcp.Tool {
 			Call: func(a map[string]any) (string, error) {
 				return editTask(a, true)
 			}},
+		{Name: "loom_manual", Description: "Full manual for the model driving loom: workflow, every tool and when to use it, reverse engineering apps into tools with loom_wrap, models and providers. Read it once before your first heavy tool.",
+			Schema: schema(nil), Call: func(map[string]any) (string, error) { return manualAgentes, nil }},
 		{Name: "loom_spec_guide", Description: "Format of loom.spec.yml and how to interview the human to fill it.",
 			Schema: schema(nil), Call: func(map[string]any) (string, error) { return specGuide, nil }},
 		{Name: "loom_spec_write", Description: "Validate and write a spec you drafted from the interview. Refuses to overwrite unless force.",
@@ -690,5 +707,17 @@ func vistaTarea(t task.Task) map[string]any {
 		"only_touch": t.TocarSolo, "dont_touch": t.NoTocar, "depends_on": t.DependeDe,
 		"exposes": t.Expone, "uses": t.Usa, "weight": task.PesoEn(t.Peso),
 		"max_retries": t.LimiteIntentos, "max_lines": t.LimiteLineas, "network": t.Red,
+	}
+}
+
+func newManualCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "manual",
+		Short: "print the manual for the model driving loom (what loom_manual serves over MCP)",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, err := fmt.Fprint(cmd.OutOrStdout(), manualAgentes)
+			return err
+		},
 	}
 }
