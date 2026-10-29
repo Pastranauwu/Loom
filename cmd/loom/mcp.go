@@ -34,7 +34,8 @@ rules:               # constraints on how it is built, apply to everything
 acceptance:          # end-to-end criteria; "command" only if it certainly exists
   - criterion: the suite passes
     command: go test ./...
-dont_touch: ["vendor/**"]
+constraints:         # globs no task may edit; copied into every contract
+  dont_touch: ["vendor/**"]
 
 Interview the human yourself: ask about edge cases, failures and limits they did
 not mention, settle them as requirements or rules (prefix an unanswered one with
@@ -439,6 +440,11 @@ func runQuickT(exe, dir string, args []string, limite time.Duration) (string, er
 	text := strings.TrimSpace(buf.String())
 	if err != nil {
 		return text, errors.New(text + "\n" + err.Error())
+	}
+	// --json calla las líneas de progreso: sin esto un dry-run válido
+	// respondía vacío y el chat no sabía si había pasado
+	if text == "" {
+		text = "ok"
 	}
 	return text, nil
 }
