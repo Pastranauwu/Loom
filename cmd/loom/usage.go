@@ -32,7 +32,7 @@ func newUsageCmd() *cobra.Command {
 			return runUsage(sonda)
 		},
 	}
-	cmd.Flags().BoolVar(&sonda, "probe", false, "fuerza la consulta en vivo de la utilización real de Claude (ignora la caché)")
+	cmd.Flags().BoolVar(&sonda, "probe", false, "vuelve a consultar el uso de la cuenta de Claude (ignora la caché, respeta el 429)")
 	return cmd
 }
 
@@ -86,17 +86,6 @@ func runUsage(sonda bool) error {
 
 	// uso real de las cuentas: lo mismo que muestra el /usage de cada CLI
 	cuentas := []ventanas.Cuenta{ventanas.CuentaClaudeCached(context.Background(), sonda), ventanas.CuentaCodex()}
-	if c := &cuentas[0]; c.Motivo != "" {
-		// sin sesión de suscripción, una API key todavía da las cabeceras de uso
-		if uso := ventanas.SondaCached(context.Background(), ventanas.KeyClaude(cfg.KeyEnvDe("claude")), sonda); uso.Accesible {
-			c.Motivo = ""
-			for nombre, p := range map[string]*int{"5h": uso.CincoH, "semana": uso.Semanal} {
-				if p != nil {
-					c.Medidores = append(c.Medidores, ventanas.Medidor{Nombre: nombre, Pct: *p})
-				}
-			}
-		}
-	}
 	if err := out.Data(cuentas); err != nil {
 		return err
 	}
@@ -112,6 +101,9 @@ func runUsage(sonda bool) error {
 				p += " (" + idioma.T("reinicia") + " " + m.Reinicia.Local().Format("02 Jan 15:04") + ")"
 			}
 			partes = append(partes, p)
+		}
+		if c.Proveedor == "claude" && time.Since(c.Leido) > 10*time.Minute {
+			partes = append(partes, idioma.T("leído")+" "+c.Leido.Local().Format("15:04"))
 		}
 		out.Line(idioma.T("cuenta %s · %s"), strings.TrimSpace(c.Proveedor+" "+c.Plan), strings.Join(partes, " · "))
 	}

@@ -66,6 +66,9 @@ func lineasCuenta(c ventanas.Cuenta, ancho int) []string {
 	if c.Proveedor == "codex" && time.Since(c.Leido) > time.Hour {
 		cab += estiloApagado.Render(" · " + idioma.T("última sesión") + " " + hace(c.Leido))
 	}
+	if c.Proveedor == "claude" && time.Since(c.Leido) > 10*time.Minute {
+		cab += estiloApagado.Render(" · " + idioma.T("leído") + " " + hace(c.Leido))
+	}
 	out := []string{cab}
 	barra := min(max(ancho-25, 6), 30)
 	for _, m := range c.Medidores {

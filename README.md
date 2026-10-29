@@ -514,7 +514,7 @@ Model selection, retries, budgets, timeouts, import rules and archetypes live he
 - Credentials are not deliberately incorporated into prompts or logs.
 - Each task passes secret and noise scanning before entering delivery.
 - `loom ship --dry-run` goes through the gates without publishing the PR.
-- loom's only direct HTTP probe is the `loom usage --sonda` option; the agent CLIs and `gh` do use the network on their own.
+- loom's only direct HTTP call is Claude's account usage (`api/oauth/usage`, spends no tokens, at most once every 5 min); the agent CLIs and `gh` do use the network on their own.
 
 ## Cost and models
 

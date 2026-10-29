@@ -580,8 +580,9 @@ incorporados son `ejecutor`, `backend`, `frontend`, `architect`, `tester` y
 - Las credenciales no se incorporan deliberadamente a prompts o logs.
 - Cada tarea pasa escaneo de secretos y ruido antes de entrar a la entrega.
 - `loom ship --dry-run` recorre las compuertas sin publicar el PR.
-- La única sonda HTTP directa de loom es la opción de
-  `loom usage --sonda`; los CLIs de agentes y `gh` sí usan red por su cuenta.
+- La única consulta HTTP directa de loom es el uso de la cuenta de Claude
+  (`api/oauth/usage`, sin gastar tokens, una vez cada 5 min como mucho); los
+  CLIs de agentes y `gh` sí usan red por su cuenta.
 
 ## Coste y modelos
 

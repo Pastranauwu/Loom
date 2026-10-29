@@ -76,3 +76,41 @@ func itoa(n int64) string {
 	}
 	return string(b)
 }
+
+func TestCuentaClaudeCachedNoInsisteTras429(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	exp := time.Now().Add(time.Hour).UnixMilli()
+	_ = os.WriteFile(filepath.Join(dir, ".credentials.json"), []byte(`{"claudeAiOauth":{"accessToken":"t","expiresAt":`+itoa(exp)+`}}`), 0o600)
+	llamadas, limitar := 0, false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		llamadas++
+		if limitar {
+			w.Header().Set("Retry-After", "900")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Write([]byte(`{"five_hour":{"utilization":40}}`))
+	}))
+	defer srv.Close()
+	viejo := usoOAuthURL
+	usoOAuthURL = srv.URL
+	defer func() { usoOAuthURL = viejo }()
+
+	if c := CuentaClaudeCached(context.Background(), true); len(c.Medidores) != 1 {
+		t.Fatalf("primera lectura = %+v", c)
+	}
+	limitar = true
+	c := CuentaClaudeCached(context.Background(), true)
+	if c.Motivo != "" || len(c.Medidores) != 1 || c.Medidores[0].Pct != 40 {
+		t.Errorf("un 429 debe conservar la última lectura buena: %+v", c)
+	}
+	if time.Until(c.Reintento) < 10*time.Minute {
+		t.Errorf("Retry-After ignorado: %v", c.Reintento)
+	}
+	CuentaClaudeCached(context.Background(), true)
+	if llamadas != 2 {
+		t.Errorf("tras el 429 volvió a consultar: %d llamadas", llamadas)
+	}
+}
