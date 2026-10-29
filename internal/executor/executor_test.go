@@ -143,7 +143,7 @@ func TestOpenCodeExtraeTexto(t *testing.T) {
 
 func TestClaudeExtraeTexto(t *testing.T) {
 	stdout := `{"type":"result","result":"[{\"titulo\":\"x\"}]","usage":{"input_tokens":1,"output_tokens":2}}`
-	if got, _ := parseClaudeStream(stdout); got != `[{"titulo":"x"}]` {
+	if got, _ := parseClaudeStream(stdout, false); got != `[{"titulo":"x"}]` {
 		t.Errorf("text = %q", got)
 	}
 }
@@ -192,13 +192,13 @@ func TestUsoConCache(t *testing.T) {
 {"type":"assistant","parent_tool_use_id":"toolu_9","message":{"id":"msg_sub","usage":{"input_tokens":3,"cache_creation_input_tokens":900,"cache_read_input_tokens":0,"output_tokens":5}}}
 {"type":"assistant","parent_tool_use_id":null,"message":{"id":"msg_2","usage":{"input_tokens":2,"cache_creation_input_tokens":300,"cache_read_input_tokens":23412,"output_tokens":40}}}
 {"type":"result","result":"listo","num_turns":2,"total_cost_usd":0.7855,"usage":{"input_tokens":129,"cache_creation_input_tokens":42631,"cache_read_input_tokens":789576,"output_tokens":11848},"modelUsage":{"claude-haiku-4-5":{"inputTokens":554,"outputTokens":28526,"cacheReadInputTokens":4579893,"cacheCreationInputTokens":121937}}}`
-	texto, u := parseClaudeStream(stream)
+	texto, u := parseClaudeStream(stream, false)
 	quiero := Usage{Input: 554, Output: 28526, CacheRead: 4579893, CacheWrite: 121937, Turns: 2, FirstTurn: 23422, FirstTurnWrite: 11106, LastTurn: 23714, CostUSD: 0.7855}
 	if texto != "listo" || u != quiero {
 		t.Errorf("claude: %q %+v\nquiero %+v", texto, u, quiero)
 	}
 	// la salida de --output-format json (un solo resultado, sin turnos) sigue leyéndose
-	if _, viejo := parseClaudeStream(`{"type":"result","num_turns":19,"usage":{"input_tokens":129,"output_tokens":11848}}`); viejo != (Usage{Input: 129, Output: 11848, Turns: 19}) {
+	if _, viejo := parseClaudeStream(`{"type":"result","num_turns":19,"usage":{"input_tokens":129,"output_tokens":11848}}`, false); viejo != (Usage{Input: 129, Output: 11848, Turns: 19}) {
 		t.Errorf("json: %+v", viejo)
 	}
 
@@ -362,5 +362,23 @@ func TestCodexModelsSoloLosVisibles(t *testing.T) {
 	ids, err := Codex{}.Models(context.Background())
 	if err != nil || len(ids) != 1 || ids[0] != "gpt-6-sol" {
 		t.Errorf("ids = %v err = %v", ids, err)
+	}
+}
+
+func TestParseClaudeStreamReanudadoNoCuentaLaSesionEntera(t *testing.T) {
+	// con --resume, modelUsage y total_cost_usd traen también los intentos
+	// anteriores de la sesión; esta corrida solo gastó sus dos mensajes
+	stream := `{"type":"assistant","message":{"id":"m1","usage":{"input_tokens":2,"output_tokens":100,"cache_read_input_tokens":90000,"cache_creation_input_tokens":1000}}}
+{"type":"assistant","message":{"id":"m2","usage":{"input_tokens":2,"output_tokens":300,"cache_read_input_tokens":91000,"cache_creation_input_tokens":400}}}
+{"type":"result","num_turns":2,"total_cost_usd":0.8,"usage":{"input_tokens":4,"output_tokens":450},"modelUsage":{"claude-sonnet-5-5":{"inputTokens":50,"outputTokens":33000,"cacheReadInputTokens":1300000,"cacheCreationInputTokens":88000}}}`
+	_, u := parseClaudeStream(stream, true)
+	if u.Input != 4 || u.Output != 450 || u.CacheRead != 181000 || u.CacheWrite != 1400 || u.Turns != 2 {
+		t.Fatalf("uso reanudado = %+v", u)
+	}
+	if u.CostUSD <= 0 || u.CostUSD > 0.1 {
+		t.Errorf("costo reanudado = %v · no debe traer el de la sesión entera", u.CostUSD)
+	}
+	if _, nuevo := parseClaudeStream(stream, false); nuevo.CacheRead != 1300000 {
+		t.Errorf("sin reanudar se usa modelUsage: %+v", nuevo)
 	}
 }

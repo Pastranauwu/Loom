@@ -30,10 +30,11 @@ What code enforces, so you do not need to ask for it in prompts:
 2. Interview the human about edge cases, failures and limits they did not mention. `loom_spec_guide` has the format.
    Settle every answer as a requirement or rule. Mark the ones the human did not answer with `Assumption:`.
 3. `loom_spec_write`: validate and write `loom.spec.yml`. Then `loom_apply_dry_run`: format and ids, no tokens spent.
-4. `loom_apply`: plans the contracts without running them (heavy, detached). Poll `loom_board` until the tasks appear.
+4. `loom_apply`: plans the contracts without running them (heavy, detached). Wait with `loom_board` `wait: 600` until the tasks appear.
 5. For each task, `loom_task_show` and then `loom_task_set`. Keep `only_touch` as narrow as the task allows. Put secrets,
    config and other modules in `dont_touch`. Set `weight` and `max_retries` by risk, and `depends_on` and `exposes` where one task feeds another.
-6. Say what you are about to launch, then `loom_run`. Poll `loom_board` (it returns only what changed) and `loom_log`.
+6. Say what you are about to launch, then `loom_run`. Follow it with `loom_board` `wait: 600`: it blocks until a task changes.
+   Do not poll: each call re-reads your whole context, and a run polled every minute costs more than its agents. `loom_log` only when a task goes red.
 7. Red task: read `loom_task_logs <id>` before anything else. Fix the contract (`loom_task_set`), then `loom_run` with `retry`.
    Rerunning the same contract unchanged burns attempts: the cap is per task and resets only when the contract changes.
 8. Before calling interface work done, open `.loom/runs/<id>/visual-*/` yourself.
@@ -55,7 +56,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_spec_write` | Write the spec you drafted. `force` overwrites. |
 | `loom_apply_dry_run` | Validate a spec without planning. It does not show tasks. |
 | `loom_apply`* | Turn the spec into contracts without running them. |
-| `loom_board` | See the task board. The first call lists everything; later calls return only changes. `full` lists everything again. |
+| `loom_board` | See the task board. The first call lists everything; later calls return only changes. `full` lists everything again. `wait` (seconds, max 600) blocks until something changes. |
 | `loom_ps` | List active tasks with agent and branch. |
 | `loom_task_show` / `loom_task_get` | Read one contract. |
 | `loom_task_set` | Change one contract before it runs: only_touch, dont_touch, exposes, weight (light\|medium\|heavy), max_retries, depends_on, network. Omitted fields stay as they are. |
@@ -115,7 +116,7 @@ loom does not store API keys. Each CLI uses its own login, and `loom_doctor` nev
 - Do not edit `.loom/tasks/*.md` by hand while a run is active. Use `loom_task_set`.
 - Do not retry a red task without reading its logs and changing something.
 - Do not widen `only_touch` to make a task pass. Split the task or fix the contract.
-- Do not launch heavy tools in a loop. Poll `loom_board` and `loom_log` instead.
+- Do not launch heavy tools in a loop, and do not poll: wait with `loom_board` `wait: 600`.
 - Do not treat green tests as done for interface work. Look at the screenshots.
 
 ## Where things live

@@ -52,7 +52,7 @@ var manualAgentes string
 // instruccionesMCP reach every MCP client on connect, so codex and opencode
 // get the same role the loom ide prompt gives claude.
 const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. Never write the builders' code yourself.
-Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply → loom_task_show/loom_task_set per task → loom_run → poll loom_board and loom_log → loom_ship (dry_run first).
+Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first).
 Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
 Call loom_manual once for the full guide before your first heavy tool.`
 
@@ -65,7 +65,7 @@ func newMCPCmd() *cobra.Command {
 		Short: "serve loom to an MCP client (Claude Desktop, Cursor, opencode) over stdio",
 		Long: `Speaks the Model Context Protocol on stdin/stdout. Quick tools (map, board,
 check, apply dry-run) answer live; heavy ones (up, run, ship, heal, redteam)
-start detached and return a pid and a log, so the chat never blocks. Poll them
+start detached and return a pid and a log, so the chat never blocks. Follow them
 with loom_board and loom_log. Bridges in .loom/bridges (loom wrap) are served
 as bridge_<name>_<tool> and reloaded on every request.`,
 		Example: `  claude mcp add loom -- loom mcp`,
@@ -145,7 +145,7 @@ func mcpTools(exe string) []mcp.Tool {
 	}
 	// heavy: start detached, return pid and log
 	heavy := func(name, desc string, props map[string]string, argv func(a map[string]any) ([]string, error), required ...string) mcp.Tool {
-		return mcp.Tool{Name: name, Description: desc + " Runs detached: returns a pid and a log; poll with loom_board and loom_log.", Schema: schema(props, required...),
+		return mcp.Tool{Name: name, Description: desc + " Runs detached: returns a pid and a log; follow it with loom_board wait: 600, not by polling.", Schema: schema(props, required...),
 			Call: func(a map[string]any) (string, error) {
 				dir, err := projectDir(a)
 				if err != nil {
@@ -193,18 +193,26 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return args, nil
 			}),
-		{Name: "loom_board", Description: "Task board, compact. The first call lists every task; later calls return only what changed since the last one (or 'no changes'). Pass full to list everything again.",
-			Schema: schema(map[string]string{"full": "boolean:list every task again"}),
+		{Name: "loom_board", Description: "Task board, compact. The first call lists every task; later calls return only what changed since the last one (or 'no changes'). Pass full to list everything again. Pass wait (seconds, up to 600) to block until something changes instead of polling: every poll costs you a full turn.",
+			Schema: schema(map[string]string{"full": "boolean:list every task again", "wait": "number:seconds to block until a task changes (max 600)"}),
 			Call: func(a map[string]any) (string, error) {
 				dir, err := projectDir(a)
 				if err != nil {
 					return "", err
 				}
-				raw, err := runQuick(exe, dir, []string{"board", "--json"})
-				if err != nil {
-					return "", err
+				// esperar aquí es gratis; cada sondeo del modelo relee su contexto entero
+				hasta := time.Now().Add(time.Duration(min(max(num(a, "wait"), 0), 600)) * time.Second)
+				for {
+					raw, err := runQuick(exe, dir, []string{"board", "--json"})
+					if err != nil {
+						return "", err
+					}
+					d, err := boardDelta(dir, raw, on(a, "full"))
+					if err != nil || !strings.HasPrefix(d, "no changes") || time.Now().After(hasta) {
+						return d, err
+					}
+					time.Sleep(esperaBoard)
 				}
-				return boardDelta(dir, raw, on(a, "full"))
 			}},
 		quick("loom_ps", "Tasks with state, agent and branch.", nil, fixed("ps", "--json")),
 		quick("loom_check", "Run the done-when command of one task and report.", map[string]string{"id": "string:task id, e.g. T-001"}, withID("check", "--json"), "id"),
@@ -274,7 +282,7 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return tailLog(dir, str(a, "name"), n, on(a, "full"))
 			}},
-		heavy("loom_apply", "Plan the spec into task contracts WITHOUT running them. Do this first so you can set each task's permissions with loom_task_set, then start them with loom_run. Poll loom_board until the tasks appear.",
+		heavy("loom_apply", "Plan the spec into task contracts WITHOUT running them. Do this first so you can set each task's permissions with loom_task_set, then start them with loom_run. Then call loom_board with wait to block until the tasks appear.",
 			map[string]string{"file": "string:spec path (defaults to loom.spec.yml)"},
 			func(a map[string]any) ([]string, error) {
 				args := []string{"apply"}
@@ -494,7 +502,7 @@ func runDetached(exe, dir string, args []string) (string, error) {
 		}
 		return strings.TrimSpace(string(out)), nil
 	case <-time.After(2 * time.Second):
-		return fmt.Sprintf("started · pid %d · log %s · poll loom_board, tail with loom_log", cmd.Process.Pid, name), nil
+		return fmt.Sprintf("started · pid %d · log %s · wait with loom_board wait: 600, tail with loom_log", cmd.Process.Pid, name), nil
 	}
 }
 
@@ -507,6 +515,9 @@ var (
 // boardDelta turns the board JSON into one line per task and, after the
 // first call, only the lines that changed: a polling chat should not pay
 // for the whole board every time.
+// esperaBoard es cada cuánto mira el tablero un loom_board con wait. Var para pruebas.
+var esperaBoard = 5 * time.Second
+
 func boardDelta(dir, raw string, full bool) (string, error) {
 	var cols map[string][]map[string]any
 	if err := json.Unmarshal([]byte(raw), &cols); err != nil {

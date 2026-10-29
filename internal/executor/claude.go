@@ -96,7 +96,7 @@ func (e Claude) Run(ctx context.Context, req Request) (Result, error) {
 	req.avanceDe = avanceClaude(req.RoomPath)
 	for {
 		stdout, stderr, code, err := run(ctx, req, "claude", args...)
-		text, uso := parseClaudeStream(stdout)
+		text, uso := parseClaudeStream(stdout, req.Sesion != "")
 		fin := finClaude(stdout)
 		res = Result{Stdout: res.Stdout + stdout, Stderr: res.Stderr + stderr, ExitCode: code, Text: text, Tokens: sumarUso(res.Tokens, uso), Sesion: fin.SessionID}
 		reset, agotada := cuotaAgotada(stdout)
@@ -244,7 +244,7 @@ func finClaude(stdout string) (fin struct {
 // ParseClaudeUsage lee el gasto de una salida de claude ya guardada
 // (stream-json o json). Lo usa el benchmark para medir corridas viejas.
 func ParseClaudeUsage(stdout string) Usage {
-	_, u := parseClaudeStream(stdout)
+	_, u := parseClaudeStream(stdout, false)
 	return u
 }
 
@@ -258,10 +258,17 @@ func ParseClaudeUsage(stdout string) Usage {
 // Los turnos se cuentan por id de mensaje del hilo principal: claude
 // emite un evento `assistant` por cada bloque de contenido, todos con el
 // mismo id y el mismo usage.
-func parseClaudeStream(stdout string) (string, Usage) {
-	var u Usage
+//
+// Con --resume (reanuda) `modelUsage` y `total_cost_usd` son de la sesión
+// entera, no de esta corrida: contaban otra vez cada intento anterior. Ahí
+// entrada y caché salen de la suma de mensajes, la salida del `usage` del
+// resultado (los eventos no la traen completa) y el costo se prorratea.
+func parseClaudeStream(stdout string, reanuda bool) (string, Usage) {
+	var u, porMensaje Usage
+	var salidaCorrida int // el usage del resultado es de esta corrida; los eventos no traen la salida final
 	var texto string
 	vistos := map[string]bool{}
+	todos := map[string]claudeUsage{} // hilo principal y subagentes
 	numTurns := 0
 	scanner := bufio.NewScanner(strings.NewReader(stdout))
 	scanner.Buffer(make([]byte, 1024*1024), 16*1024*1024)
@@ -276,6 +283,9 @@ func parseClaudeStream(stdout string) (string, Usage) {
 		}
 		switch ev.Type {
 		case "assistant":
+			if id := ev.Message.ID; id != "" {
+				todos[id] = ev.Message.Usage // el último evento del mensaje trae la salida completa
+			}
 			if ev.ParentToolUseID != nil || ev.Message.ID == "" || vistos[ev.Message.ID] {
 				continue
 			}
@@ -287,6 +297,7 @@ func parseClaudeStream(stdout string) (string, Usage) {
 			}
 		case "result":
 			texto, numTurns, u.CostUSD = ev.Result, ev.NumTurns, ev.CostUSD
+			salidaCorrida = ev.Usage.Output
 			if len(ev.ModelUsage) > 0 {
 				for _, m := range ev.ModelUsage {
 					u.Input += m.Input
@@ -298,6 +309,24 @@ func parseClaudeStream(stdout string) (string, Usage) {
 				u.Input, u.Output, u.CacheRead, u.CacheWrite = ev.Usage.Input, ev.Usage.Output, ev.Usage.CacheRead, ev.Usage.CacheWrite
 			}
 		}
+	}
+	if reanuda && len(todos) > 0 {
+		for _, m := range todos {
+			porMensaje.Input += m.Input
+			porMensaje.Output += m.Output
+			porMensaje.CacheRead += m.CacheRead
+			porMensaje.CacheWrite += m.CacheWrite
+		}
+		porMensaje.Output = max(porMensaje.Output, salidaCorrida)
+		// ponytail: costo prorrateado con pesos de precio de sonnet; exacto con un solo modelo
+		peso := func(x Usage) float64 {
+			return float64(x.Input) + 5*float64(x.Output) + 0.1*float64(x.CacheRead) + 2*float64(x.CacheWrite)
+		}
+		if total := peso(u); total > 0 {
+			porMensaje.CostUSD = u.CostUSD * min(peso(porMensaje)/total, 1)
+		}
+		porMensaje.FirstTurn, porMensaje.FirstTurnWrite, porMensaje.LastTurn = u.FirstTurn, u.FirstTurnWrite, u.LastTurn
+		u = porMensaje
 	}
 	u.Turns = len(vistos)
 	if u.Turns == 0 {

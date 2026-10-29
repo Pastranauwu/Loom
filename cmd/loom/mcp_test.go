@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/mcp"
@@ -185,5 +186,40 @@ func TestManualEnMCP(t *testing.T) {
 		if !strings.Contains(manualAgentes, "`"+tl.Name+"`") {
 			t.Errorf("%s no está en manual.md", tl.Name)
 		}
+	}
+}
+
+func TestBoardWaitBloqueaHastaQueAlgoCambie(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("binario falso en shell")
+	}
+	dir := t.TempDir()
+	// el tablero cambia a la tercera consulta
+	exe := filepath.Join(t.TempDir(), "loom")
+	script := `#!/bin/sh
+n=$(cat cuenta 2>/dev/null || echo 0); n=$((n+1)); echo $n > cuenta
+if [ $n -ge 3 ]; then echo '{"lista":[{"id":"T-001","titulo":"a"}]}'; else echo '{"en_curso":[{"id":"T-001","titulo":"a"}]}'; fi
+`
+	if err := os.WriteFile(exe, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	viejo := esperaBoard
+	esperaBoard = 10 * time.Millisecond
+	defer func() { esperaBoard = viejo }()
+	var board mcp.Tool
+	for _, tl := range mcpTools(exe) {
+		if tl.Name == "loom_board" {
+			board = tl
+		}
+	}
+	if _, err := board.Call(map[string]any{"dir": dir}); err != nil {
+		t.Fatal(err)
+	}
+	out, err := board.Call(map[string]any{"dir": dir, "wait": float64(5)})
+	if err != nil || !strings.Contains(out, "en_curso→lista") {
+		t.Fatalf("wait debe volver con el cambio, no con 'no changes': %q %v", out, err)
+	}
+	if out, _ := board.Call(map[string]any{"dir": dir}); !strings.HasPrefix(out, "no changes") {
+		t.Fatalf("sin wait responde al momento: %q", out)
 	}
 }
