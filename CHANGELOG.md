@@ -3,6 +3,7 @@
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
 ## Sin publicar
+**Diccionario de skills:** cada skill dice para qué sirve y qué roles la reciben, y entra solo a la tarea que la usa: implementadores `ponytail`; backend `ponytail` + `codebase-design` (sale `create-a-backend`, que era un catálogo de productos Vercel); interfaz `impeccable`, ahora sin su instalación ni su tabla de comandos y con su piso de calidad en línea; tester `tdd` de mattpocock (sale la de 9,5 KB). El planificador ve el diccionario entero y la skill se instala la primera vez que una tarea la pide; `agent-browser` queda para tareas que manejan un navegador. El orquestador tiene las suyas (`caveman`, `grill-with-docs`, `find-skills`), que `loom ide` instala para Claude Code; `loom_skills` lista el diccionario y `loom_task_set` acepta `skills`.
 
 ## v2.5.0 (29 oct 2026)
 **Ahorro de cuota por defecto:** una tarea `weight: medium` arranca en el modelo liviano (haiku), tiene 2 intentos y, si deja trabajo y sigue roja, sube al medio con los intentos del contrato; `escalate_after: N` cambia los intentos del barato y `escalate_after: off` vuelve al comportamiento anterior. `heavy` sigue en el medio. El revisor visual corre en el modelo medio (antes el pesado; `agents: { revisor_visual: { model: ... } }` lo cambia) y ve como mucho 5 capturas (`screens_max`): primero la hoja de componentes (`screens_sample`, la ruta que el arquitecto escribe con la identidad visual y un maquetado básico) y el resto repartido entre las pantallas.

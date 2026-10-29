@@ -65,8 +65,8 @@ func TestContentVacioSinSkillsInstaladas(t *testing.T) {
 	}
 }
 
-// El catálogo es lo instalado menos lo que la Base reemplaza: un repo
-// viejo con implement y caveman descargados no se los ofrece al planificador.
+// El catálogo es el diccionario de constructores (instalado o no) más lo
+// instalado aparte, menos lo que la Base reemplaza y lo del orquestador.
 func TestCatalogoSinLoQueReemplazaLaBase(t *testing.T) {
 	root := t.TempDir()
 	for _, n := range []string{"implement", "caveman", "frontend-design", "clean-code"} {
@@ -82,7 +82,7 @@ func TestCatalogoSinLoQueReemplazaLaBase(t *testing.T) {
 	for _, sk := range Catalogo(root) {
 		nombres = append(nombres, sk.Nombre)
 	}
-	if strings.Join(nombres, ",") != "clean-code,frontend-design" {
+	if strings.Join(nombres, ",") != "ponytail,codebase-design,impeccable,tdd,agent-browser,clean-code,frontend-design" {
 		t.Errorf("catálogo = %v", nombres)
 	}
 }
@@ -93,5 +93,41 @@ func TestTocaUI(t *testing.T) {
 	}
 	if TocaUI([]string{"backend/app/rules/palette.py", "frontend/src/api/httpClient.ts"}) {
 		t.Error("python y un cliente .ts no son interfaz")
+	}
+}
+
+func TestContentQuitaSetupYComandosYTraeElPiso(t *testing.T) {
+	root := t.TempDir()
+	writeSkill(t, root, "diseno", "---\nname: diseno\n---\n\nPrincipios.\n\n## Setup\n\nCorre scripts/lanzador.\n\n## How to design\n\nLa brief manda.\n\n## Commands\n\n| cmd | ref |\n|---|---|\n| polish | reference/polish.md |\n")
+	_ = os.MkdirAll(filepath.Join(Dir(root), "diseno", "reference"), 0o755)
+	_ = os.WriteFile(filepath.Join(Dir(root), "diseno", "reference", "craft-floor.md"), []byte("# Craft floor\nContraste 4.5:1."), 0o644)
+
+	got := Content(root, []string{"diseno"})
+	for _, quiero := range []string{"Principios.", "La brief manda.", "Contraste 4.5:1."} {
+		if !strings.Contains(got, quiero) {
+			t.Errorf("falta %q: %q", quiero, got)
+		}
+	}
+	for _, no := range []string{"lanzador", "polish", "## Commands"} {
+		if strings.Contains(got, no) {
+			t.Errorf("sobra %q: %q", no, got)
+		}
+	}
+}
+
+func TestDiccionarioUnaSkillPorNecesidad(t *testing.T) {
+	if got := strings.Join(DeRol("backend"), ","); got != "ponytail,codebase-design" {
+		t.Errorf("backend = %s", got)
+	}
+	if got := strings.Join(DeRol("tester"), ","); got != "tdd" {
+		t.Errorf("tester = %s", got)
+	}
+	for _, s := range DefaultSources() {
+		if s.Para == "" || s.Repo == "" {
+			t.Errorf("%s sin Para o Repo: el planificador no sabría cuándo ponerla", s.Nombre)
+		}
+		if s.Orquestador && len(s.Roles) > 0 {
+			t.Errorf("%s es del orquestador y no se inyecta a constructores", s.Nombre)
+		}
 	}
 }

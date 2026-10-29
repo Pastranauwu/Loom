@@ -279,7 +279,7 @@ func TestResolverAgenteTarea(t *testing.T) {
 		t.Error("skillsBack no debe estar vacío")
 	}
 	if len(skillPkgsBack) == 0 {
-		t.Error("skillPkgsBack no debe estar vacío · el arquetipo backend trae la base + create-a-backend")
+		t.Error("skillPkgsBack no debe estar vacío · el arquetipo backend trae ponytail + codebase-design")
 	}
 
 	// 6. Una tarea que dibuja recibe la skill de diseño aunque el contrato diga []
@@ -361,7 +361,7 @@ func TestVedaNoAplicaALaTareaDeIntegracion(t *testing.T) {
 }
 
 // Las skills del contrato mandan sobre las del rol: una tarea backend
-// que el planificador marcó sin skills no recibe create-a-backend, y la
+// que el planificador marcó sin skills no recibe las del rol, y la
 // que no declara nada sigue con las de su rol.
 func TestSkillsDelContratoMandanSobreElRol(t *testing.T) {
 	cfg := config.Config{}
@@ -369,7 +369,7 @@ func TestSkillsDelContratoMandanSobreElRol(t *testing.T) {
 		skills []string
 		quiero []string
 	}{
-		{nil, []string{"create-a-backend"}},
+		{nil, []string{"ponytail", "codebase-design"}},
 		{[]string{}, nil},
 		{[]string{"clean-code"}, []string{"clean-code"}},
 	}

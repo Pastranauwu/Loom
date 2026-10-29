@@ -59,7 +59,8 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_board` | See the task board. The first call lists everything; later calls return only changes. `full` lists everything again. `wait` (seconds, max 600) blocks until something changes. |
 | `loom_ps` | List active tasks with agent and branch. |
 | `loom_task_show` / `loom_task_get` | Read one contract. |
-| `loom_task_set` | Change one contract before it runs: only_touch, dont_touch, exposes, weight (light\|medium\|heavy), max_retries, depends_on, network. Omitted fields stay as they are. |
+| `loom_task_set` | Change one contract before it runs: only_touch, dont_touch, exposes, weight (light\|medium\|heavy), max_retries, depends_on, network, skills. Omitted fields stay as they are. |
+| `loom_skills` | The skill dictionary: what each skill is for, which roles get it by default, which are yours and which are installed. |
 | `loom_check` | Run one task's done_when and report. |
 | `loom_task_logs` | See every attempt of a task: what the agent did and why it failed. |
 | `loom_run`* | Run pending tasks. `agents` sets parallelism, `retry` revives stopped tasks and reuses their work. |
@@ -98,6 +99,17 @@ app, and write a spec that integrates it.
 Guarantees that code enforces: a bridge never runs a shell or an interpreter. Arguments go as argv elements. A value
 cannot start with `-` unless the template allows it. Every `{var}` must be a required input. Secrets in headers are
 replaced by `{name}` before the model sees them. `loom_wrap_rm` removes a bridge and its tools.
+
+## Skills
+
+Skills are text injected into a builder's prompt, so each one is paid on every attempt. One per need, never all at once.
+
+- Roles get theirs by default: implementers `ponytail`; backend `ponytail` + `codebase-design`; frontend and every task that draws a screen `impeccable`; tester `tdd`.
+- The planner picks extra ones per task from the dictionary; you can override with `loom_task_set` `skills` (`[]` removes them all).
+  `agent-browser` drives a real browser (QA a running app, read live docs): it needs `network: true` and the `agent-browser` CLI.
+- Yours, not the builders': `caveman` to answer the human tersely, `grill-with-docs` (`grilling` + `domain-modeling`) to interview before the spec,
+  `find-skills` to search skills.sh when the dictionary lacks one. `loom ide` installs them for Claude Code.
+- A skill not in the dictionary: `npx skills find <topic>`, then set its name on the task; it is fetched the first time it runs.
 
 ## Models and providers
 

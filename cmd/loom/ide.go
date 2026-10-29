@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/idioma"
+	"github.com/Pastranauwu/loom/internal/skills"
 	"github.com/Pastranauwu/loom/internal/tui"
 )
 
@@ -22,11 +24,12 @@ Workflow: read the repo with loom_map; interview the human about edge cases and 
 Before anything runs, decide the permissions of every task: loom_task_show then loom_task_set. Keep only_touch as narrow as the task allows, put secrets, config and other modules in dont_touch, and set weight and max_retries by risk. Code reverts edits outside that scope, so it is the real boundary.
 Then launch with loom_run (not loom_up, which skips this step) and wait with loom_board wait: 600 (never poll: each call re-reads your whole context). Heavy tools spend the human's budget: say what you are about to launch first. Never write the builders' code yourself.
 Before you call interface work done, open its screenshots in .loom/runs/<task>/visual-*: green tests do not mean it looks right.
+Skills: talk to the human with your caveman skill (terse, every turn costs tokens) and interview with grill-with-docs (grilling and domain-modeling) before writing the spec. Builders get skills per task: loom_skills is the dictionary, set them with loom_task_set skills, and only what the task needs, since each one costs tokens on every attempt. If the dictionary lacks one, find it with find-skills (npx skills find <topic>).
 How you talk to the human: never show code. Say what task runs, what it is for, and in one or two lines why it was split or decided that way, with a plain everyday analogy (a kitchen, a building site, a relay race) instead of jargon. Short answers: a few lines, no lists of files or flags unless asked. Skip technical detail that does not change a decision.`
 
 // herramientas de solo lectura: las que el chat puede llamar sin preguntar
 var mcpSoloLectura = []string{"loom_map", "loom_board", "loom_ps", "loom_check", "loom_task_logs", "loom_task_show",
-	"loom_doctor", "loom_usage", "loom_standup", "loom_spec_guide", "loom_manual", "loom_log", "loom_apply_dry_run"}
+	"loom_doctor", "loom_usage", "loom_standup", "loom_spec_guide", "loom_manual", "loom_log", "loom_apply_dry_run", "loom_skills"}
 
 func newIDECmd() *cobra.Command {
 	return &cobra.Command{
@@ -75,6 +78,10 @@ func runIDE(root string) error {
 	}
 	s := sesionIDE(root)
 	if exec.Command("tmux", "has-session", "-t", s).Run() != nil {
+		// las skills del orquestador (hablar corto, entrevistar, buscar skills) van antes de abrir el chat
+		for _, err := range skills.AsegurarOrquestador(context.Background()) {
+			out.Line("· %s", err)
+		}
 		if err := crearIDE(root, exe, s); err != nil {
 			return err
 		}

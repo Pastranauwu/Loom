@@ -19,6 +19,7 @@ import (
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/mcp"
+	"github.com/Pastranauwu/loom/internal/skills"
 	"github.com/Pastranauwu/loom/internal/spec"
 	"github.com/Pastranauwu/loom/internal/task"
 	"github.com/Pastranauwu/loom/internal/wrap"
@@ -247,13 +248,26 @@ func mcpTools(exe string) []mcp.Tool {
 			Call: func(a map[string]any) (string, error) {
 				return editTask(a, false)
 			}},
-		{Name: "loom_task_set", Description: "Set the contract of a task before it runs: only_touch (globs it may edit), dont_touch (globs it may not), exposes (public signatures it must provide), weight, max_retries, depends_on, network (its tests need the network). Fields you omit stay as they are. Out-of-scope edits are reverted by code, so this is the real boundary.",
+		{Name: "loom_task_set", Description: "Set the contract of a task before it runs: only_touch (globs it may edit), dont_touch (globs it may not), exposes (public signatures it must provide), weight, max_retries, depends_on, network (its tests need the network), skills. Fields you omit stay as they are. Out-of-scope edits are reverted by code, so this is the real boundary.",
 			Schema: schema(map[string]string{"id": "string:task id", "only_touch": "array:globs the task may edit", "dont_touch": "array:globs the task may not edit",
 				"exposes": "array:public signatures other tasks rely on, e.g. wol.Send(mac, addr string) error",
 				"weight":  "enum(light|medium|heavy):model weight of the task", "max_retries": "integer:attempts before the task stops",
-				"depends_on": "array:task ids that must finish first", "network": "boolean:its tests need network access (the sandbox keeps only loopback otherwise)"}, "id"),
+				"depends_on": "array:task ids that must finish first", "network": "boolean:its tests need network access (the sandbox keeps only loopback otherwise)",
+				"skills": "array:skills injected into the builder's prompt (loom_skills lists them); omitted = its role's, [] = none"}, "id"),
 			Call: func(a map[string]any) (string, error) {
 				return editTask(a, true)
+			}},
+		{Name: "loom_skills", Description: "Skill dictionary: what each skill is for, which roles get it by default, which are yours (the orchestrator's) and which are installed. Pick per task with loom_task_set skills; each one costs tokens on every attempt.",
+			Schema: schema(nil), Call: func(a map[string]any) (string, error) {
+				dir, err := projectDir(a)
+				if err != nil {
+					return "", err
+				}
+				root, err := config.RepoRoot(dir)
+				if err != nil {
+					root = dir
+				}
+				return diccionarioSkills(root)
 			}},
 		{Name: "loom_manual", Description: "Full manual for the model driving loom: workflow, every tool and when to use it, reverse engineering apps into tools with loom_wrap, models and providers. Read it once before your first heavy tool.",
 			Schema: schema(nil), Call: func(map[string]any) (string, error) { return manualAgentes, nil }},
@@ -696,6 +710,9 @@ func editTask(a map[string]any, set bool) (string, error) {
 		if n := num(a, "max_retries"); n > 0 {
 			t.LimiteIntentos = n
 		}
+		if v, ok := list(a, "skills"); ok {
+			t.Skills = v
+		}
 		if errs := t.Validate(); len(errs) > 0 {
 			msgs := make([]string, len(errs))
 			for i, e := range errs {
@@ -711,13 +728,37 @@ func editTask(a map[string]any, set bool) (string, error) {
 	return string(data), err
 }
 
+// diccionarioSkills es el diccionario tal como lo ve el orquestador.
+func diccionarioSkills(root string) (string, error) {
+	type fila struct {
+		Name         string   `json:"name"`
+		For          string   `json:"for"`
+		Roles        []string `json:"roles,omitempty"`
+		Orchestrator bool     `json:"orchestrator,omitempty"`
+		Installed    bool     `json:"installed"`
+	}
+	var filas []fila
+	visto := map[string]bool{}
+	for _, s := range skills.DefaultSources() {
+		visto[s.Nombre] = true
+		filas = append(filas, fila{s.Nombre, s.Para, s.Roles, s.Orquestador, skills.Instalado(root, s.Nombre) || s.Orquestador && skills.InstaladoGlobal(s.Nombre)})
+	}
+	for _, sk := range skills.Catalogo(root) {
+		if !visto[sk.Nombre] {
+			filas = append(filas, fila{Name: sk.Nombre, For: sk.Descripcion, Installed: true})
+		}
+	}
+	data, err := json.MarshalIndent(filas, "", "  ")
+	return string(data), err
+}
+
 // vistaTarea es el contrato con las mismas llaves que acepta loom_task_set.
 func vistaTarea(t task.Task) map[string]any {
 	return map[string]any{
 		"id": t.ID, "title": t.Titulo, "why": t.Porque, "done_when": t.ListoCuando,
 		"only_touch": t.TocarSolo, "dont_touch": t.NoTocar, "depends_on": t.DependeDe,
 		"exposes": t.Expone, "uses": t.Usa, "weight": task.PesoEn(t.Peso),
-		"max_retries": t.LimiteIntentos, "max_lines": t.LimiteLineas, "network": t.Red,
+		"max_retries": t.LimiteIntentos, "max_lines": t.LimiteLineas, "network": t.Red, "skills": t.Skills,
 	}
 }
 

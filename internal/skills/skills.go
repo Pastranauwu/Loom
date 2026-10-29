@@ -15,11 +15,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 )
 
-// Source es un paquete de skill instalable.
+// Source es un paquete de skill instalable y su entrada en el diccionario:
+// qué hace, para qué roles entra sola y si es del orquestador.
 type Source struct {
 	// Nombre es el slug con el que loom identifica la skill en todos
 	// lados: config.yml, DefaultAgentes, y la carpeta instalada
@@ -27,11 +29,18 @@ type Source struct {
 	Nombre string
 	Repo   string
 	// SkillArg es el valor exacto que exige `--skill` en el repo de
-	// origen. Casi siempre es igual a Nombre; algunos repos (p. ej.
-	// anthropics/claude-code) publican el título tal cual ("Agent
-	// Development") y no su slug, aunque el CLI igual instala en la
-	// carpeta con el slug. Vacío = usar Nombre.
+	// origen. Vacío = usar Nombre.
 	SkillArg string
+	// Para dice cuándo sirve, en una línea: lo leen el planificador y el
+	// orquestador para decidir a qué tarea se la ponen.
+	Para string
+	// Roles son los roles de config.DefaultAgentes que la reciben sin que
+	// el contrato la pida. Vacío = solo si el planificador o el
+	// orquestador la eligen para una tarea.
+	Roles []string
+	// Orquestador marca las skills del modelo que conversa con el humano
+	// (loom ide): nunca se inyectan a un constructor.
+	Orquestador bool
 }
 
 // arg devuelve el valor a pasar a `--skill`.
@@ -42,17 +51,58 @@ func (s Source) arg() string {
 	return s.Nombre
 }
 
-// DefaultSources son los paquetes que loom trae por defecto: el
-// catálogo del que el planificador elige por tarea (campo `skills` del
-// contrato) y el que usan los roles cuando el contrato no lo declara.
+const mattpocock = "https://github.com/mattpocock/skills"
+
+// DefaultSources es el diccionario de skills de loom. Una por necesidad:
+// cada una entra solo al rol o a la tarea que la usa, y se instala la
+// primera vez que hace falta (Asegurar). Cada KB se paga en cada intento.
 func DefaultSources() []Source {
 	return []Source{
-		{Nombre: "clean-code", Repo: "https://github.com/sickn33/agentic-awesome-skills"},
-		{Nombre: "create-a-backend", Repo: "https://github.com/vercel/vercel-plugin"},
-		{Nombre: "test-driven-development", Repo: "https://github.com/obra/superpowers"},
-		{Nombre: "impeccable", Repo: "https://github.com/pbakaus/impeccable"},
-		{Nombre: "find-skills", Repo: "https://github.com/vercel-labs/skills"},
+		{Nombre: "ponytail", Repo: "https://github.com/DietrichGebert/ponytail", Roles: []string{"ejecutor", "backend", "refactor"},
+			Para: "write the least code that works: reuse what exists, stdlib before dependencies, no speculative layers. Any implementation task."},
+		{Nombre: "codebase-design", Repo: mattpocock, Roles: []string{"backend", "refactor"},
+			Para: "deep modules, seams and interfaces that are easy to call and test: backend services, APIs, data access, any module other tasks depend on."},
+		{Nombre: "impeccable", Repo: "https://github.com/pbakaus/impeccable", Roles: []string{"frontend"},
+			Para: "visual design of interfaces: hierarchy, typography, states, the quality floor. Every task that draws a screen gets it."},
+		{Nombre: "tdd", Repo: mattpocock, Roles: []string{"tester"},
+			Para: "tests through public interfaces, red before green, no tautological or implementation-coupled tests. Tasks whose deliverable is tests."},
+		{Nombre: "agent-browser", Repo: "https://github.com/vercel-labs/agent-browser",
+			Para: "drive a real browser from the shell: QA a running web app, fill forms, read live docs or sites. Needs the agent-browser CLI (npm i -g agent-browser) and network: true on the task."},
+		{Nombre: "clean-code", Repo: "https://github.com/sickn33/agentic-awesome-skills",
+			Para: "naming, function size and readability rules. Refactors of hard-to-read code."},
+		{Nombre: "caveman", Repo: "https://github.com/JuliusBrussee/caveman", Orquestador: true,
+			Para: "terse replies to the human: fewer output tokens in every chat turn."},
+		{Nombre: "grilling", Repo: mattpocock, Orquestador: true,
+			Para: "interview the human one question at a time down the decision tree before writing the spec."},
+		{Nombre: "domain-modeling", Repo: mattpocock, Orquestador: true,
+			Para: "record the terms and decisions of the interview as a glossary and ADRs in the repo."},
+		{Nombre: "grill-with-docs", Repo: mattpocock, Orquestador: true,
+			Para: "grilling plus domain-modeling: the interview that leaves docs behind. Use it for specs over an existing codebase."},
+		{Nombre: "find-skills", Repo: "https://github.com/vercel-labs/skills", Orquestador: true,
+			Para: "search skills.sh for a skill a task needs that the dictionary lacks; set it on the task with loom_task_set skills."},
 	}
+}
+
+// DeRol son las skills del diccionario que un rol recibe por defecto.
+func DeRol(rol string) []string {
+	var out []string
+	for _, s := range DefaultSources() {
+		if slices.Contains(s.Roles, rol) {
+			out = append(out, s.Nombre)
+		}
+	}
+	return out
+}
+
+// DelOrquestador son las skills del modelo que conversa con el humano.
+func DelOrquestador() []Source {
+	var out []Source
+	for _, s := range DefaultSources() {
+		if s.Orquestador {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // Asegurar trae las skills nombradas que falten y tengan fuente conocida.
@@ -82,6 +132,50 @@ func Asegurar(ctx context.Context, root string, nombres []string) []error {
 }
 
 var fetchMu sync.Mutex
+
+// InstaladoGlobal reporta si el usuario ya tiene la skill donde la lee
+// Claude Code: ~/.claude/skills, ~/.agents/skills o un plugin instalado.
+func InstaladoGlobal(nombre string) bool {
+	home := casa()
+	for _, d := range []string{filepath.Join(home, ".claude", "skills"), filepath.Join(home, ".agents", "skills")} {
+		if _, err := os.Stat(filepath.Join(d, nombre, "SKILL.md")); err == nil {
+			return true
+		}
+	}
+	m, _ := filepath.Glob(filepath.Join(home, ".claude", "plugins", "cache", "*", "*", "*", "skills", nombre, "SKILL.md"))
+	return len(m) > 0
+}
+
+// AsegurarOrquestador instala para Claude Code, a nivel usuario, las
+// skills del orquestador que falten: van fuera del repo porque el
+// orquestador no es un cuarto. Nunca bloquea; devuelve los fallos.
+func AsegurarOrquestador(ctx context.Context) []error {
+	fetchMu.Lock()
+	defer fetchMu.Unlock()
+	if _, err := exec.LookPath("npx"); err != nil {
+		return []error{fmt.Errorf(idioma.T("npx no está instalado · instala Node.js para traer skills"))}
+	}
+	var errs []error
+	for _, src := range DelOrquestador() {
+		if InstaladoGlobal(src.Nombre) {
+			continue
+		}
+		cmd := exec.CommandContext(ctx, "npx", "--yes", "skills", "add", src.Repo, "--skill", src.arg(), "-g", "-y", "--agent", "claude-code")
+		cmd.Dir = casa()
+		if out, err := cmd.CombinedOutput(); err != nil {
+			errs = append(errs, fmt.Errorf(idioma.T("no se pudo traer skill %s · %s"), src.Nombre, tail(string(out))))
+		}
+	}
+	return errs
+}
+
+func casa() string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return "."
+	}
+	return home
+}
 
 // Base es lo que todo implementador recibe, sea cual sea su tarea. Va en
 // la parte común del prompt, así que es idéntica en todos los agentes.
@@ -141,11 +235,6 @@ func TocaUI(tocarSolo []string) bool {
 	}
 	return false
 }
-
-// BackendSkillName y PMSkillName son el paquete de cada rol cuando el
-// contrato no declara skills.
-func BackendSkillName() string { return "create-a-backend" }
-func PMSkillName() string      { return "test-driven-development" }
 
 // UISkillName es la skill de diseño que recibe toda tarea que toca
 // interfaz (TocaUI), la declare el contrato o no.
@@ -255,25 +344,34 @@ func Content(root string, nombres []string) string {
 		if err != nil {
 			continue
 		}
-		// la ruta deja al agente abrir las referencias que el cuerpo cita
-		// (impeccable remite a reference/*.md): el cuarto no las ve.
-		fmt.Fprintf(&b, "### Skill: %s (files: %s)\n%s\n\n", n, filepath.Join(Dir(root), n), sk.Cuerpo)
+		cuerpo := sinSecciones(sk.Cuerpo, "setup", "commands", "installation", "persistence", "intensity", "levels", "boundaries")
+		// el agente nunca abre las referencias que la skill cita (0 de 67
+		// sesiones): el piso de calidad que exige leer antes de editar va en línea
+		if piso, err := os.ReadFile(filepath.Join(Dir(root), n, "reference", "craft-floor.md")); err == nil {
+			cuerpo += "\n\n" + strings.TrimSpace(string(piso))
+		}
+		// la ruta deja al agente abrir las referencias que el cuerpo cita: el cuarto no las ve
+		fmt.Fprintf(&b, "### Skill: %s (files: %s)\n%s\n\n", n, filepath.Join(Dir(root), n), cuerpo)
 	}
 	return strings.TrimSpace(b.String())
 }
 
-// Catalogo lista las skills instaladas en .agents/skills, ordenadas por
-// nombre: de ahí elige el planificador las de cada tarea. implement y
-// caveman quedan fuera aunque sigan instaladas en repos viejos: la Base
-// las reemplaza.
+// Catalogo es lo que el planificador puede poner en una tarea: el
+// diccionario de constructores (instalado o no: se trae al correr) y las
+// skills extra instaladas en .agents/skills. implement y caveman quedan
+// fuera: la Base las reemplaza.
 func Catalogo(root string) []Skill {
-	entradas, err := os.ReadDir(Dir(root))
-	if err != nil {
-		return nil
-	}
 	var out []Skill
+	visto := map[string]bool{"implement": true, "caveman": true}
+	for _, s := range DefaultSources() {
+		visto[s.Nombre] = true
+		if !s.Orquestador {
+			out = append(out, Skill{Nombre: s.Nombre, Descripcion: s.Para})
+		}
+	}
+	entradas, _ := os.ReadDir(Dir(root))
 	for _, e := range entradas {
-		if !e.IsDir() || e.Name() == "implement" || e.Name() == "caveman" {
+		if !e.IsDir() || visto[e.Name()] {
 			continue
 		}
 		if sk, err := Read(root, e.Name()); err == nil {
@@ -281,6 +379,24 @@ func Catalogo(root string) []Skill {
 		}
 	}
 	return out
+}
+
+// sinSecciones quita las secciones `## <titulo>` nombradas: instalar el
+// lanzador de la skill, su tabla de comandos o cómo se apaga el modo en un
+// chat son para un humano; un agente headless no los sigue y se pagaban en
+// cada intento.
+func sinSecciones(cuerpo string, titulos ...string) string {
+	var out []string
+	saltando := false
+	for _, l := range strings.Split(cuerpo, "\n") {
+		if t, ok := strings.CutPrefix(l, "## "); ok {
+			saltando = slices.Contains(titulos, strings.ToLower(strings.TrimSpace(t)))
+		}
+		if !saltando {
+			out = append(out, l)
+		}
+	}
+	return strings.TrimSpace(strings.Join(out, "\n"))
 }
 
 func tail(s string) string {

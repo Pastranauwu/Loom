@@ -1096,24 +1096,25 @@ func DefaultAgentes(cli string) map[string]Agente {
 
 	return map[string]Agente{
 		"ejecutor": {
-			Provider: provider,
-			Modelo:   modeloDelCLI,
-			KeyEnv:   keyEnv,
-			Skills:   []string{"implementacion", "tdd", "refactor"},
+			Provider:      provider,
+			Modelo:        modeloDelCLI,
+			KeyEnv:        keyEnv,
+			Skills:        []string{"implementacion", "tdd", "refactor"},
+			SkillPackages: skills.DeRol("ejecutor"),
 		},
 		"backend": {
 			Provider:      provider,
 			Modelo:        modeloDelCLI,
 			KeyEnv:        keyEnv,
 			Skills:        []string{"backend", "api", "database", "sql", "performance"},
-			SkillPackages: []string{skills.BackendSkillName()},
+			SkillPackages: skills.DeRol("backend"),
 		},
 		"frontend": {
 			Provider:      provider,
 			Modelo:        modeloDelCLI,
 			KeyEnv:        keyEnv,
 			Skills:        []string{"frontend", "ui", "ux", "components", "css", "state"},
-			SkillPackages: []string{skills.UISkillName()},
+			SkillPackages: skills.DeRol("frontend"),
 		},
 		"architect": {
 			Provider: provider,
@@ -1126,13 +1127,14 @@ func DefaultAgentes(cli string) map[string]Agente {
 			Modelo:        modeloDelCLI,
 			KeyEnv:        keyEnv,
 			Skills:        []string{"testing", "cobertura", "edge-cases", "examinador"},
-			SkillPackages: []string{skills.PMSkillName()},
+			SkillPackages: skills.DeRol("tester"),
 		},
 		"refactor": {
-			Provider: provider,
-			Modelo:   modeloDelCLI,
-			KeyEnv:   keyEnv,
-			Skills:   []string{"refactoring", "simplificacion", "deuda-tecnica"},
+			Provider:      provider,
+			Modelo:        modeloDelCLI,
+			KeyEnv:        keyEnv,
+			Skills:        []string{"refactoring", "simplificacion", "deuda-tecnica"},
+			SkillPackages: skills.DeRol("refactor"),
 		},
 	}
 }
