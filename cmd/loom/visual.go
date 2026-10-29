@@ -96,6 +96,7 @@ func promptVisual(pide string, fotos []string) string {
 Judge ONLY what shows in the screenshots, not the code:
 - Is what the task asks for visible at a glance? An effect that is barely visible counts as not done.
 - Does anything look broken or unfinished? Overlapping or clipped text, unstyled controls, unreadable contrast, misaligned spacing.
+- Does it look generic: a template or framework default with flat hierarchy, no focal point and uniform spacing? If the task draws or redesigns screens, that counts as not done: say what would give each screen a point of view.
 Do not ask for anything outside this task or for minor taste changes.
 
 Answer at the end with only this JSON:

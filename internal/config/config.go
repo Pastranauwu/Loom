@@ -1008,10 +1008,11 @@ func DefaultAgentes(cli string) map[string]Agente {
 			SkillPackages: []string{skills.BackendSkillName()},
 		},
 		"frontend": {
-			Provider: provider,
-			Modelo:   modeloDelCLI,
-			KeyEnv:   keyEnv,
-			Skills:   []string{"frontend", "ui", "ux", "components", "css", "state"},
+			Provider:      provider,
+			Modelo:        modeloDelCLI,
+			KeyEnv:        keyEnv,
+			Skills:        []string{"frontend", "ui", "ux", "components", "css", "state"},
+			SkillPackages: []string{skills.UISkillName()},
 		},
 		"architect": {
 			Provider: provider,

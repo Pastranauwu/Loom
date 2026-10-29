@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -893,6 +894,11 @@ func resolverAgenteTarea(cfg config.Config, defaultEx executor.Executor, flagMod
 	if t.Skills != nil {
 		paquetes = t.Skills
 	}
+	// la de diseño entra en toda tarea que dibuja, aunque el contrato diga
+	// [] o la omita: el planificador la ahorraba y la interfaz salía genérica
+	if skills.TocaUI(t.TocarSolo) && !slices.Contains(paquetes, skills.UISkillName()) {
+		paquetes = append(slices.Clone(paquetes), skills.UISkillName())
+	}
 
 	return ejecutorPara(ex, modelo), modelo, etiquetas, paquetes
 }
@@ -1021,6 +1027,9 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 	}
 
 	exTarea, modeloTarea, skillsTarea, skillPkgsTarea := resolverAgenteTarea(cfg, ex, modelo, t)
+	for _, err := range skills.Asegurar(ctx, root, skillPkgsTarea) {
+		out.Line("⚠ %s · %s", t.ID, err)
+	}
 	skillsContenido := skills.Content(root, skillPkgsTarea)
 
 	var agentTimeout, pruebaTimeout time.Duration

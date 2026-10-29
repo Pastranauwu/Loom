@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -275,6 +276,16 @@ func TestResolverAgenteTarea(t *testing.T) {
 	}
 	if len(skillPkgsBack) == 0 {
 		t.Error("skillPkgsBack no debe estar vacío · el arquetipo backend trae la base + create-a-backend")
+	}
+
+	// 6. Una tarea que dibuja recibe la skill de diseño aunque el contrato diga []
+	_, _, _, pkgsUI := resolverAgenteTarea(cfg, nil, "", task.Task{ID: "T-006", TocarSolo: []string{"templates/base.html"}, Skills: []string{}})
+	if !slices.Equal(pkgsUI, []string{"impeccable"}) {
+		t.Errorf("pkgsUI = %v, quiero [impeccable]", pkgsUI)
+	}
+	_, _, _, pkgsAPI := resolverAgenteTarea(cfg, nil, "", task.Task{ID: "T-007", TocarSolo: []string{"api/views.py"}, Skills: []string{}})
+	if len(pkgsAPI) != 0 {
+		t.Errorf("pkgsAPI = %v, quiero [] · sin interfaz no entra", pkgsAPI)
 	}
 }
 

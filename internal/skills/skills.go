@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // Source es un paquete de skill instalable.
@@ -49,8 +50,38 @@ func DefaultSources() []Source {
 		{Nombre: "clean-code", Repo: "https://github.com/sickn33/agentic-awesome-skills"},
 		{Nombre: "create-a-backend", Repo: "https://github.com/vercel/vercel-plugin"},
 		{Nombre: "test-driven-development", Repo: "https://github.com/obra/superpowers"},
+		{Nombre: "impeccable", Repo: "https://github.com/pbakaus/impeccable"},
+		{Nombre: "find-skills", Repo: "https://github.com/vercel-labs/skills"},
 	}
 }
+
+// Asegurar trae las skills nombradas que falten y tengan fuente conocida.
+// Corre antes de inyectarlas: así una tarea de interfaz recibe la skill de
+// diseño aunque el repo se haya iniciado antes de que existiera, sin
+// depender de que alguien corra `loom skills sync`. Serializado: las
+// tareas paralelas comparten .agents/skills y npx no tolera dos installs
+// a la vez. Devuelve los fallos para reportarlos; nunca bloquea.
+func Asegurar(ctx context.Context, root string, nombres []string) []error {
+	fetchMu.Lock()
+	defer fetchMu.Unlock()
+	var errs []error
+	for _, n := range nombres {
+		if Instalado(root, n) {
+			continue
+		}
+		for _, src := range DefaultSources() {
+			if src.Nombre != n {
+				continue
+			}
+			if err := Fetch(ctx, root, src); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
+var fetchMu sync.Mutex
 
 // Base es lo que todo implementador recibe, sea cual sea su tarea. Va en
 // la parte común del prompt, así que es idéntica en todos los agentes.
@@ -69,21 +100,23 @@ const Base = `How to work:
 
 Code is machine IR: the human audits the contracts (spec, DNA, exposes), not function bodies; the compiler and the tests are the readers.
 - Type-driven design: make invalid states unrepresentable. Newtypes for domain values, exhaustive enums or discriminated unions for states, strict signatures. No stringly-typed data, no boolean flags that encode a state, no null where absence is not a real state.
-- Machine efficiency over surface aesthetics: performance, determinism and memory safety first; no unnecessary allocations or copies; no syntactic sugar that costs either.
+- In code, machine efficiency over surface aesthetics: performance, determinism and memory safety first; no unnecessary allocations or copies; no syntactic sugar that costs either. The look of an interface is not surface: it is the deliverable.
 - Reuse what already exists before writing something new; nothing duplicated.
 - Errors are typed values: do not swallow them or return magic values.
 - Zero explanatory comments: only tool directives (//go:build, //nolint, #[allow(...)]).
 - Zero dead or commented-out code, zero debug prints.
 - Zero redundant wrappers: no 2 or 3 line functions or layers just to name a step.
 - Only what exposes declares gets a descriptive public name and signature: other agents call it without reading the body.
-- If you implement a skeleton stub, delete its Idea:/Cases: block when done.`
+- If you implement a skeleton stub, delete its Idea:/Cases: block when done.
+- Missing know-how the contract assumes (a domain, a library, a design practice)? ` + "`npx skills find <topic>`" + ` lists skills and ` + "`npx skills add <owner/repo@skill> -g -y`" + ` installs one in ~/.agents/skills/<name>/SKILL.md: read it and follow it. Never install into the repo.`
 
 // UI es lo que recibe toda tarea que toca archivos de interfaz (TocaUI),
-// venga del esqueleto o del plan, en cualquier stack. Reemplaza a
-// frontend-design: 9.4 KB en cada intento que pedían un diseño
-// "distintivo" y huir de lo estándar, lo contrario de una interfaz clara
-// hecha con las piezas que el proyecto ya tiene.
+// venga del esqueleto o del plan, en cualquier stack: las reglas de
+// estructura. El criterio de diseño lo pone UISkillName, que entra junto.
+// Sin él, en una corrida real 5 tareas de rediseño salieron verdes y la
+// interfaz quedó con cara de plantilla.
 const UI = `Interface:
+- Visual quality is part of the contract: a screen that looks like an unstyled template or a framework default is not done. Give each screen a clear typographic scale, deliberate spacing and composition, and one focal element.
 - Use the project's design system (ARCHITECTURE.md describes it or it shows in the code): its components, theme tokens and styling approach. Do not add another UI library or mix styles: no loose CSS, inline styles or hard-coded colors if the project has tokens.
 - Reuse existing components before writing one. If the project's library ships a CLI to add components, use it instead of writing them by hand.
 - Each screen follows the project's template (layout, header, content) and covers its states: loading, empty (message and action) and error (message and retry).
@@ -113,6 +146,10 @@ func TocaUI(tocarSolo []string) bool {
 // contrato no declara skills.
 func BackendSkillName() string { return "create-a-backend" }
 func PMSkillName() string      { return "test-driven-development" }
+
+// UISkillName es la skill de diseño que recibe toda tarea que toca
+// interfaz (TocaUI), la declare el contrato o no.
+func UISkillName() string { return "impeccable" }
 
 // Dir es el directorio canónico donde el CLI `skills` instala el
 // contenido (`.agents/skills/<nombre>/SKILL.md`), siempre a raíz del
@@ -218,7 +255,9 @@ func Content(root string, nombres []string) string {
 		if err != nil {
 			continue
 		}
-		fmt.Fprintf(&b, "### Skill: %s\n%s\n\n", n, sk.Cuerpo)
+		// la ruta deja al agente abrir las referencias que el cuerpo cita
+		// (impeccable remite a reference/*.md): el cuarto no las ve.
+		fmt.Fprintf(&b, "### Skill: %s (files: %s)\n%s\n\n", n, filepath.Join(Dir(root), n), sk.Cuerpo)
 	}
 	return strings.TrimSpace(b.String())
 }
