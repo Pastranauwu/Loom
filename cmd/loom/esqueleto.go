@@ -176,6 +176,20 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	if ex.Name() != "claude" {
 		sesion = ""
 	}
+	// paso 1: qué hará y si tiene dudas, en la misma sesión que luego
+	// escribe el esqueleto. Solo claude guarda sesión; sin ella no hay consulta
+	inicio := ""
+	if guardada == "" && sesion == "" && ex.Name() == "claude" {
+		base := executor.Request{RoomPath: r.Path, Prompt: original, Model: modelo, Timeout: timeout, Env: room.Entorno(r.Path), Effort: "medium", TopeUSD: cfg.TopeArquitectoUSD}
+		s, i, err := consultarArquitecto(ctx, root, id, ex, base, clave, func(res executor.Result) {
+			reg.Registrar(ex.Name(), tokensDe(res.Tokens).Gasto())
+			guardarLogConsulta(root, id, base.Prompt+pasoConsulta, res)
+		})
+		if err != nil {
+			return err
+		}
+		sesion, inicio = s, i
+	}
 	var problemas []string
 	// correcciones cuenta las del modelo actual: al subir al planificador
 	// arranca de cero, con lo que el modelo medio dejó en el cuarto
@@ -206,6 +220,8 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 				}
 				if vuelta > 0 && sesion != "" {
 					req.Sesion, req.Prompt = sesion, esqueleto.PromptCorregirSesion(problemas)
+				} else if vuelta == 0 && inicio != "" {
+					req.Sesion, req.Prompt = sesion, inicio
 				}
 				out, err := ex.Run(ctx, req)
 				guardarLogEsqueleto(root, id, vuelta, req.Prompt, out)
@@ -518,6 +534,13 @@ func respuestaEsqueleto(root, id, pedido string) (texto, sesion string) {
 func guardarRespuestaEsqueleto(root, id, pedido, texto, sesion string) {
 	b, _ := json.Marshal(struct{ Prompt, Texto, Sesion string }{fmt.Sprintf("%x", sha256.Sum256([]byte(pedido))), texto, sesion})
 	_ = os.WriteFile(rutaRespuestaEsqueleto(root, id), b, 0o644)
+}
+
+// guardarLogConsulta deja el paso 1 del arquitecto junto a sus vueltas.
+func guardarLogConsulta(root, id, prompt string, res executor.Result) {
+	_ = os.MkdirAll(filepath.Join(loop.RunsDir(root), id), 0o755)
+	contenido := fmt.Sprintf("=== consulta · %d de salida · $%.3f\n--- prompt\n%s\n--- respuesta\n%s\n", res.Tokens.Output, res.Tokens.CostUSD, prompt, res.Text)
+	_ = os.WriteFile(filepath.Join(loop.RunsDir(root), id, "consulta.log"), []byte(contenido), 0o644)
 }
 
 // guardarLogEsqueleto deja el prompt y la salida del arquitecto junto a

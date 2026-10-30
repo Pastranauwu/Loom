@@ -70,6 +70,7 @@ func newRootCmd() *cobra.Command {
 		newUsageCmd(),
 		newModelosCmd(),
 		newArchiveCmd(),
+		newAnswerCmd(),
 		newRepararCmd(),
 		newLimpiarCmd(),
 		newGraphCmd(),

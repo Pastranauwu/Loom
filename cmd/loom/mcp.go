@@ -61,7 +61,7 @@ var manualAgentes string
 // instruccionesMCP reach every MCP client on connect, so codex and opencode
 // get the same role the loom ide prompt gives claude.
 const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. Never write the builders' code yourself.
-Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first) → loom_archive when ship all passed: one spec is one version.
+Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply (if the architect asks, loom_answer and apply again) → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first) → loom_archive when ship all passed: one spec is one version.
 Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
 Call loom_manual once for the full guide before your first heavy tool.`
 
@@ -217,8 +217,12 @@ func mcpTools(exe string) []mcp.Tool {
 						return "", err
 					}
 					d, err := boardDelta(dir, raw, on(a, "full"))
-					if err != nil || !strings.HasPrefix(d, "no changes") || time.Now().After(hasta) {
-						return d, err
+					// "no tasks" también espera: mientras el arquitecto
+					// planea no hay tareas, y volver al instante hacía que
+					// el conductor sondeara durante toda la planeación
+					fin := terminoVuelo(dir)
+					if err != nil || fin != "" || (!strings.HasPrefix(d, "no changes") && d != "no tasks") || time.Now().After(hasta) {
+						return d + fin, err
 					}
 					time.Sleep(esperaBoard)
 				}
@@ -246,6 +250,21 @@ func mcpTools(exe string) []mcp.Tool {
 				return args, nil
 			}),
 		quick("loom_stop", "Stop running tasks.", nil, fixed("stop", "--json")),
+		{Name: "loom_answer", Description: "Answer the architect's questions (loom_apply stops with them before writing anything). One answer per question, in order; empty = its default. Settle what you can yourself; ask the human only what you cannot. Then call loom_apply again: the architect continues its same session.",
+			Schema: schema(map[string]string{"answers": "array:one answer per question"}, "answers"),
+			Call: func(a map[string]any) (string, error) {
+				dir, err := projectDir(a)
+				if err != nil {
+					return "", err
+				}
+				args := []string{"answer", "--json", "--"}
+				if l, ok := a["answers"].([]any); ok {
+					for _, x := range l {
+						args = append(args, fmt.Sprint(x))
+					}
+				}
+				return runQuick(exe, dir, args)
+			}},
 		quick("loom_archive", "Close the version: after loom_ship all passed every acceptance command, file the spec and its result in .loom/historial, set the shipped tasks aside and leave the spec blank for the next version. Refuses if the last joint delivery did not pass. Never archive by moving .loom files yourself.", nil, fixed("archive", "--json")),
 		{Name: "loom_task_show", Description: "Contract of one task: what it may touch, what it may not, exposes, weight, retries, network.",
 			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
@@ -510,7 +529,16 @@ func runDetached(exe, dir string, args []string) (string, error) {
 		return "", err
 	}
 	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	v := &vuelo{fin: make(chan struct{}), log: log}
+	vistoMu.Lock()
+	vuelos[dir] = v
+	vistoMu.Unlock()
+	go func() {
+		err := cmd.Wait()
+		v.err = err
+		close(v.fin)
+		done <- err
+	}()
 	name := filepath.Base(log)
 	select {
 	case err := <-done:
@@ -522,6 +550,46 @@ func runDetached(exe, dir string, args []string) (string, error) {
 	case <-time.After(2 * time.Second):
 		return fmt.Sprintf("started · pid %d · log %s · wait with loom_board wait: 600, tail with loom_log", cmd.Process.Pid, name), nil
 	}
+}
+
+// vuelo es el último comando pesado lanzado en un proyecto: loom_board
+// con wait vuelve cuando termina, con la cola de su log, en vez de
+// esperar los 600 s sobre un tablero que ya no va a cambiar.
+type vuelo struct {
+	fin chan struct{}
+	err error
+	log string
+}
+
+var vuelos = map[string]*vuelo{} // dir → último comando pesado
+
+// terminoVuelo devuelve, una sola vez, el aviso de que el comando pesado
+// del proyecto terminó con las últimas líneas de su log; "" si sigue o no hay.
+func terminoVuelo(dir string) string {
+	vistoMu.Lock()
+	v := vuelos[dir]
+	vistoMu.Unlock()
+	if v == nil {
+		return ""
+	}
+	select {
+	case <-v.fin:
+	default:
+		return ""
+	}
+	vistoMu.Lock()
+	delete(vuelos, dir)
+	vistoMu.Unlock()
+	estado := "ok"
+	if v.err != nil {
+		estado = "failed: " + v.err.Error()
+	}
+	b, _ := os.ReadFile(v.log)
+	lineas := strings.Split(strings.TrimSpace(string(b)), "\n")
+	if len(lineas) > 12 {
+		lineas = lineas[len(lineas)-12:]
+	}
+	return fmt.Sprintf("\n%s ended (%s) · last lines:\n%s", filepath.Base(v.log), estado, strings.Join(lineas, "\n"))
 }
 
 var (

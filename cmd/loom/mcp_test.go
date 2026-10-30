@@ -223,3 +223,23 @@ if [ $n -ge 3 ]; then echo '{"lista":[{"id":"T-001","titulo":"a"}]}'; else echo 
 		t.Fatalf("sin wait responde al momento: %q", out)
 	}
 }
+
+func TestTerminoVueloAvisaUnaVez(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "x.log")
+	if err := os.WriteFile(log, []byte("planeando\n✓ 4 tareas\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	v := &vuelo{fin: make(chan struct{}), log: log}
+	vuelos[dir] = v
+	if terminoVuelo(dir) != "" {
+		t.Fatal("sigue corriendo: no hay aviso")
+	}
+	close(v.fin)
+	if got := terminoVuelo(dir); !strings.Contains(got, "ended (ok)") || !strings.Contains(got, "4 tareas") {
+		t.Fatalf("aviso = %q", got)
+	}
+	if terminoVuelo(dir) != "" {
+		t.Error("el aviso sale una sola vez")
+	}
+}

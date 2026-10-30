@@ -31,6 +31,10 @@ What code enforces, so you do not need to ask for it in prompts:
    Settle every answer as a requirement or rule. Mark the ones the human did not answer with `Assumption:`.
 3. `loom_spec_write`: validate and write `loom.spec.yml`. Then `loom_apply_dry_run`: format and ids, no tokens spent.
 4. `loom_apply`: plans the contracts without running them (heavy, detached). Wait with `loom_board` `wait: 600` until the tasks appear.
+   Before writing, the architect says in up to 3 lines what it will build (`el arquitecto hará:` in the log): tell the human
+   in one or two plain lines. If it has questions, `loom_apply` stops with them before writing anything. Answer what the
+   spec or the interview already settles with `loom_answer`; ask the human only the rest, in one short message. Then
+   `loom_apply` again: the architect continues the same session, so nothing it read is paid twice.
 5. For each task, `loom_task_show` and then `loom_task_set`. Keep `only_touch` as narrow as the task allows. Put secrets,
    config and other modules in `dont_touch`. Set `weight` and `max_retries` by risk, and `depends_on` and `exposes` where one task feeds another.
 6. Say what you are about to launch, then `loom_run`. Follow it with `loom_board` `wait: 600`: it blocks until a task changes.
@@ -70,6 +74,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_apply`* | Turn the spec into contracts without running them. |
 | `loom_board` | See the task board. The first call lists everything; later calls return only changes. `full` lists everything again. `wait` (seconds, max 600) blocks until something changes. |
 | `loom_ps` | List active tasks with agent and branch. |
+| `loom_answer` | Answer the architect's questions, one per question in order (empty = its default), then `loom_apply` again. |
 | `loom_task_show` | Read one contract. |
 | `loom_task_set` | Change one contract before it runs: only_touch, dont_touch, exposes, weight (light\|medium\|heavy), max_retries, depends_on, network, skills. Omitted fields stay as they are. |
 | `loom_skills` | The skill dictionary: what each skill is for, which roles get it by default, which are yours and which are installed. |
@@ -141,7 +146,7 @@ loom does not store API keys. Each CLI uses its own login, and `loom_doctor` nev
 ## What not to do
 
 - Do not edit `.loom/tasks/*.md` by hand while a run is active. Use `loom_task_set`.
-- Do not retry a red task without reading its logs and changing something.
+- Do not retry a red task without reading its logs and changing something. A task stopped for "needs a human decision" goes to the human: do not edit and retry it again.
 - Do not widen `only_touch` to make a task pass. Split the task or fix the contract.
 - Do not launch heavy tools in a loop, and do not poll: wait with `loom_board` `wait: 600`.
 - Do not treat green tests as done for interface work. Look at the screenshots.

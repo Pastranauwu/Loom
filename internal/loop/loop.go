@@ -281,6 +281,12 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 	arbolBase, _ := gitRun(o.Room.Path, "rev-parse", "--verify", "--quiet", partida+"^{tree}")
 	arbolBase = strings.TrimSpace(arbolBase)
 	tope := TopeIntentos * limite
+	// editar el contrato reinicia el tope: sin un techo total, un
+	// conductor podía editar y reintentar sin fin. Al doble, decide el humano
+	if total := intentosPagados(previos, time.Time{}, ""); total >= 2*tope {
+		motivo := fmt.Sprintf(idioma.T("%d intentos pagados sin verde, contando ediciones del contrato · la tarea necesita una decisión del humano: dividirla, cambiar el spec o quitarla"), total)
+		return Outcome{Intentos: 0, UltimoError: motivo, Pregunta: motivo, NoEscalar: true}, nil
+	}
 	if usados := intentosPagados(previos, contratoEditado(o.Root, o.Task.ID), arbolBase); usados >= tope {
 		motivo := fmt.Sprintf(idioma.T("tope de %d intentos agotado · edita %s (listo_cuando, tocar_solo o notas) y reintenta"), tope, o.Task.ID)
 		return Outcome{Intentos: 0, UltimoError: motivo, Pregunta: motivo, NoEscalar: true}, nil

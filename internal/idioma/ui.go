@@ -16,6 +16,12 @@ func T(es string) string {
 // textos maps each Spanish UI text to its English version. Keep the printf
 // verbs in the same order.
 var textos = map[string]string{
+	"%d intentos pagados sin verde, contando ediciones del contrato · la tarea necesita una decisión del humano: dividirla, cambiar el spec o quitarla": "%d paid attempts without green, counting contract edits · the task needs a human decision: split it, change the spec or remove it",
+	"· el arquitecto no dio su resumen · sigue sin consulta": "· the architect gave no summary · continuing without the check-in",
+	"· el arquitecto hará: %s":                               "· the architect will build: %s",
+	"el arquitecto tiene preguntas antes de escribir · contesta con loom answer \"<r1>\" \"<r2>\" (vacío = su default) y vuelve a correr apply": "the architect has questions before writing · answer with loom answer \"<a1>\" \"<a2>\" (empty = its default) and run apply again",
+	"✓ respuestas guardadas · vuelve a correr apply: el arquitecto sigue su misma sesión":                                                       "✓ answers saved · run apply again: the architect continues its same session",
+	"no hay preguntas pendientes del arquitecto": "the architect has no pending questions",
 	"· revisión visual apagada · %s no ve imágenes y ningún peso de modelos: ve · pon un modelo claude en el rol revisor_visual": "· visual review off · %s cannot see images and no models: weight can · set a claude model for the revisor_visual role",
 	"· revisión visual con %s · %s no ve imágenes": "· visual review with %s · %s cannot see images",
 	"· %s · %d capturas iguales a otra pantalla (¿redirige al login?) · fuera de la revisión · captura con sesión en screens_script": "· %s · %d screenshots identical to another screen (login redirect?) · left out of the review · capture with a session in screens_script",

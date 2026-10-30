@@ -3,6 +3,9 @@
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
 ## Sin publicar
+**El arquitecto consulta antes de escribir:** paso 1 en la misma sesión: dice en hasta 3 líneas qué hará y, solo si un mal supuesto tiraría el trabajo, hasta 3 preguntas con su default. `apply` se detiene con ellas; el conductor contesta lo que el spec ya resuelve con `loom_answer` (`loom answer`) y pregunta al humano solo el resto. En terminal se preguntan ahí mismo.
+**Sin sondeo durante la planeación:** `loom_board` con `wait` ya no vuelve al instante con "no tasks" mientras el arquitecto trabaja, y vuelve en cuanto termina el comando pesado, con la cola de su log.
+**Techo total de intentos:** editar el contrato reinicia el tope, pero al doble de intentos pagados la tarea se detiene y pide una decisión del humano.
 **Versiones cerradas por MCP:** `loom_archive` cierra la versión después de un `ship --all` verde; el manual y el rol del conductor explican el ciclo spec → ship → archive y prohíben archivar moviendo `.loom/` a mano. `archive` aparta contrato, estado y runs de las tareas entregadas en `.loom/archivo/NNNN-<feature>/`: el siguiente spec arranca con el tablero limpio y un id repetido ya no hereda intentos viejos. Sale `loom_task_get`, duplicado de `loom_task_show`.
 **Revisión visual que ve:** el revisor visual no corre en un modelo sin visión (deepseek y demás de opencode fuera de claude/gpt/gemini): busca otro peso que vea o se apaga con aviso. Las capturas idénticas a otra pantalla (una ruta que redirige al login) salen de la revisión con aviso y el revisor no las pide.
 **Pruebas viejas protegidas sin modelo:** un intento que borra entero un archivo de prueba que ya existía, sin ruta exacta en `only_touch` ni `Obsolete:`, lo recupera antes de verificar. Era el rechazo más común del revisor.
