@@ -4,6 +4,9 @@ Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `
 
 ## Sin publicar
 
+## v2.7.1 (30 oct 2026)
+Corrige la prueba de `restaurarPruebasBorradas`, que fallaba en CI sin identidad de git y frenó el release de v2.7.0.
+
 ## v2.7.0 (30 oct 2026)
 **El arquitecto consulta antes de escribir:** paso 1 en la misma sesión: dice en hasta 3 líneas qué hará y, solo si un mal supuesto tiraría el trabajo, hasta 3 preguntas con su default. `apply` se detiene con ellas; el conductor contesta lo que el spec ya resuelve con `loom_answer` (`loom answer`) y pregunta al humano solo el resto. En terminal se preguntan ahí mismo.
 **Sin sondeo durante la planeación:** `loom_board` con `wait` ya no vuelve al instante con "no tasks" mientras el arquitecto trabaja, y vuelve en cuanto termina el comando pesado, con la cola de su log.

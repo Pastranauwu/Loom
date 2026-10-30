@@ -273,11 +273,11 @@ func TestRestaurarPruebasBorradasSinObsoleto(t *testing.T) {
 	root := repoConCommit(t)
 	escribir(t, root, "panel/tests/test_viejo.py", "def test_a(): pass\n")
 	gitCmd(t, root, "add", "-A")
-	gitCmd(t, root, "commit", "-q", "-m", "base")
+	gitCmd(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "base")
 	desde := cabeza(t, root)
 	escribir(t, root, "panel/tests/test_mio.py", "def test_b(): pass\n")
 	gitCmd(t, root, "add", "-A")
-	gitCmd(t, root, "commit", "-q", "-m", "intento 1")
+	gitCmd(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "intento 1")
 	antes := cabeza(t, root)
 
 	os.Remove(filepath.Join(root, "panel/tests/test_viejo.py"))
