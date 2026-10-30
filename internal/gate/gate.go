@@ -231,7 +231,7 @@ func checkFallaHoy(ctx context.Context, root, listoCuando string, timeout time.D
 		if f := task.PruebaSinEscribir(root, listoCuando); f != "" {
 			return Check{"falla hoy", true, "verde solo porque " + f + " todavía no existe"}
 		}
-		return Check{"falla hoy", false, "listo_cuando ya pasa · la tarea no tiene sentido"}
+		return Check{"falla hoy", false, "listo_cuando ya pasa · nada que hacer: si el cambio es nuevo, escribe primero la prueba que lo exige (que falle hoy) y ponla en listo_cuando; si ya estaba hecho, borra la tarea con loom task rm"}
 	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {

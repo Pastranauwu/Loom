@@ -138,8 +138,8 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	}
 	// cómo se ve hoy, si ya se sabe levantar: el arquitecto planea un
 	// cambio visual contra la pantalla, no contra el código
-	antes := tomarCapturas(ctx, r.Path, cfg.Pantallas, r.Puerto, filepath.Join(loop.RunsDir(root), id, "antes"))
-	pd := esqueleto.Pedido{Texto: pedido, Previo: previo, PrimerID: ids[1], SinDocker: sinDocker, Capturas: antes}
+	antes, sinSesion := capturas.SinRepetir(tomarCapturas(ctx, r.Path, cfg.Pantallas, r.Puerto, filepath.Join(loop.RunsDir(root), id, "antes")))
+	pd := esqueleto.Pedido{Texto: pedido, Previo: previo, PrimerID: ids[1], SinDocker: sinDocker, Capturas: antes, SinSesion: sinSesion}
 	// la respuesta guardada se busca por el pedido sin el estado de la
 	// suite: su salida cambia por tiempos y tiraría un plan ya pagado
 	clave := esqueleto.Prompt(pd, pctx)
@@ -275,6 +275,11 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 			// después de elegir una foto, y nadie lo vio nunca
 			if p, _ := cfg.Pantallas.Completar(res.Pantallas); !p.Vacia() && p.Script == "" && tocaUI(res.Tareas) {
 				problemas = append(problemas, "hay tareas de interfaz y falta \"pantallas.script\": escribe un script que recorra con un navegador los flujos que cambian (p. ej. elegir una foto y ver el formulario) y guarde un PNG por paso en $CAPTURAS; sin él la revisión visual no ve esas pantallas")
+			}
+			// las rutas cayeron en el login: sin sesión en el script nadie
+			// ve el panel, y la luz verde visual no vale
+			if p, _ := cfg.Pantallas.Completar(res.Pantallas); len(sinSesion) > 0 && p.Script != "" && !capturas.UsaSesion(r.Path, p.Script) {
+				problemas = append(problemas, "las rutas "+strings.Join(sinSesion, ", ")+" redirigen al login y \"pantallas.script\" no inicia sesión: la semilla debe crear el usuario $SCREENS_USER / $SCREENS_PASSWORD y el script entrar con él antes de capturar")
 			}
 			// un script roto le muestra al revisor una página de error y le
 			// hace rechazar tareas que no lo son; se prueba antes de repartir

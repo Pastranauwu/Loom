@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"path/filepath"
@@ -9,7 +10,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/room"
 	"github.com/Pastranauwu/loom/internal/spec"
+	"github.com/Pastranauwu/loom/internal/state"
 	"github.com/Pastranauwu/loom/internal/task"
 	"github.com/Pastranauwu/loom/internal/tui"
 )
@@ -35,6 +38,11 @@ Con --run (o -r), lanza inmediatamente la ejecución en paralelo (loom run).`,
 			root, err := projectRoot()
 			if err != nil {
 				return err
+			}
+			// apply planea con el arquitecto, minutos de modelo: loom stop
+			// tiene que poder pararlo igual que a run
+			if !dryRun {
+				defer marcarCorrida(root)()
 			}
 			_, err = runApplyTodos(root, file, runImmediately, dryRun)
 			return err
@@ -87,6 +95,9 @@ func runApply(root, filePath string, runImmediately, dryRun bool) (spec.Spec, er
 		s.Previos, s.PreviosIDs = prev.Requirements()
 		s.Delta = d
 	}
+	if ok {
+		avisarVerdesSinEntregar(root)
+	}
 	viejo, _ := spec.LoadFeatureState(root)
 	s, err = aplicarSpec(root, s, filepath.Base(filePath), runImmediately, dryRun)
 	if err == nil && !dryRun {
@@ -98,6 +109,26 @@ func runApply(root, filePath string, runImmediately, dryRun bool) (spec.Spec, er
 		}
 	}
 	return s, err
+}
+
+// avisarVerdesSinEntregar dice qué trabajo verde de la versión anterior
+// sigue sin entregar cuando el spec cambia sin `loom archive`: run lo suma
+// a la integración y ship --all lo entrega junto con lo nuevo.
+func avisarVerdesSinEntregar(root string) {
+	tareas, err := task.List(config.TasksDir(root))
+	if err != nil {
+		return
+	}
+	ctx := context.Background()
+	var ids []string
+	for _, t := range tareas {
+		if st, err := state.Get(root, t.ID); err == nil && st.Estado == state.Lista && room.RamaExiste(ctx, root, t.ID) {
+			ids = append(ids, t.ID)
+		}
+	}
+	if len(ids) > 0 {
+		out.Line(idioma.T("· verdes sin entregar de la versión anterior: %s · run las suma a la integración y ship --all las entrega con lo nuevo (o cierra antes la versión con ship --all y archive)"), strings.Join(ids, ", "))
+	}
 }
 
 // runApplyTodos aplica el spec de -f o, sin él, todos los specs vivos

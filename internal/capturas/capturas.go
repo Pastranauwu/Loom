@@ -47,6 +47,47 @@ type Pantallas struct {
 	// Max es cuántas capturas ve el revisor visual por intento: cada
 	// imagen se paga en tokens. 0 = DefaultMax.
 	Max int `json:"max,omitempty"`
+	// Usuario y Clave son la cuenta con que la semilla siembra y el script
+	// inicia sesión ($SCREENS_USER, $SCREENS_PASSWORD). Vacíos = los de
+	// UsuarioCapturas/ClaveCapturas: la semilla y el script coinciden
+	// sin que nadie los declare. Credenciales de desarrollo, nunca reales.
+	Usuario string `json:"usuario,omitempty"`
+	Clave   string `json:"clave,omitempty"`
+}
+
+// Cuenta por defecto de las capturas: example.com está reservado y pasa
+// cualquier validador de correo.
+const (
+	UsuarioCapturas = "loom@example.com"
+	ClaveCapturas   = "loom-capturas-1"
+)
+
+// Credenciales devuelve las variables con la cuenta de capturas.
+func (p Pantallas) Credenciales() []string {
+	u, c := p.Usuario, p.Clave
+	if strings.TrimSpace(u) == "" {
+		u = UsuarioCapturas
+	}
+	if strings.TrimSpace(c) == "" {
+		c = ClaveCapturas
+	}
+	return []string{"SCREENS_USER=" + u, "SCREENS_PASSWORD=" + c}
+}
+
+// UsaSesion reporta si el script nombra $SCREENS_USER, en el comando o en
+// un archivo que el comando ejecuta. Es lo que se le exige cuando las
+// rutas redirigen al login.
+func UsaSesion(dir, script string) bool {
+	if strings.Contains(script, "SCREENS_USER") {
+		return true
+	}
+	for _, f := range strings.Fields(script) {
+		b, err := os.ReadFile(filepath.Join(dir, strings.Trim(f, `"'`)))
+		if err == nil && strings.Contains(string(b), "SCREENS_USER") {
+			return true
+		}
+	}
+	return false
 }
 
 // DefaultMax es el tope de capturas por revisión visual. En una corrida
@@ -105,6 +146,8 @@ func (p Pantallas) Completar(o Pantallas) (Pantallas, bool) {
 	llenar(&p.Semilla, o.Semilla)
 	llenar(&p.Script, o.Script)
 	llenar(&p.Muestra, o.Muestra)
+	llenar(&p.Usuario, o.Usuario)
+	llenar(&p.Clave, o.Clave)
 	if len(p.Rutas) == 0 && len(o.Rutas) > 0 {
 		p.Rutas, cambio = o.Rutas, true
 	}
@@ -222,7 +265,7 @@ func tomar(ctx context.Context, dir string, p Pantallas, puerto int, env []strin
 	if err := esperar(ctx, base, Espera); err != nil {
 		return nil, nil, fmt.Errorf(idioma.T("%w en %s · %s · detalle en %s"), ErrNoLevanta, base, err, registro.Name())
 	}
-	envApp := append(append([]string{}, app.Env...), "BASE_URL="+base)
+	envApp := append(append(append([]string{}, app.Env...), "BASE_URL="+base), p.Credenciales()...)
 	// la semilla falla en abierto: sin datos se captura igual, vacío
 	if strings.TrimSpace(p.Semilla) != "" {
 		_ = auxiliar(ctx, dir, p.Semilla, envApp, registro, 2*time.Minute)

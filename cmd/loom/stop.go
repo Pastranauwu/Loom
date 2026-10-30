@@ -19,6 +19,10 @@ func corridaPath(root string) string {
 	return filepath.Join(root, ".loom", "corrida.pid")
 }
 
+func entregaPath(root string) string {
+	return filepath.Join(root, ".loom", "entrega.pid")
+}
+
 // marcarCorrida anota este proceso como la corrida viva y devuelve con
 // qué soltarla. Si ya está anotado (up que llama a run), no hace nada:
 // así el run de adentro no borra la marca antes de que up entregue.
@@ -61,28 +65,29 @@ func newStopCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			b, err := os.ReadFile(corridaPath(root))
-			if errors.Is(err, os.ErrNotExist) {
+			// la corrida (run, up, apply) y la entrega (ship) dejan cada
+			// una su marca: loom stop para las dos
+			var paradosPids []int
+			for _, marca := range []string{corridaPath(root), entregaPath(root)} {
+				b, err := os.ReadFile(marca)
+				if err != nil {
+					continue
+				}
+				pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+				if err != nil || !esLoom(pid) {
+					_ = os.Remove(marca)
+					continue
+				}
+				if err := pararProceso(pid); err != nil {
+					return errors.New(idioma.T("no se pudo parar la corrida ") + strconv.Itoa(pid) + " · " + err.Error())
+				}
+				_ = os.Remove(marca)
+				paradosPids = append(paradosPids, pid)
+			}
+			if len(paradosPids) == 0 {
 				out.Line(idioma.T("no hay corrida en curso"))
 				return nil
 			}
-			if err != nil {
-				return err
-			}
-			pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
-			if err != nil {
-				_ = os.Remove(corridaPath(root))
-				return errors.New(idioma.T("corrida.pid corrupto · se borró · no había nada que parar"))
-			}
-			if !esLoom(pid) {
-				_ = os.Remove(corridaPath(root))
-				out.Line(idioma.T("la corrida %d ya no existe · marca borrada"), pid)
-				return nil
-			}
-			if err := pararProceso(pid); err != nil {
-				return errors.New(idioma.T("no se pudo parar la corrida ") + strconv.Itoa(pid) + " · " + err.Error())
-			}
-			_ = os.Remove(corridaPath(root))
 
 			// lo que estaba en curso queda detenido: sin esto el tablero
 			// la pinta corriendo hasta que el latido se pone rancio
@@ -97,7 +102,9 @@ func newStopCmd() *cobra.Command {
 					paradas = append(paradas, s.ID)
 				}
 			}
-			out.Line(idioma.T("corrida %d parada"), pid)
+			for _, pid := range paradosPids {
+				out.Line(idioma.T("corrida %d parada"), pid)
+			}
 			if len(paradas) > 0 {
 				out.Line(idioma.T("detenidas · %s · retómalas con loom run --retry"), strings.Join(paradas, ", "))
 			}
@@ -111,7 +118,7 @@ func newStopCmd() *cobra.Command {
 // segundo corría las pruebas sobre un árbol a medio montar. Una marca de
 // un proceso que ya murió no cuenta: se toma encima.
 func tomarEntrega(root string) (func(), error) {
-	p := filepath.Join(root, ".loom", "entrega.pid")
+	p := entregaPath(root)
 	pid := strconv.Itoa(os.Getpid())
 	if b, err := os.ReadFile(p); err == nil {
 		otro := strings.TrimSpace(string(b))

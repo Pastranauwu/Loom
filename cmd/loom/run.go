@@ -291,7 +291,7 @@ func ejecutarOlas(ctx context.Context, root string, cfg config.Config, ex execut
 	procesadas := map[string]bool{}
 	integrada := map[string]bool{}
 
-	tieneDeps := false
+	tieneDeps := verdesSinEntregar(ctx, root, aprobadas)
 	for _, t := range aprobadas {
 		if len(t.DependeDe) > 0 {
 			tieneDeps = true
@@ -471,6 +471,17 @@ func sembrarVerdesPrevias(ctx context.Context, root string, aprobadas []task.Tas
 			previas = append(previas, d)
 		}
 	}
+	// lo verde sin entregar de otro spec también entra, aunque nadie
+	// dependa de él: con el spec reescrito sin archivar, la integración
+	// salía de la base sin ese trabajo y la entrega lo perdía
+	if todas, err := task.List(config.TasksDir(root)); err == nil {
+		for _, t := range todas {
+			if !enOla[t.ID] && !vistas[t.ID] && room.RamaExiste(ctx, root, t.ID) {
+				vistas[t.ID] = true
+				previas = append(previas, t.ID)
+			}
+		}
+	}
 	sort.Strings(previas)
 
 	var results []runResult
@@ -494,6 +505,29 @@ func sembrarVerdesPrevias(ctx context.Context, root string, aprobadas []task.Tas
 		integrada[id] = true
 	}
 	return results
+}
+
+// verdesSinEntregar reporta si hay una tarea lista con rama fuera de
+// aprobadas: su trabajo tiene que entrar a la integración aunque ninguna
+// de las nuevas dependa de ella.
+func verdesSinEntregar(ctx context.Context, root string, aprobadas []task.Task) bool {
+	enOla := map[string]bool{}
+	for _, t := range aprobadas {
+		enOla[t.ID] = true
+	}
+	todas, err := task.List(config.TasksDir(root))
+	if err != nil {
+		return false
+	}
+	for _, t := range todas {
+		if enOla[t.ID] {
+			continue
+		}
+		if s, err := state.Get(root, t.ID); err == nil && s.Estado == state.Lista && room.RamaExiste(ctx, root, t.ID) {
+			return true
+		}
+	}
+	return false
 }
 
 // verdesPerdidas devuelve las dependencias de las tareas por correr que
@@ -1106,6 +1140,9 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 	}
 	if !recursiva {
 		opts.Presupuesto = presupuesto
+		if cfg.TopeTokensTarea > 0 {
+			opts.Presupuesto = nuevoTopeTarea(root, t.ID, cfg.TopeTokensTarea, presupuesto)
+		}
 		opts.Ventanas = ventanasReg
 		// el revisor solo en tareas planas: la recursión ya tiene su
 		// supervisor, y revisar dos veces la misma hoja gasta doble.
@@ -1360,4 +1397,40 @@ func patronesPrueba(cfg config.Config, root string) []string {
 		return cfg.PatronesPrueba
 	}
 	return config.DefaultTestPatterns()
+}
+
+// topeTarea suma al presupuesto de la corrida el de una sola tarea
+// (`tope_tokens_tarea`), sembrado con lo que ya gastó en corridas
+// anteriores: una reescritura de 4 líneas llegó a quemar 1.4M tokens en
+// reintentos sin desbloquear nada.
+type topeTarea struct {
+	id      string
+	tope    int
+	tarea   *budget.Contador
+	global  *budget.Contador
+	agotada bool
+}
+
+func nuevoTopeTarea(root, id string, tope int, global *budget.Contador) *topeTarea {
+	t := &topeTarea{id: id, tope: tope, tarea: budget.Nuevo(tope), global: global}
+	if !t.tarea.Gastar(budget.GastoDeTarea(root, id)) {
+		_ = t.tarea.Gastar(tope) // ya lo pasó: el primer intento corta
+	}
+	return t
+}
+
+func (t *topeTarea) Gastar(n int) bool {
+	g := t.global.Gastar(n)
+	if !t.tarea.Gastar(n) {
+		t.agotada = true
+		return false
+	}
+	return g
+}
+
+func (t *topeTarea) Motivo() string {
+	if !t.agotada {
+		return ""
+	}
+	return fmt.Sprintf(idioma.T("%s pasó su tope de %s tokens (tope_tokens_tarea) · el contrato suele estar mal: revisa listo_cuando y tocar_solo antes de reintentar"), t.id, budget.FormatearGasto(t.tope))
 }

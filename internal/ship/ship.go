@@ -40,6 +40,9 @@ type Resultado struct {
 	Ruido       int      `json:"ruido,omitempty"`
 	Conflicto   bool     `json:"conflicto,omitempty"`
 	Brecha      *float64 `json:"brecha,omitempty"` // visible_pct - hidden_pct del examen ciego
+	// RuidoPendiente es el ruido que con RuidoAlFinal no frenó aquí: la
+	// entrega conjunta lo busca en lo integrado.
+	RuidoPendiente []Hallazgo `json:"-"`
 }
 
 // Opciones carries the exit gate's dependencies.
@@ -69,6 +72,10 @@ type Opciones struct {
 	// la base ya arregló después (un timeout corregido en main
 	// frenaba a T-048), así que ahí basta su listo_cuando.
 	SuiteAlIntegrar bool
+	// RuidoAlFinal deja pasar el ruido y lo devuelve en RuidoPendiente:
+	// en la entrega conjunta una tarea posterior pudo corregirlo, y
+	// juzgar solo el commit de la tarea la frenaba para siempre.
+	RuidoAlFinal bool
 }
 
 // Run executes the nine steps in order and returns the gate result.
@@ -141,11 +148,13 @@ func Run(ctx context.Context, o Opciones) Resultado {
 		}
 	}
 	res.Ruido = len(frena) + len(avisa)
-	if len(frena) > 0 {
+	if len(frena) > 0 && o.RuidoAlFinal {
+		res.RuidoPendiente = frena
+		apuntar(Paso{"ruido", true, idioma.T("se revisa sobre lo integrado: ") + resumenHallazgos(frena)})
+	} else if len(frena) > 0 {
 		apuntar(Paso{"ruido", false, resumenHallazgos(frena)})
 		return res
-	}
-	if len(avisa) > 0 {
+	} else if len(avisa) > 0 {
 		apuntar(Paso{"ruido", true, idioma.T("revísalo a ojo: ") + resumenHallazgos(avisa)})
 	} else {
 		apuntar(Paso{"ruido", true, idioma.T("sin ruido")})

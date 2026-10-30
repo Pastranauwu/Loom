@@ -79,15 +79,23 @@ func List(dir string) ([]Task, error) {
 // NextID scans dir and returns the first free correlative ID.
 func NextID(dir string) (string, error) {
 	entries, err := os.ReadDir(dir)
-	if errors.Is(err, os.ErrNotExist) {
-		return "T-001", nil
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	max := 0
+	nombres := make([]string, 0, len(entries))
 	for _, e := range entries {
-		m := filePattern.FindStringSubmatch(e.Name())
+		nombres = append(nombres, e.Name())
+	}
+	// los contratos que `archive` apartó siguen contando: con el id
+	// repetido, la rama y el cuarto viejos de T-009 se colaban en la
+	// corrida nueva con conflictos de merge
+	viejos, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), "archivo", "*", "tasks", "T-*.md"))
+	for _, v := range viejos {
+		nombres = append(nombres, filepath.Base(v))
+	}
+	max := 0
+	for _, nombre := range nombres {
+		m := filePattern.FindStringSubmatch(nombre)
 		if m == nil {
 			continue
 		}

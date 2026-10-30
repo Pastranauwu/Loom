@@ -23,16 +23,16 @@ func escanearRuido(diff string, archivos []string) []Hallazgo {
 		entrada := esPuntoDeEntrada(ad.nombre) || declaraEntrada(ad.lineas)
 		for _, linea := range ad.lineas {
 			if t := tipoDebug(linea, entrada); t != "" {
-				h = append(h, Hallazgo{Tipo: t, Archivo: ad.nombre, Detalle: recortar(linea)})
+				h = append(h, Hallazgo{Tipo: t, Archivo: ad.nombre, Detalle: recortar(linea), linea: linea})
 			} else if !task.EsArchivoDePrueba(ad.nombre) && (idioma.Tiene(linea, idioma.Idea) || idioma.Tiene(linea, idioma.Casos)) {
 				// el contrato del stub era una instrucción para el agente;
 				// en el código entregado se pudre (100 líneas de
 				// contrato sobre una función de 130, ya contradiciéndola)
-				h = append(h, Hallazgo{Tipo: "contrato del esqueleto", Archivo: ad.nombre, Detalle: recortar(linea)})
+				h = append(h, Hallazgo{Tipo: "contrato del esqueleto", Archivo: ad.nombre, Detalle: recortar(linea), linea: linea})
 			} else if !esDirectiva(linea) && marcaHumana.MatchString(linea) {
-				h = append(h, Hallazgo{Tipo: "comentario humano", Archivo: ad.nombre, Detalle: recortar(linea)})
+				h = append(h, Hallazgo{Tipo: "comentario humano", Archivo: ad.nombre, Detalle: recortar(linea), linea: linea})
 			} else if esCodigoComentado(linea) {
-				h = append(h, Hallazgo{Tipo: "código comentado", Archivo: ad.nombre, Detalle: recortar(linea)})
+				h = append(h, Hallazgo{Tipo: "código comentado", Archivo: ad.nombre, Detalle: recortar(linea), linea: linea})
 			}
 		}
 		h = append(h, bloquesNarrativos(ad)...)
@@ -82,7 +82,7 @@ func tipoDebug(linea string, puntoDeEntrada bool) string {
 		if p.esSalida && puntoDeEntrada {
 			continue
 		}
-		if p.re.MatchString(linea) {
+		if p.re.MatchString(sinCadenas(linea)) {
 			return p.tipo
 		}
 	}
@@ -176,6 +176,15 @@ func esCodigoComentado(linea string) bool {
 	return false
 }
 
+// cadena es un literal entre comillas simples, dobles o invertidas.
+var cadena = regexp.MustCompile("\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`[^`]*`")
+
+// sinCadenas vacía los literales: assertNotIn("debugger", js) nombra el
+// depurador, no lo llama.
+func sinCadenas(linea string) string {
+	return cadena.ReplaceAllString(linea, `""`)
+}
+
 // formaDeSentencia es lo que una sentencia tiene y la prosa no: una
 // llamada con el paréntesis pegado al nombre, una asignación o un return.
 var formaDeSentencia = regexp.MustCompile(`\w\(|[^=!<>]=[^=>]|^return\b`)
@@ -225,7 +234,7 @@ func bloquesNarrativos(ad archivoDiff) []Hallazgo {
 	var racha []string
 	cerrar := func() {
 		if len(racha) > 2 && !rachaExenta(racha) {
-			h = append(h, Hallazgo{Tipo: "comentario narrativo", Archivo: ad.nombre, Detalle: recortar(racha[0])})
+			h = append(h, Hallazgo{Tipo: "comentario narrativo", Archivo: ad.nombre, Detalle: recortar(racha[0]), linea: racha[0]})
 		}
 		racha = nil
 	}
@@ -250,6 +259,11 @@ func rachaExenta(racha []string) bool {
 }
 
 func esComentario(s string) bool {
+	// "--" sin espacio es una variable CSS (--sombra-1: 0 1px;) o una
+	// bandera, no un comentario SQL/Lua
+	if strings.HasPrefix(s, "--") && !strings.HasPrefix(s, "-- ") && s != "--" {
+		return false
+	}
 	for _, m := range []string{"//", "#", "/*", "*", "--", "<!--"} {
 		if strings.HasPrefix(s, m) {
 			return true

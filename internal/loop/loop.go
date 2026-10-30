@@ -553,7 +553,11 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 			if code != nil && *code == 0 {
 				return Outcome{Verde: true, Intentos: intento}, nil
 			}
-			return Outcome{Verde: false, Intentos: intento, UltimoError: MotivoPresupuesto, Pregunta: MotivoPresupuesto}, nil
+			motivo := MotivoPresupuesto
+			if m, ok := o.Presupuesto.(interface{ Motivo() string }); ok && m.Motivo() != "" {
+				motivo = m.Motivo()
+			}
+			return Outcome{Verde: false, Intentos: intento, UltimoError: motivo, Pregunta: motivo}, nil
 		}
 
 		// la recursión dijo "no hay más camino": detenerse es el

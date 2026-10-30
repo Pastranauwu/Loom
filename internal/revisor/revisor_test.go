@@ -128,3 +128,15 @@ func TestPromptAcotaElJuicio(t *testing.T) {
 		}
 	}
 }
+
+func TestPromptLlevaObsoleto(t *testing.T) {
+	tk := task.Task{ID: "T-018", Titulo: "x", ListoCuando: "go test ./...",
+		Notas: "contexto\n\nObsolete: la aserción de test_panel que espera 3 columnas\nahora son 4\n\notra cosa"}
+	p := Prompt([]task.Task{tk}, "")
+	if !strings.Contains(p, "declared Obsolete (these test changes are allowed): la aserción de test_panel que espera 3 columnas ahora son 4") {
+		t.Fatalf("el prompt no lleva lo obsoleto:\n%s", p)
+	}
+	if strings.Contains(p, "otra cosa") {
+		t.Fatal("se llevó texto fuera de la sección")
+	}
+}

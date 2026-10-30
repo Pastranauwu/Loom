@@ -4,7 +4,9 @@ import (
 	"context"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -22,8 +24,8 @@ func newLimpiarCmd() *cobra.Command {
 		Short:   "libera los cuartos de las tareas que ya están en la rama base",
 		Long: `Cada cuarto es una copia del repo con sus dependencias instaladas: en un
 proyecto Node son más de 100 MB por tarea. limpiar quita el cuarto y la
-rama de cada tarea lista cuyo trabajo ya está en la rama base, y los de
-integración y entrega. No toca tareas pendientes, en curso o detenidas, ni
+rama de cada tarea lista cuyo trabajo ya está en la rama base, las ramas
+loom/T-00N que ya no tienen contrato, y los de integración y entrega. No toca tareas pendientes, en curso o detenidas, ni
 contratos, ni el registro de intentos.
 
 loom archive lo hace solo con las tareas del feature que archiva.`,
@@ -44,9 +46,21 @@ loom archive lo hace solo con las tareas del feature que archiva.`,
 			ctx := context.Background()
 			entregadas := ship.Entregadas(ctx, root, cfg.Base)
 			var ids []string
+			conContrato := map[string]bool{}
 			for _, t := range tareas {
+				conContrato[t.ID] = true
 				if st, err := state.Get(root, t.ID); err == nil && st.Estado == state.Lista && entregadas[t.ID] {
 					ids = append(ids, t.ID)
+				}
+			}
+			// una rama loom/T-00N sin contrato es de un feature archivado o
+			// de una tarea borrada: con el id repetido chocaba en la corrida nueva
+			if refs, err := exec.CommandContext(ctx, "git", "-C", root, "for-each-ref", "--format=%(refname:short)", "refs/heads/loom/T-*").Output(); err == nil {
+				for _, rama := range strings.Fields(string(refs)) {
+					if id := strings.TrimPrefix(rama, "loom/"); !conContrato[id] {
+						ids = append(ids, id)
+						out.Line(idioma.T("· rama huérfana %s · sin contrato, se borra"), rama)
+					}
 				}
 			}
 			n := liberarCuartos(ctx, root, ids)

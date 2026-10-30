@@ -249,7 +249,8 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return args, nil
 			}),
-		quick("loom_stop", "Stop running tasks.", nil, fixed("stop", "--json")),
+		quick("loom_stop", "Stop the run (run, up, apply) or delivery (ship) in progress and its agents.", nil, fixed("stop", "--json")),
+		quick("loom_status", "One line on branches: base branch and its tip, the _integra tip and how far ahead it is, green tasks not shipped yet, pending and stopped ones. Check it before ship or when branches confuse you.", nil, fixed("status", "--json")),
 		{Name: "loom_answer", Description: "Answer the architect's questions (loom_apply stops with them before writing anything). One answer per question, in order; empty = its default. Settle what you can yourself; ask the human only what you cannot. Then call loom_apply again: the architect continues its same session.",
 			Schema: schema(map[string]string{"answers": "array:one answer per question"}, "answers"),
 			Call: func(a map[string]any) (string, error) {
@@ -714,7 +715,7 @@ func writeSpec(dir, path, content string, force bool) (string, error) {
 		return "", errors.New("path must stay inside the project")
 	}
 	if _, err := spec.Parse([]byte(content)); err != nil {
-		return "", fmt.Errorf("spec does not parse: %w", err)
+		return "", fmt.Errorf("spec does not parse, nothing was written: %w", err)
 	}
 	if _, err := os.Stat(dest); err == nil && !force {
 		return "", fmt.Errorf("%s exists · pass force to overwrite", path)

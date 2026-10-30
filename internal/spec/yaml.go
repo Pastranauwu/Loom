@@ -22,6 +22,10 @@ func Parse(data []byte) (Spec, error) {
 	var root yaml.Node
 	dec := yaml.NewDecoder(strings.NewReader(string(data)))
 	if err := dec.Decode(&root); err != nil {
+		// "feature: Panel: exámenes" sin comillas es el caso típico
+		if strings.Contains(err.Error(), "mapping values are not allowed") {
+			return Spec{}, fmt.Errorf(idioma.T("%w · un valor con ': ' va entre comillas (feature: \"Panel: exámenes\")"), err)
+		}
 		return Spec{}, err
 	}
 	if len(root.Content) == 0 {

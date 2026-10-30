@@ -272,6 +272,7 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 			DryRun:  true, // el PR lo abre la entrega, no cada tarea
 			// la suite completa la corre integradas, sobre la base actual
 			SuiteAlIntegrar: true,
+			RuidoAlFinal:    true,
 		})
 		e.Tareas = append(e.Tareas, r)
 		if !r.Aprobado {
@@ -343,6 +344,19 @@ func EntregarTodas(ctx context.Context, o OpcionesEntrega) Entrega {
 		}
 	}
 	apuntar(Paso{"integrar", true, fmt.Sprintf(idioma.T("%d commits, uno por tarea"), len(ordenadas))})
+
+	// el ruido que dejó pasar cada esclusa se juzga sobre lo integrado:
+	// si una tarea posterior lo borró, el PR ya no lo lleva
+	for _, r := range e.Tareas {
+		if len(r.RuidoPendiente) == 0 {
+			continue
+		}
+		if vivo := ruidoVigente(path, r.RuidoPendiente); len(vivo) > 0 {
+			apuntar(Paso{"ruido " + r.ID, false, resumenHallazgos(vivo)})
+			return e
+		}
+		apuntar(Paso{"ruido " + r.ID, true, idioma.T("lo que marcó su esclusa ya no está en lo integrado")})
+	}
 
 	// 4. la suite completa sobre el conjunto ya integrado. La rama de
 	// entrega es un worktree nuevo: sin instalar, la suite de un
@@ -924,4 +938,20 @@ func construirImagenes(ctx context.Context, path string, timeout time.Duration) 
 		return "docker compose build · " + tail(string(salida)), false
 	}
 	return "docker compose build", true
+}
+
+// ruidoVigente devuelve los hallazgos que siguen en el árbol dir: la
+// línea marcada sigue en su archivo, o el temporal sigue existiendo.
+func ruidoVigente(dir string, hallazgos []Hallazgo) []Hallazgo {
+	var vivo []Hallazgo
+	for _, h := range hallazgos {
+		data, err := os.ReadFile(filepath.Join(dir, h.Archivo))
+		if err != nil {
+			continue
+		}
+		if l := strings.TrimSpace(h.linea); l == "" || strings.Contains(string(data), l) {
+			vivo = append(vivo, h)
+		}
+	}
+	return vivo
 }

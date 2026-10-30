@@ -269,61 +269,72 @@ func newTaskEditCmd() *cobra.Command {
 
 func newTaskRmCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "rm <id>",
-		Short: "elimina una tarea",
-		Args:  cobra.ExactArgs(1),
+		Use:   "rm <id>...",
+		Short: "elimina una o varias tareas",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id := args[0]
-			if err := validTaskID(id); err != nil {
-				return err
+			for _, id := range args {
+				if err := validTaskID(id); err != nil {
+					return err
+				}
 			}
 			root, err := projectRoot()
 			if err != nil {
 				return err
 			}
-			dir := config.TasksDir(root)
-			// lo que se pierde al borrarla se dice antes: en una corrida real, se
-			// borraron la tarea de cableado (verde, sin entregar) y la que
-			// escribía la prueba de punta a punta, y la entrega frenó en
-			// una aceptación que ya nadie podía cumplir
-			var avisos []string
-			if t, err := task.Load(dir, id); err == nil {
-				if st, err := state.Get(root, id); err == nil && st.Estado == state.Lista && room.RamaExiste(context.Background(), root, id) {
-					avisos = append(avisos, "su trabajo verde en "+room.Branch(id)+" no se va a entregar")
+			for _, id := range args {
+				if err := borrarTarea(root, id); err != nil {
+					return err
 				}
-				if f, err := spec.LoadFeatureState(root); err == nil {
-					for _, c := range f.AcceptanceCommands() {
-						if strings.Contains(t.ListoCuando, c) {
-							avisos = append(avisos, "la aceptación del feature sigue corriendo `"+c+"`, que cumplía esta tarea: la entrega va a frenar ahí (edita .loom/feature.json o vuelve a crear la tarea)")
-						}
-					}
-				}
-			}
-			if err := task.Remove(dir, id); err != nil {
-				return err
-			}
-			if err := state.Remove(root, id); err != nil {
-				return err
-			}
-			// las que dependían de ella quedarían bloqueadas para siempre
-			// esperando una tarea que ya no existe
-			liberadas, err := quitarDependencia(dir, id)
-			if err != nil {
-				return err
-			}
-			if err := out.Data(map[string]any{"eliminada": id, "liberadas": liberadas}); err != nil {
-				return err
-			}
-			out.Line(idioma.T("✓ %s eliminada"), id)
-			for _, a := range avisos {
-				out.Line(idioma.T("· ojo: %s"), a)
-			}
-			if len(liberadas) > 0 {
-				out.Line(idioma.T("· ya no dependen de ella: %s · revisa que sigan teniendo sentido sin %s"), strings.Join(liberadas, ", "), id)
 			}
 			return nil
 		},
 	}
+}
+
+// borrarTarea quita contrato y estado de id y lo saca del depende_de de las demás.
+func borrarTarea(root, id string) error {
+	dir := config.TasksDir(root)
+	// lo que se pierde al borrarla se dice antes: en una corrida real, se
+	// borraron la tarea de cableado (verde, sin entregar) y la que
+	// escribía la prueba de punta a punta, y la entrega frenó en
+	// una aceptación que ya nadie podía cumplir
+	var avisos []string
+	if t, err := task.Load(dir, id); err == nil {
+		if st, err := state.Get(root, id); err == nil && st.Estado == state.Lista && room.RamaExiste(context.Background(), root, id) {
+			avisos = append(avisos, "su trabajo verde en "+room.Branch(id)+" no se va a entregar")
+		}
+		if f, err := spec.LoadFeatureState(root); err == nil {
+			for _, c := range f.AcceptanceCommands() {
+				if strings.Contains(t.ListoCuando, c) {
+					avisos = append(avisos, "la aceptación del feature sigue corriendo `"+c+"`, que cumplía esta tarea: la entrega va a frenar ahí (edita .loom/feature.json o vuelve a crear la tarea)")
+				}
+			}
+		}
+	}
+	if err := task.Remove(dir, id); err != nil {
+		return err
+	}
+	if err := state.Remove(root, id); err != nil {
+		return err
+	}
+	// las que dependían de ella quedarían bloqueadas para siempre
+	// esperando una tarea que ya no existe
+	liberadas, err := quitarDependencia(dir, id)
+	if err != nil {
+		return err
+	}
+	if err := out.Data(map[string]any{"eliminada": id, "liberadas": liberadas}); err != nil {
+		return err
+	}
+	out.Line(idioma.T("✓ %s eliminada"), id)
+	for _, a := range avisos {
+		out.Line(idioma.T("· ojo: %s"), a)
+	}
+	if len(liberadas) > 0 {
+		out.Line(idioma.T("· ya no dependen de ella: %s · revisa que sigan teniendo sentido sin %s"), strings.Join(liberadas, ", "), id)
+	}
+	return nil
 }
 
 // quitarDependencia saca id del depende_de de las tareas de dir y

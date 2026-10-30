@@ -73,6 +73,9 @@ type Pedido struct {
 	// celular. Un plan visual hecho sin verlas planea contra el código,
 	// no contra lo que ve el usuario.
 	Capturas []string
+	// SinSesion son las capturas de ruta iguales a otra (un redirect al
+	// login): el navegador de las rutas no lleva sesión.
+	SinSesion []string
 	// SuiteRota es la cola de la suite del proyecto cuando ya falla en la
 	// base, antes de cualquier cambio; "" si pasa o no se pudo saber.
 	SuiteRota string
@@ -100,6 +103,9 @@ func Prompt(p Pedido, c plan.Contexto) string {
 			b.WriteString("- " + c + "\n")
 		}
 		b.WriteString("If the request touches how it looks, your plan must change what you see there in a way that shows.\n")
+	}
+	if len(p.SinSesion) > 0 {
+		b.WriteString("\nThese route screenshots came out identical to another screen, most likely a redirect to the login: route captures carry no session. Your screens seed must create the user $SCREENS_USER / $SCREENS_PASSWORD and your screens script must log in with it and capture those screens itself into $CAPTURAS, or nobody will see them: " + strings.Join(p.SinSesion, ", ") + "\n")
 	}
 	b.WriteString(`
 IF THE REPOSITORY ALREADY HAS CODE
@@ -153,7 +159,7 @@ ANSWER AT THE END WITH ONLY THIS JSON
   "integration": "command that runs the end-to-end test (the final task writes it)",
   "tests": "command that runs the WHOLE project suite (all folders and languages)",
   "architecture": "summary of 5 to 15 lines; the full text lives in ` + Documento + `",
-  "screens": {"start": "command that serves the whole app on port $PORT, with a build if needed (omit the whole field if there is no web interface)", "url": "http://localhost:$PORT", "routes": ["/", "each main screen, with its route as opened in the browser"], "seed": "command that loads sample data with the app running on $PORT, so screenshots do not show only empty states (optional)", "script": "command that drives a browser through flows that have no route (picking a photo, filling a form, generating a result) and saves one PNG per step in $CAPTURAS; receives $BASE_URL. Write it yourself (e.g. Playwright): it is MANDATORY if any task changes the interface", "sample": "route of ONE page you write in the skeleton if there is a web interface: the component sheet with the visual identity (palette, typography, buttons, fields, a card, a table, alerts, an empty state) and below it a basic layout (header, navigation, content) using all of it. The visual review looks at it first instead of every screen"},
+  "screens": {"start": "command that serves the whole app on port $PORT, with a build if needed (omit the whole field if there is no web interface)", "url": "http://localhost:$PORT", "routes": ["/", "each main screen, with its route as opened in the browser"], "seed": "command that loads sample data with the app running on $PORT, so screenshots do not show only empty states (optional); if the app has a login it also creates the user $SCREENS_USER with password $SCREENS_PASSWORD", "script": "command that drives a browser through flows that have no route (picking a photo, filling a form, generating a result) and saves one PNG per step in $CAPTURAS; receives $BASE_URL, $SCREENS_USER and $SCREENS_PASSWORD. If the app has a login, it logs in first with that user and captures the screens behind it. Write it yourself (e.g. Playwright): it is MANDATORY if any task changes the interface", "sample": "route of ONE page you write in the skeleton if there is a web interface: the component sheet with the visual identity (palette, typography, buttons, fields, a card, a table, alerts, an empty state) and below it a basic layout (header, navigation, content) using all of it. The visual review looks at it first instead of every screen"},
   "tasks": [
     {
       "title": "short lowercase phrase",

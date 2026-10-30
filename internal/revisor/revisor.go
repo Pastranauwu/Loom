@@ -189,6 +189,11 @@ func Prompt(tareas []task.Task, diff string) string {
 		if len(t.Expone) > 0 {
 			fmt.Fprintf(&b, "  was to expose: %s\n", strings.Join(t.Expone, "; "))
 		}
+		// la regla de abajo pide mirar "Obsolete:": sin esto el revisor
+		// rechazaba cambios a pruebas que el contrato sí declaraba
+		if o := obsoleto(t.Notas); o != "" {
+			fmt.Fprintf(&b, "  declared Obsolete (these test changes are allowed): %s\n", o)
+		}
 	}
 
 	b.WriteString("\nThe full diff:\n```diff\n")
@@ -299,4 +304,23 @@ func normalizarInforme(data []byte) []byte {
 		return data
 	}
 	return out
+}
+
+// obsoleto junta lo que el contrato declara tras cada "Obsolete:" hasta
+// la siguiente línea en blanco.
+func obsoleto(texto string) string {
+	var partes []string
+	resto := texto
+	for {
+		_, d, ok := idioma.Cortar(resto, idioma.Obsoleto)
+		if !ok {
+			break
+		}
+		bloque, siguiente, _ := strings.Cut(d, "\n\n")
+		if s := strings.Join(strings.Fields(bloque), " "); s != "" {
+			partes = append(partes, s)
+		}
+		resto = siguiente
+	}
+	return strings.Join(partes, " · ")
 }

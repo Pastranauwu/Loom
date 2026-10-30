@@ -3,6 +3,16 @@
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
 ## Sin publicar
+**Spec reescrito sin archivar:** `run` suma a la integración todo lo verde sin entregar, aunque ninguna tarea nueva dependa de ello, y `apply` lo avisa; antes la integración salía de la base y ese trabajo se perdía.
+**Ruido juzgado sobre lo integrado:** en `ship --all` el ruido de una tarea se busca en el conjunto ya integrado; si una tarea posterior lo corrigió, ya no la frena para siempre.
+**Menos falsos positivos en `ruido`:** las variables CSS (`--sombra-1: …;`) no son comentarios y lo que va entre comillas no es código (`assertNotIn("debugger", js)`).
+**Ids únicos entre versiones:** los ids nuevos siguen después de los archivados y `clean` borra las ramas `loom/T-*` sin contrato.
+**Login en capturas:** el arquitecto recibe las rutas que salen iguales a otra pantalla (redirect al login) y debe capturarlas con sesión en el script de flujos.
+**Revisor que lee `Obsolete:`:** el revisor del bucle y el de la entrega reciben lo que el contrato declara obsoleto.
+**Mensajes y control:** "listo_cuando ya pasa" dice qué hacer; `loom stop` para también `apply` y `ship`; `task rm` acepta varios ids; un `:` sin comillas en el spec lo explica.
+**`loom status` (`loom_status`):** una línea con la rama base y su punta, la punta de `_integra` y cuánto va por delante, lo verde sin entregar, lo pendiente y lo detenido.
+**Capturas con sesión por defecto:** semilla y script reciben `$SCREENS_USER`/`$SCREENS_PASSWORD` (`loom@example.com` / `loom-capturas-1`, o `screens_user`/`screens_password`); el arquitecto siembra ese usuario y el script entra con él. Si las rutas redirigen al login y el script no lo usa, el plano vuelve al arquitecto.
+**Tope por tarea:** `tope_tokens_tarea` (`task_token_cap`) detiene una tarea que gastó eso en toda su vida.
 
 ## v2.7.1 (30 oct 2026)
 Corrige la prueba de `restaurarPruebasBorradas`, que fallaba en CI sin identidad de git y frenó el release de v2.7.0.

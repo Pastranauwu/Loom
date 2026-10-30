@@ -125,6 +125,23 @@ func GastoEnDisco(root string) int {
 	return total
 }
 
+// GastoDeTarea suma lo que ya gastaron los intentos y el examen de id,
+// en esta corrida o en las anteriores.
+func GastoDeTarea(root, id string) int {
+	total := 0
+	if as, err := loop.ReadAttempts(root, id); err == nil {
+		for _, a := range as {
+			total += a.Tokens.Gasto()
+		}
+	}
+	if usos, err := examiner.LeerUso(root, id); err == nil {
+		for _, u := range usos {
+			total += u.Gasto()
+		}
+	}
+	return total
+}
+
 // FormatearGasto renderiza una cifra en la unidad humana: 12.4k para
 // miles, 1.2M para millones.
 func FormatearGasto(n int) string {

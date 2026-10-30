@@ -9,6 +9,7 @@ type Hallazgo struct {
 	Tipo    string `json:"tipo"`
 	Archivo string `json:"archivo,omitempty"`
 	Detalle string `json:"detalle,omitempty"`
+	linea   string // la línea entera, para buscarla en el estado final
 }
 
 // archivoDiff es un archivo del diff con sus líneas añadidas.

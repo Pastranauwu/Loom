@@ -42,4 +42,11 @@ var internos2 = map[string]string{
 	"%s y %s pueden escribir la misma zona (%s / %s)":                                                      "%s and %s may write the same zone (%s / %s)",
 	"contrato versión %d, binario soporta %d · actualiza loom":                                             "contract version %d, binary supports %d · update loom",
 	"campo desconocido ignorado: %s · si es de una versión más nueva, actualiza loom":                      "unknown field ignored: %s · if it is from a newer version, update loom",
+	"se revisa sobre lo integrado: ":                                                                       "checked on the integrated set: ",
+	"lo que marcó su esclusa ya no está en lo integrado":                                                   "what its gate flagged is no longer in the integrated set",
+	"· rama huérfana %s · sin contrato, se borra":                                                          "· orphan branch %s · no contract, deleted",
+	"· verdes sin entregar de la versión anterior: %s · run las suma a la integración y ship --all las entrega con lo nuevo (o cierra antes la versión con ship --all y archive)": "· green tasks not shipped from the previous version: %s · run adds them to integration and ship --all ships them with the new ones (or close the version first with ship --all and archive)",
+	"%w · un valor con ': ' va entre comillas (feature: \"Panel: exámenes\")":                                                                                                     "%w · a value containing ': ' must be quoted (feature: \"Panel: exams\")",
+	"config.yml: línea %d · tope_tokens_tarea inválido: %s · entero, mínimo 0 (0 = sin tope)":                                                                                     "config.yml: line %d · invalid task_token_cap: %s · integer, minimum 0 (0 = no cap)",
+	"%s pasó su tope de %s tokens (tope_tokens_tarea) · el contrato suele estar mal: revisa listo_cuando y tocar_solo antes de reintentar":                                        "%s went over its %s token cap (task_token_cap) · the contract is usually wrong: check done_when and only_touch before retrying",
 }

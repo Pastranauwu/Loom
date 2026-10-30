@@ -84,6 +84,10 @@ type Config struct {
 	// corta con un motivo legible; board/run muestran cuánto va y cuánto
 	// queda.
 	PresupuestoTokens int `json:"presupuesto_tokens,omitempty"`
+	// TopeTokensTarea corta una tarea que gastó esto en toda su vida
+	// (intentos, examen y revisión): un contrato mal hecho quema millones
+	// en reintentos. 0 = sin tope.
+	TopeTokensTarea int `json:"tope_tokens_tarea,omitempty"`
 	// ResumeBelowPct: while a claude session uses less than this % of its
 	// context window, the next attempt continues it with a short prompt.
 	// 0 = the default (70), negative = never resume (`off` in the file).
@@ -291,6 +295,12 @@ func (c Config) Save(root string) error {
 		if c.Pantallas.Max > 0 {
 			fmt.Fprintf(&b, "pantallas_max: %d\n", c.Pantallas.Max)
 		}
+		if c.Pantallas.Usuario != "" {
+			fmt.Fprintf(&b, "pantallas_usuario: %s\n", kv.Quote(c.Pantallas.Usuario))
+		}
+		if c.Pantallas.Clave != "" {
+			fmt.Fprintf(&b, "pantallas_clave: %s\n", kv.Quote(c.Pantallas.Clave))
+		}
 	}
 	if c.EscalarTras != 0 {
 		v := strconv.Itoa(c.EscalarTras)
@@ -341,6 +351,9 @@ func (c Config) Save(root string) error {
 	}
 	if c.PresupuestoTokens > 0 {
 		fmt.Fprintf(&b, "presupuesto_tokens: %d\n", c.PresupuestoTokens)
+	}
+	if c.TopeTokensTarea > 0 {
+		fmt.Fprintf(&b, "tope_tokens_tarea: %d\n", c.TopeTokensTarea)
 	}
 	if c.Redteam == "warn" || c.Redteam == "block" {
 		fmt.Fprintf(&b, "redteam: %s\n", c.Redteam)
@@ -664,6 +677,10 @@ func Parse(data []byte) (Config, error) {
 			cfg.Pantallas.URL = kv.Unquote(p.Value)
 		case "pantallas_muestra":
 			cfg.Pantallas.Muestra = kv.Unquote(p.Value)
+		case "pantallas_usuario":
+			cfg.Pantallas.Usuario = kv.Unquote(p.Value)
+		case "pantallas_clave":
+			cfg.Pantallas.Clave = kv.Unquote(p.Value)
 		case "pantallas_max":
 			n, err := kv.ParseInt(p.Value)
 			if err != nil || n < 1 {
@@ -749,6 +766,12 @@ func Parse(data []byte) (Config, error) {
 				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · presupuesto_tokens inválido: %s · entero, mínimo 0 (0 = sin tope)"), p.Line, p.Value)
 			}
 			cfg.PresupuestoTokens = n
+		case "tope_tokens_tarea":
+			n, err := kv.ParseInt(p.Value)
+			if err != nil || n < 0 {
+				return cfg, fmt.Errorf(idioma.T("config.yml: línea %d · tope_tokens_tarea inválido: %s · entero, mínimo 0 (0 = sin tope)"), p.Line, p.Value)
+			}
+			cfg.TopeTokensTarea = n
 		case "heavy_builder":
 			cfg.HeavyBuilder = kv.Unquote(p.Value)
 		case "redteam":
