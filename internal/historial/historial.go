@@ -325,3 +325,39 @@ func git(root string, args ...string) error {
 	}
 	return nil
 }
+
+// Apartados es la carpeta donde quedan las tareas de un feature archivado
+// (contrato, estado y runs). No se versiona: runs trae logs y capturas.
+func Apartados(root, nombre string) string { return filepath.Join(root, ".loom", "archivo", nombre) }
+
+// Apartar mueve contrato, estado y runs de las tareas entregadas a
+// Apartados. Sin esto el siguiente feature heredaba el tablero viejo y,
+// si un id se repetía, sus intentos se sumaban a los de la tarea vieja.
+// Devuelve cuántas tareas movió; lo que falta en origen se salta.
+func Apartar(root, nombre string, ids []string) (int, error) {
+	dest := Apartados(root, nombre)
+	n := 0
+	for _, id := range ids {
+		movida := false
+		for _, par := range [][2]string{
+			{filepath.Join(config.TasksDir(root), id+".md"), filepath.Join(dest, "tasks", id+".md")},
+			{filepath.Join(state.Dir(root), id+".json"), filepath.Join(dest, "state", id+".json")},
+			{filepath.Join(loop.RunsDir(root), id), filepath.Join(dest, "runs", id)},
+		} {
+			if _, err := os.Stat(par[0]); err != nil {
+				continue
+			}
+			if err := os.MkdirAll(filepath.Dir(par[1]), 0o755); err != nil {
+				return n, err
+			}
+			if err := os.Rename(par[0], par[1]); err != nil {
+				return n, err
+			}
+			movida = true
+		}
+		if movida {
+			n++
+		}
+	}
+	return n, nil
+}

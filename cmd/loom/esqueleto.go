@@ -180,6 +180,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	// correcciones cuenta las del modelo actual: al subir al planificador
 	// arranca de cero, con lo que el modelo medio dejó en el cuarto
 	correcciones := 0
+	jsonPrevio := "" // el JSON de la vuelta anterior, por si la corrección dice "unchanged"
 	for vuelta := 0; ; vuelta++ {
 		titulo := fmt.Sprintf("el arquitecto escribe el esqueleto · %s · %s", id, modelo)
 		if vuelta > 0 {
@@ -219,12 +220,18 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 					reg.Registrar(ex.Name(), tokensDe(out.Tokens).Gasto())
 				}
 				sesion = out.Sesion
-				if out.Text != "" {
-					guardarRespuestaEsqueleto(root, id, clave, out.Text, sesion)
-				}
 				texto = out.Text
+				if req.Sesion != "" && jsonPrevio != "" && esqueleto.SinCambios(texto) {
+					texto = jsonPrevio
+				}
+				if texto != "" {
+					guardarRespuestaEsqueleto(root, id, clave, texto, sesion)
+				}
 				return err
 			})
+		}
+		if texto != "" {
+			jsonPrevio = texto
 		}
 		if errors.Is(err, executor.ErrTope) {
 			return fmt.Errorf(idioma.T("el arquitecto no terminó · %w · sube tope_arquitecto_usd en .loom/config.yml o acota el spec · lo escrito sigue en %s"), err, r.Path)

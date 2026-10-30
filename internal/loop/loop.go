@@ -426,6 +426,11 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		if err != nil {
 			return Outcome{}, err
 		}
+		desde := o.Room.Commit
+		if desde == "" {
+			desde = o.Base
+		}
+		revertidos = unir(revertidos, restaurarPruebasBorradas(o.Room.Path, antes, desde, o.Task))
 		parcheRel := ""
 		if parche != "" {
 			parcheRel = filepath.Join(".loom", "runs", o.Task.ID, "fuera-de-alcance.patch")

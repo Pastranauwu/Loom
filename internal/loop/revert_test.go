@@ -268,3 +268,33 @@ func TestRevertirConParcheGuardaLoQueNoEraSuyo(t *testing.T) {
 		t.Errorf("el parche no aplica · %s", out)
 	}
 }
+
+func TestRestaurarPruebasBorradasSinObsoleto(t *testing.T) {
+	root := repoConCommit(t)
+	escribir(t, root, "panel/tests/test_viejo.py", "def test_a(): pass\n")
+	gitCmd(t, root, "add", "-A")
+	gitCmd(t, root, "commit", "-q", "-m", "base")
+	desde := cabeza(t, root)
+	escribir(t, root, "panel/tests/test_mio.py", "def test_b(): pass\n")
+	gitCmd(t, root, "add", "-A")
+	gitCmd(t, root, "commit", "-q", "-m", "intento 1")
+	antes := cabeza(t, root)
+
+	os.Remove(filepath.Join(root, "panel/tests/test_viejo.py"))
+	os.Remove(filepath.Join(root, "panel/tests/test_mio.py"))
+	tarea := task.Task{TocarSolo: []string{"panel/**"}}
+
+	got := restaurarPruebasBorradas(root, antes, desde, tarea)
+	if len(got) != 1 || got[0] != "panel/tests/test_viejo.py" {
+		t.Fatalf("restaurados = %v, quiero solo la prueba vieja", got)
+	}
+	if _, err := os.Stat(filepath.Join(root, "panel/tests/test_mio.py")); !os.IsNotExist(err) {
+		t.Error("la prueba del propio agente no debe volver")
+	}
+
+	os.Remove(filepath.Join(root, "panel/tests/test_viejo.py"))
+	tarea.Notas = "Obsoleto: test_viejo ya no aplica"
+	if got := restaurarPruebasBorradas(root, antes, desde, tarea); len(got) != 0 {
+		t.Errorf("con Obsoleto: no se restaura, salió %v", got)
+	}
+}

@@ -47,6 +47,13 @@ Se corre en la rama del PR, antes del merge.`,
 			if n := liberarCuartos(context.Background(), root, e.Tareas); n > 0 {
 				out.Line(idioma.T("· %d cuartos liberados"), n)
 			}
+			// el tablero del siguiente feature empieza limpio: las tareas
+			// entregadas se apartan junto a su historial
+			if n, err := historial.Apartar(root, e.Nombre, e.Tareas); err != nil {
+				out.Line(idioma.T("· no se pudieron apartar las tareas entregadas · %v · muévelas con loom task rm"), err)
+			} else if n > 0 {
+				out.Line(idioma.T("· %d tareas apartadas en %s"), n, historial.Apartados(root, e.Nombre))
+			}
 			out.Line(idioma.T("✓ archivado %s · spec vacío para el siguiente feature · commit hecho"), e.Nombre)
 			return nil
 		},

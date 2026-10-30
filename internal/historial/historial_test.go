@@ -298,3 +298,27 @@ func TestArchivarAvisaSiElHistorialQuedaIgnoradoFueraDelProyecto(t *testing.T) {
 		t.Error("no debía escribir nada en el historial")
 	}
 }
+
+func TestApartarDejaElTableroLimpio(t *testing.T) {
+	root := t.TempDir()
+	escribir(t, filepath.Join(root, ".loom", "tasks", "T-001.md"), "x")
+	escribir(t, filepath.Join(root, ".loom", "tasks", "T-002.md"), "y")
+	escribir(t, filepath.Join(root, ".loom", "state", "T-001.json"), "{}")
+	escribir(t, filepath.Join(root, ".loom", "runs", "T-001", "attempts.jsonl"), "{}\n")
+
+	n, err := Apartar(root, "0001-x", []string{"T-001", "T-009"})
+	if err != nil || n != 1 {
+		t.Fatalf("Apartar = %d, %v; quiero 1 tarea", n, err)
+	}
+	for _, p := range []string{"tasks/T-001.md", "state/T-001.json", "runs/T-001/attempts.jsonl"} {
+		if _, err := os.Stat(filepath.Join(Apartados(root, "0001-x"), p)); err != nil {
+			t.Errorf("falta %s apartado", p)
+		}
+		if _, err := os.Stat(filepath.Join(root, ".loom", p)); err == nil {
+			t.Errorf("%s sigue en el tablero", p)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, ".loom", "tasks", "T-002.md")); err != nil {
+		t.Error("T-002 no se entregó y no debe moverse")
+	}
+}

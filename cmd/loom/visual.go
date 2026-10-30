@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Pastranauwu/loom/internal/capturas"
@@ -16,6 +18,7 @@ import (
 	"github.com/Pastranauwu/loom/internal/plan"
 	"github.com/Pastranauwu/loom/internal/room"
 	"github.com/Pastranauwu/loom/internal/skills"
+	"github.com/Pastranauwu/loom/internal/state"
 	"github.com/Pastranauwu/loom/internal/task"
 )
 
@@ -45,12 +48,58 @@ func revisorVisualPara(root string, cfg config.Config, ex executor.Executor) loo
 	if modelo == "" {
 		modelo = cfg.ModeloPeso("media")
 	}
+	// un modelo sin visión rechaza con "no puedo ver imágenes" y quema un
+	// intento: se busca otro peso que sí vea, o se apaga con aviso
+	if !veImagenes(modelo, ex.Name()) {
+		otro := ""
+		for _, peso := range []string{"media", "pesada", "liviana"} {
+			if m := cfg.ModeloPeso(peso); m != "" && veImagenes(m, ex.Name()) {
+				otro = m
+				break
+			}
+		}
+		avisoVisual.Do(func() {
+			if otro == "" {
+				out.Line(idioma.T("· revisión visual apagada · %s no ve imágenes y ningún peso de modelos: ve · pon un modelo claude en el rol revisor_visual"), modelo)
+			} else {
+				out.Line(idioma.T("· revisión visual con %s · %s no ve imágenes"), otro, modelo)
+			}
+		})
+		if otro == "" {
+			return nil
+		}
+		modelo = otro
+	}
 	return revisorVisualEnBucle{ex: ejecutorPara(ex, modelo), modelo: modelo, root: root, pantallas: cfg.Pantallas}
+}
+
+var avisoVisual sync.Once
+
+// veImagenes dice si el modelo acepta capturas. claude y codex sí; de
+// opencode solo las familias conocidas con visión (deepseek, por ejemplo,
+// es solo texto). Sin modelo decide el CLI.
+func veImagenes(modelo, cli string) bool {
+	m := strings.ToLower(modelo)
+	if m == "" {
+		return cli != "opencode"
+	}
+	if !strings.Contains(m, "/") {
+		return true
+	}
+	for _, f := range []string{"claude", "gpt", "gemini", "vision", "-vl"} {
+		if strings.Contains(m, f) {
+			return true
+		}
+	}
+	return false
 }
 
 func (r revisorVisualEnBucle) Revisar(ctx context.Context, cuarto room.Room, t task.Task, intento int) (bool, string, loop.Tokens) {
 	dir := filepath.Join(loop.RunsDir(r.root), t.ID, fmt.Sprintf("visual-%d", intento))
-	todas := tomarCapturas(ctx, cuarto.Path, r.pantallas, cuarto.Puerto, dir)
+	todas, repetidas := capturas.SinRepetir(tomarCapturas(ctx, cuarto.Path, r.pantallas, cuarto.Puerto, dir))
+	if len(repetidas) > 0 {
+		out.Line(idioma.T("· %s · %d capturas iguales a otra pantalla (¿redirige al login?) · fuera de la revisión · captura con sesión en screens_script"), t.ID, len(repetidas))
+	}
 	fotos := capturas.Elegir(todas, r.pantallas.Tope())
 	if len(fotos) < len(todas) {
 		out.Line(idioma.T("· %s · revisión visual con %d de %d capturas · sube pantallas_max en config.yml para ver más"), t.ID, len(fotos), len(todas))
@@ -59,8 +108,19 @@ func (r revisorVisualEnBucle) Revisar(ctx context.Context, cuarto room.Room, t t
 	if t.Porque != "" {
 		pide += "\nPor qué: " + t.Porque
 	}
-	if n := plan.SepararNotas(t.Notas).Tarea; n != "" {
-		pide += "\n" + n
+	notas := plan.SepararNotas(t.Notas)
+	if notas.Tarea != "" {
+		pide += "\n" + notas.Tarea
+	}
+	// las reglas del spec traen la dirección de diseño (paleta, tono,
+	// referencias): sin ellas el revisor juzgaba contra su gusto genérico
+	if notas.Reglas != "" {
+		pide += "\n" + notas.Reglas
+	}
+	if len(repetidas) > 0 {
+		// sin esto el revisor pide "la captura del tablero", que el agente
+		// no puede dar: es la configuración de capturas la que falla
+		pide += "\nThese screens could not be captured (they showed another screen, likely a login redirect); do not ask for them: " + strings.Join(repetidas, ", ")
 	}
 	return r.juzgar(ctx, cuarto.Path, fotos, pide)
 }
@@ -138,4 +198,25 @@ func parseVisual(texto string) (cumple bool, cambios []string, ok bool) {
 		return false, nil, false
 	}
 	return v.Cumple, v.Cambios, true
+}
+
+// ultimaDeUI dice si la tarea es la última de interfaz de su cadena:
+// ninguna otra tarea de interfaz sin terminar depende de ella. Solo esa
+// pasa por la revisión visual: las intermedias se juzgaban sobre
+// pantallas a medio hacer ("Pantalla en construcción"), y cada revisión
+// levanta la app entera. La de diseño se revisa cuando nadie la sigue.
+func ultimaDeUI(root string, t task.Task) bool {
+	todas, err := task.List(config.TasksDir(root))
+	if err != nil {
+		return true
+	}
+	for _, o := range todas {
+		if o.ID == t.ID || !slices.Contains(o.DependeDe, t.ID) || !skills.TocaUI(o.TocarSolo) {
+			continue
+		}
+		if st, _ := state.Get(root, o.ID); st.Estado != state.Lista {
+			return false
+		}
+	}
+	return true
 }

@@ -16,11 +16,16 @@ func T(es string) string {
 // textos maps each Spanish UI text to its English version. Keep the printf
 // verbs in the same order.
 var textos = map[string]string{
-	"tú diseñas el patrón · loom teje el código": "you design the pattern · loom weaves the code",
-	"✓ idioma: %s": "✓ language: %s",
-	"← → navegar · enter siguiente · q salir": "← → navigate · enter next · q quit",
-	"← atrás · enter o q para salir":          "← back · enter or q to exit",
-	"tutorial":                                "tutorial",
+	"· revisión visual apagada · %s no ve imágenes y ningún peso de modelos: ve · pon un modelo claude en el rol revisor_visual": "· visual review off · %s cannot see images and no models: weight can · set a claude model for the revisor_visual role",
+	"· revisión visual con %s · %s no ve imágenes": "· visual review with %s · %s cannot see images",
+	"· %s · %d capturas iguales a otra pantalla (¿redirige al login?) · fuera de la revisión · captura con sesión en screens_script": "· %s · %d screenshots identical to another screen (login redirect?) · left out of the review · capture with a session in screens_script",
+	"· no se pudieron apartar las tareas entregadas · %v · muévelas con loom task rm":                                                "· could not set the shipped tasks aside · %v · remove them with loom task rm",
+	"· %d tareas apartadas en %s":                                    "· %d tasks set aside in %s",
+	"tú diseñas el patrón · loom teje el código":                     "you design the pattern · loom weaves the code",
+	"✓ idioma: %s":                                                   "✓ language: %s",
+	"← → navegar · enter siguiente · q salir":                        "← → navigate · enter next · q quit",
+	"← atrás · enter o q para salir":                                 "← back · enter or q to exit",
+	"tutorial":                                                       "tutorial",
 	"· nuevo en loom · corre loom tutorial para un recorrido guiado": "· new to loom · run loom tutorial for a guided tour",
 	// run view
 	"CORRIDA": "RUN", "pendiente": "pending", "pendientes": "pending", "verdes": "green",

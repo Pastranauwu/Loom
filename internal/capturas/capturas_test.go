@@ -133,3 +133,19 @@ func TestElegir(t *testing.T) {
 		t.Error("Tope")
 	}
 }
+
+func TestSinRepetirQuitaLaRedireccionAlLogin(t *testing.T) {
+	dir := t.TempDir()
+	escribe := func(n, c string) string {
+		p := filepath.Join(dir, n)
+		if err := os.WriteFile(p, []byte(c), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	fotos := []string{escribe("03-login.png", "A"), escribe("04-panel.png", "A"), escribe("05-bancos.png", "B")}
+	u, r := SinRepetir(fotos)
+	if len(u) != 2 || len(r) != 1 || r[0] != "04-panel.png" {
+		t.Fatalf("SinRepetir = %v, %v", u, r)
+	}
+}

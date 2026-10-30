@@ -42,7 +42,15 @@ constraints:         # globs no task may edit; copied into every contract
 Interview the human yourself: ask about edge cases, failures and limits they did
 not mention, settle them as requirements or rules (prefix an unanswered one with
 "Assumption:"), then call loom_spec_write and loom_apply_dry_run. Read the repo
-first with loom_map.`
+first with loom_map.
+
+If the feature draws screens, settle a design direction before writing: 2-3
+products the human wants it to feel like, density (airy or compact), mood, and
+what it must NOT look like. Write it as concrete rules, not adjectives: palette as
+tokens with hex, type scale with sizes and weights, radius and spacing steps, one
+signature element that makes it recognizable, and the layout of the main screen.
+"modern and clean" is not a rule: builders and the visual reviewer read these
+rules, and vague ones give generic screens.`
 
 // manualAgentes is the full manual for the model driving loom, served by
 // loom_manual and `loom manual`.
@@ -53,7 +61,7 @@ var manualAgentes string
 // instruccionesMCP reach every MCP client on connect, so codex and opencode
 // get the same role the loom ide prompt gives claude.
 const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. Never write the builders' code yourself.
-Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first).
+Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first) → loom_archive when ship all passed: one spec is one version.
 Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
 Call loom_manual once for the full guide before your first heavy tool.`
 
@@ -238,12 +246,8 @@ func mcpTools(exe string) []mcp.Tool {
 				return args, nil
 			}),
 		quick("loom_stop", "Stop running tasks.", nil, fixed("stop", "--json")),
+		quick("loom_archive", "Close the version: after loom_ship all passed every acceptance command, file the spec and its result in .loom/historial, set the shipped tasks aside and leave the spec blank for the next version. Refuses if the last joint delivery did not pass. Never archive by moving .loom files yourself.", nil, fixed("archive", "--json")),
 		{Name: "loom_task_show", Description: "Contract of one task: what it may touch, what it may not, exposes, weight, retries, network.",
-			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
-			Call: func(a map[string]any) (string, error) {
-				return editTask(a, false)
-			}},
-		{Name: "loom_task_get", Description: "Same as loom_task_show: the contract of one task.",
 			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
 			Call: func(a map[string]any) (string, error) {
 				return editTask(a, false)

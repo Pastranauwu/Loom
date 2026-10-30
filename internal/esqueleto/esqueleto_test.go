@@ -202,3 +202,15 @@ func TestProblemasRechazaBloquesNarrativosYTsconfigObsoleto(t *testing.T) {
 		}
 	}
 }
+
+func TestSinCambiosYEsCodigo(t *testing.T) {
+	if !SinCambios("Arreglé el guion.\n```json\n{\"unchanged\": true}\n```") {
+		t.Error("{unchanged: true} es sin cambios")
+	}
+	if SinCambios(`{"unchanged": true, "tasks": []}`) || SinCambios(`{"verify": "go vet ./..."}`) {
+		t.Error("con tareas o sin la llave es un JSON completo")
+	}
+	if EsCodigo("templates/base.html") || EsCodigo("static/a.css") || !EsCodigo("static/js/panel.js") {
+		t.Error("EsCodigo mal clasificado")
+	}
+}

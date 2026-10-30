@@ -7,6 +7,7 @@ package capturas
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
@@ -365,4 +366,26 @@ func ultimas(s string) string {
 		l = l[len(l)-3:]
 	}
 	return strings.Join(l, " · ")
+}
+
+// SinRepetir quita las capturas idénticas byte a byte a una anterior y
+// devuelve sus nombres: una ruta que redirige al login sale igual que el
+// login, y juzgarla como si fuera su pantalla engaña al revisor.
+func SinRepetir(fotos []string) (unicas, repetidas []string) {
+	vistas := map[[32]byte]bool{}
+	for _, f := range fotos {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			unicas = append(unicas, f)
+			continue
+		}
+		h := sha256.Sum256(b)
+		if vistas[h] {
+			repetidas = append(repetidas, filepath.Base(f))
+			continue
+		}
+		vistas[h] = true
+		unicas = append(unicas, f)
+	}
+	return unicas, repetidas
 }

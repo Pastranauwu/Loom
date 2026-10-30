@@ -6,10 +6,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // revertFueraDeAlcance revierte los archivos que el agente tocó fuera de
@@ -135,4 +137,34 @@ func revertir(roomPath, antes, s string) error {
 		return fmt.Errorf(idioma.T("no se pudo revertir %s · %s"), s, err)
 	}
 	return nil
+}
+
+// restaurarPruebasBorradas devuelve al cuarto los archivos de prueba que
+// ya existían en desde (el arranque del cuarto) y el intento borró, si la
+// tarea no los nombra por ruta exacta ni declara "Obsoleto:". Aun cuando
+// el agente es dueño de sus pruebas, una prueba vieja borrada entera
+// era el rechazo más común del revisor: se atrapa aquí, sin modelo.
+func restaurarPruebasBorradas(roomPath, antes, desde string, t task.Task) []string {
+	if antes == "" || desde == "" || idioma.Tiene(t.Notas, idioma.Obsoleto) {
+		return nil
+	}
+	borrados, err := gitRun(roomPath, "diff", "--name-only", "--diff-filter=D", antes, "--")
+	if err != nil {
+		return nil
+	}
+	estado, _ := gitRun(roomPath, "ls-files", "--deleted")
+	patrones := config.DefaultTestPatterns()
+	var out []string
+	for _, f := range unir(strings.Split(borrados, "\n"), strings.Split(estado, "\n")) {
+		if f == "" || !esPrueba(f, patrones) || slices.Contains(t.TocarSolo, f) {
+			continue
+		}
+		if _, err := gitRun(roomPath, "cat-file", "-e", desde+":"+f); err != nil {
+			continue // la escribió el agente en un intento anterior: es suya
+		}
+		if _, err := gitRun(roomPath, "checkout", desde, "--", f); err == nil {
+			out = append(out, f)
+		}
+	}
+	return out
 }

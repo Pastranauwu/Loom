@@ -578,10 +578,19 @@ func (c Config) PesoInicial(peso string) string {
 	if peso == "" {
 		peso = c.PesoPorDefecto()
 	}
-	if peso == "media" && c.Ahorro() && c.ModeloPeso("liviana") != "" {
+	if peso == "media" && c.Ahorro() && c.ModeloPeso("liviana") != "" && !otroCLI(c.ModeloPeso("liviana"), c.ModeloPeso("media")) {
 		return "liviana"
 	}
 	return peso
+}
+
+// otroCLI dice si el liviano corre por opencode (id con proveedor) y el
+// medio no. Ese liviano es un modelo de API elegido para lo chico: en una
+// corrida real deepseek-flash tardó 6 veces más que sonnet por intento y
+// fallaba más, así que una tarea media no arranca ahí.
+// ponytail: decide por la forma del id; un campo propio si hace falta otro criterio.
+func otroCLI(liviano, medio string) bool {
+	return strings.Contains(liviano, "/") && !strings.Contains(medio, "/")
 }
 
 // ModeloEscalado devuelve el modelo del peso siguiente al dado

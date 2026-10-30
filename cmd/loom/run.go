@@ -1110,7 +1110,9 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 		// el revisor solo en tareas planas: la recursión ya tiene su
 		// supervisor, y revisar dos veces la misma hoja gasta doble.
 		opts.Revisor = revisorParaBucle(root, cfg, ex)
-		opts.RevisorVisual = revisorVisualPara(root, cfg, exTarea)
+		if ultimaDeUI(root, t) {
+			opts.RevisorVisual = revisorVisualPara(root, cfg, exTarea)
+		}
 	}
 	opts.Proveedor = exTarea.Name()
 

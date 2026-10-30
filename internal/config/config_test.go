@@ -831,3 +831,17 @@ func TestElegirModelosPrefiereKeyPropia(t *testing.T) {
 		t.Errorf("sin key propia = %v", m)
 	}
 }
+
+func TestPesoInicialNoBajaAUnLivianoDeOtroCLI(t *testing.T) {
+	c := Config{Modelos: map[string]string{"liviana": "deepseek/deepseek-flash", "media": "claude-sonnet-5-5"}}
+	if p := c.PesoInicial("media"); p != "media" {
+		t.Errorf("media arrancó en %s con liviano de opencode", p)
+	}
+	if p := c.PesoInicial("liviana"); p != "liviana" {
+		t.Errorf("liviana = %s", p)
+	}
+	c.Modelos["liviana"] = "claude-haiku-5-5"
+	if p := c.PesoInicial("media"); p != "liviana" {
+		t.Errorf("con haiku el ahorro debe seguir: %s", p)
+	}
+}

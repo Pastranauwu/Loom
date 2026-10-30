@@ -143,12 +143,12 @@ func TestTaskSetPersisteElContratoYSeLee(t *testing.T) {
 		t.Fatalf("releído = %+v, %v", tk, err)
 	}
 
-	get := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"loom_task_get","arguments":{"dir":"` + root + `","id":"T-001"}}}` + "\n"
+	get := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"loom_task_show","arguments":{"dir":"` + root + `","id":"T-001"}}}` + "\n"
 	resp.Reset()
 	_ = mcp.Serve(strings.NewReader(get), &resp, "loom", "t", mcpTools("loom"))
 	for _, quiero := range []string{`\"weight\": \"heavy\"`, `\"max_retries\": 5`, `\"network\": true`, `pkg.Safe`} {
 		if !strings.Contains(resp.String(), quiero) {
-			t.Errorf("loom_task_get no trae %s:\n%s", quiero, resp.String())
+			t.Errorf("loom_task_show no trae %s:\n%s", quiero, resp.String())
 		}
 	}
 

@@ -105,6 +105,7 @@ func Prompt(p Pedido, c plan.Contexto) string {
 IF THE REPOSITORY ALREADY HAS CODE
 - Screenshots outrank the code: if the code says something exists but it is not visible in the screenshot, or it looks broken or unstyled, it is wrong and must be planned.
 - If there is truly nothing to change, answer with "tasks": [] and do not invent work.
+- Templates, stylesheets, markup and data files (.html, .css, .svg, .json, .md) are never stubs and you do not create them: the task creates them, and its "how" carries the "Cases:" of what must show.
 - What already works does NOT become a stub. Respect the stack, libraries, design system and conventions already there; do not migrate anything the request does not ask for.
 - A change to existing code is a task without a stub: "how" says what to change, where, and "Cases:" of the new behavior (input → output or what shows on screen). If the change adds new functions, methods or components, those do go as stubs with their contract.
 - The "done_when" of a change runs a NEW test of the new behavior (a file that does not exist today): existing tests pass today and are no oracle. Those tests must keep passing.
@@ -200,8 +201,21 @@ func PromptCorregirSesion(problemas []string) string {
 	for _, p := range problemas {
 		b.WriteString("- " + p + "\n")
 	}
-	b.WriteString("Fix it in the repository without re-exploring what you already know and answer again with the complete JSON.\n")
+	b.WriteString("Fix it in the repository without re-exploring what you already know. If the fix was only on disk and your JSON stays the same, answer only {\"unchanged\": true}; otherwise answer again with the complete JSON.\n")
 	return b.String()
+}
+
+// SinCambios dice si la corrección contestó {"unchanged": true}: arregló
+// el disco y el JSON es el de antes. Reescribirlo entero costaba hasta
+// 126k tokens de salida por vuelta, lo más caro y lento del arquitecto.
+func SinCambios(texto string) bool {
+	t := plan.CuerpoJSON(texto)
+	var v struct {
+		Unchanged bool            `json:"unchanged"`
+		Tasks     json.RawMessage `json:"tasks"`
+	}
+	// CuerpoJSON devuelve desde la llave hasta el final del texto: Decode lee solo el objeto
+	return strings.HasPrefix(t, "{") && json.NewDecoder(strings.NewReader(t)).Decode(&v) == nil && v.Unchanged && v.Tasks == nil
 }
 
 func contexto(c plan.Contexto) string {
@@ -304,7 +318,7 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 			continue
 		}
 		for _, f := range t.TocarSolo {
-			if !strings.ContainsAny(f, "*?[") && !task.EsArchivoDePrueba(f) && !algunoCoincide([]string{f}, archivos) {
+			if !strings.ContainsAny(f, "*?[") && !task.EsArchivoDePrueba(f) && EsCodigo(f) && !algunoCoincide([]string{f}, archivos) {
 				out = append(out, fmt.Sprintf("%s: %s does not exist; you create the stub", nombre, f))
 			}
 		}
@@ -346,7 +360,9 @@ func contrato(dir, nombre string, t plan.Borrador, archivos []string, previos ma
 		if !config.MatchesAny(t.TocarSolo, f) || task.EsArchivoDePrueba(f) {
 			continue
 		}
-		if previos[f] {
+		// plantillas, estilos y datos no pueden lanzar "sin implementar":
+		// exigirles stub hacía rebotar al arquitecto en cada rediseño
+		if previos[f] || !EsCodigo(f) {
 			existentes = append(existentes, f)
 		} else {
 			nuevos = append(nuevos, f)
@@ -391,6 +407,16 @@ func contrato(dir, nombre string, t plan.Borrador, archivos []string, previos ma
 		out = append(out, fmt.Sprintf(idioma.T("%s: changes %s, which already exists, and its \"how\" has no \"Cases:\" of the new behavior"), nombre, strings.Join(existentes, ", ")))
 	}
 	return out
+}
+
+// EsCodigo dice si el archivo admite un stub que lance la marca. Una
+// plantilla, una hoja de estilos o un JSON no: su contrato va en "como".
+func EsCodigo(f string) bool {
+	switch strings.ToLower(filepath.Ext(f)) {
+	case ".go", ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs", ".java", ".kt", ".rb", ".php", ".cs", ".swift", ".c", ".cc", ".cpp", ".h", ".vue", ".svelte":
+		return true
+	}
+	return false
 }
 
 // Composes son los nombres que acepta docker compose.

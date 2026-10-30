@@ -41,6 +41,18 @@ What code enforces, so you do not need to ask for it in prompts:
 9. `loom_ship` with `dry_run` first (gate only), then `all` for one PR. Use `release` or `tag` only for a formal release:
    they also build the docker images.
 
+10. `loom_archive` once `ship all` passed every acceptance command. That closes the version.
+
+## Versions
+
+One spec is one version. The cycle is: write spec → apply → run → `ship all` → `loom_archive` → write the next spec from blank.
+- `loom_archive` refuses if the last `ship all` failed or the spec changed after it: fix and ship again, do not force it.
+- It files the spec and its result in `.loom/historial/NNNN-<feature>/` (versioned), moves the shipped tasks with their
+  states and runs to `.loom/archivo/NNNN-<feature>/` and frees their rooms. The next spec starts with a clean board.
+- Never archive, rename or move `.loom/` files or spec files yourself, and do not keep several spec copies in the repo root
+  (`loom.ux.yml`, `loom.v2.yml`): extra specs in `specs/*.yml` are live features, not backups. Old versions live in the history.
+- A version that was abandoned is not archived: ask the human to remove its tasks with `loom task rm <id>` and rewrite the spec.
+
 `loom_up` plans and runs in one step, with no chance to set permissions in between. Prefer `loom_apply` + `loom_run`.
 
 ## Tools
@@ -58,7 +70,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_apply`* | Turn the spec into contracts without running them. |
 | `loom_board` | See the task board. The first call lists everything; later calls return only changes. `full` lists everything again. `wait` (seconds, max 600) blocks until something changes. |
 | `loom_ps` | List active tasks with agent and branch. |
-| `loom_task_show` / `loom_task_get` | Read one contract. |
+| `loom_task_show` | Read one contract. |
 | `loom_task_set` | Change one contract before it runs: only_touch, dont_touch, exposes, weight (light\|medium\|heavy), max_retries, depends_on, network, skills. Omitted fields stay as they are. |
 | `loom_skills` | The skill dictionary: what each skill is for, which roles get it by default, which are yours and which are installed. |
 | `loom_check` | Run one task's done_when and report. |
@@ -66,6 +78,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_run`* | Run pending tasks. `agents` sets parallelism, `retry` revives stopped tasks and reuses their work. |
 | `loom_up`* | Plan and run from a request or the spec. `ship` opens the PR at the end. |
 | `loom_stop` | Stop the run and its agents. |
+| `loom_archive` | Close the version after `loom_ship` `all` passed: files the spec and result, sets the shipped tasks aside, blanks the spec. |
 | `loom_log` | Read new lines of a detached run's log. |
 | `loom_ship`* | Deliver one task (`id`) or all ready ones (`all`). `dry_run`, `release` and `tag` are available. |
 | `loom_redteam`* | Have a saboteur write hostile tests against what a task exposes. Only a crash that reproduces twice counts. `reopen` turns it into a failing test in the task; `keep_tests` keeps the attack tests. |
@@ -119,8 +132,10 @@ loom does not store API keys. Each CLI uses its own login, and `loom_doctor` nev
   `gpt-*` on codex, and `provider/model` on opencode (for example `deepseek/deepseek-chat` or `openrouter/<vendor>/<model>`).
   Different CLIs can be mixed in one config.
 - Savings, on by default: a medium task starts on the light model, gets 2 attempts and then escalates to medium.
+  A light model on opencode (`deepseek/...`) with a claude medium only runs light tasks: medium ones start on medium.
   `escalate_after: N` or `off` changes that. Nothing escalates to heavy on its own: heavy is for the architect and planner.
-- The visual reviewer uses the medium model and sees at most 5 screenshots (`screens_max`), starting with the component
+- The visual reviewer needs a model that sees images: one that cannot (deepseek) is swapped for another weight or the review turns off with a warning.
+  It uses the medium model and sees at most 5 screenshots (`screens_max`), starting with the component
   sheet (`screens_sample`).
 
 ## What not to do
@@ -135,6 +150,7 @@ loom does not store API keys. Each CLI uses its own login, and `loom_doctor` nev
 
 `.loom/config.yml` holds the config, `.loom/tasks/` the contracts and `.loom/state/` the task states.
 `.loom/runs/<id>/` has attempts.jsonl, the attempt logs and the visual-N screenshots.
+`.loom/historial/` the closed versions, `.loom/archivo/` their tasks and runs.
 `.loom/corridas/` has the run logs, `.loom/bridges/` the bridges, and `~/.loom/ventanas.jsonl` the spend ledger.
 
 ## Connecting a client
