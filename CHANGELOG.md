@@ -3,6 +3,8 @@
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
 ## Sin publicar
+
+## v2.8.0 (30 oct 2026)
 **Spec reescrito sin archivar:** `run` suma a la integración todo lo verde sin entregar, aunque ninguna tarea nueva dependa de ello, y `apply` lo avisa; antes la integración salía de la base y ese trabajo se perdía.
 **Ruido juzgado sobre lo integrado:** en `ship --all` el ruido de una tarea se busca en el conjunto ya integrado; si una tarea posterior lo corrigió, ya no la frena para siempre.
 **Menos falsos positivos en `ruido`:** las variables CSS (`--sombra-1: …;`) no son comentarios y lo que va entre comillas no es código (`assertNotIn("debugger", js)`).
