@@ -31,23 +31,27 @@ type boardRow struct {
 }
 
 func newBoardCmd() *cobra.Command {
-	return &cobra.Command{
+	var quieto bool
+	cmd := &cobra.Command{
 		Use:   "board",
 		Short: "tablero de estado",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runBoard()
+			return runBoard(quieto)
 		},
 	}
+	// la ventana flotante de loom ide (F3) lo pide: ahí el plasma parpadea
+	cmd.Flags().BoolVar(&quieto, "still", false, "fondo liso, sin animación")
+	return cmd
 }
 
-func runBoard() error {
+func runBoard(quieto bool) error {
 	root, err := projectRoot()
 	if err != nil {
 		return err
 	}
 	if esTUI() {
-		accion, err := tui.CorrerBoard(root)
+		accion, err := tui.CorrerBoard(root, quieto)
 		if err != nil {
 			return err
 		}

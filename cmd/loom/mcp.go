@@ -250,6 +250,28 @@ func mcpTools(exe string) []mcp.Tool {
 				return args, nil
 			}),
 		quick("loom_stop", "Stop the run (run, up, apply) or delivery (ship) in progress and its agents.", nil, fixed("stop", "--json")),
+		{Name: "loom_theme_add", Description: "Save a custom color theme for the loom TUI and loom ide when the human asks for a new style. Start from a built-in theme (loom, nord, gruvbox, tokyo-night, catppuccin, rose-pine) and change only the colors that differ, as #RRGGBB; pick colors that keep text readable on the background. use applies it now.",
+			Schema: schema(map[string]string{"name": "string:theme name (letters, digits, dashes)", "from": "string:built-in theme to start from (default loom)",
+				"colors": "object:color changes, keys background, surface, border, muted, text, accent, alert, warning", "use": "boolean:apply it now"}, "name"),
+			Call: func(a map[string]any) (string, error) {
+				dir, err := projectDir(a)
+				if err != nil {
+					return "", err
+				}
+				args := []string{"theme", "add", str(a, "name"), "--plain"}
+				if f := str(a, "from"); f != "" {
+					args = append(args, "--from", f)
+				}
+				if c, ok := a["colors"].(map[string]any); ok {
+					for k, v := range c {
+						args = append(args, k+"="+fmt.Sprint(v))
+					}
+				}
+				if on(a, "use") {
+					args = append(args, "--use")
+				}
+				return runQuick(exe, dir, args)
+			}},
 		quick("loom_status", "One line on branches: base branch and its tip, the _integra tip and how far ahead it is, green tasks not shipped yet, pending and stopped ones. Check it before ship or when branches confuse you.", nil, fixed("status", "--json")),
 		{Name: "loom_answer", Description: "Answer the architect's questions (loom_apply stops with them before writing anything). One answer per question, in order; empty = its default. Settle what you can yourself; ask the human only what you cannot. Then call loom_apply again: the architect continues its same session.",
 			Schema: schema(map[string]string{"answers": "array:one answer per question"}, "answers"),

@@ -29,6 +29,7 @@ import (
 	"github.com/Pastranauwu/loom/internal/capturas"
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/skills"
 	"github.com/Pastranauwu/loom/internal/task"
 )
 
@@ -85,7 +86,7 @@ type Pedido struct {
 // correction (PromptCorregir) shares the cached prefix.
 func Prompt(p Pedido, c plan.Contexto) string {
 	var b strings.Builder
-	b.WriteString("You are loom's ARCHITECT. You do not implement the logic: you leave the project ready so many cheap agents fill it in parallel, one file each, without seeing each other. What they cannot decide, you decide now, in code.\n\n")
+	b.WriteString("You are loom's ARCHITECT. You do not implement the logic: you leave the project ready so cheap agents fill it in parallel, one module each, without seeing each other. What they cannot decide, you decide now, in code.\n" + skills.Minimo + "\n\n")
 	b.WriteString("REQUEST\n")
 	b.WriteString(p.Texto)
 	b.WriteString("\n")
@@ -145,7 +146,8 @@ You write no logic and no tests: every line you write is paid by the expensive m
 
 HOW TO SPLIT
 - One task per module: a stub file, or several that share state or make no sense apart, or a change to an existing file. With "Idea:" written, a cheap agent can handle a whole complex module: do not split into minimal tasks what is understood together, and do not raise a task's "weight" because it is hard to think through; you already thought it through. Weight rises only for size or interface.
-- Exception: a VISUAL request (design, style, usability) is not split into small tasks. It is ONE design task with "weight": "heavy", owner of all the interface files that change (theme, components and screens in its "only_touch"), because a coherent design does not come from patches by agents that do not see the whole screen. In "how" describe the concrete design: palette, typography, spacing, how each screen and each state looks. Functional tasks that touch those files depend on it. The smaller and more independent, the more agents in parallel and the cheaper.
+- Exception: a VISUAL request (design, style, usability) is not split into small tasks. It is ONE design task with "weight": "heavy", owner of all the interface files that change (theme, components and screens in its "only_touch"), because a coherent design does not come from patches by agents that do not see the whole screen. In "how" describe the concrete design: palette, typography, spacing, how each screen and each state looks. Functional tasks that touch those files depend on it.
+- Fewer, larger tasks are cheaper: each one pays its setup, review and retries on every attempt. Use the fewest modules with clear boundaries (usually 2 to 6 for a feature); merge small stubs that serve the same feature into one task.
 - Each task with a stub declares in "done_when" a new test file and lists it in "only_touch" next to the stub. loom removes it from the implementer's scope and an independent examiner writes that test from the signatures and "Cases:". Changes without a stub keep the test writing by the implementer.
 - The agent is a cheap model: it does not redesign or choose libraries. What it needs to decide must be in the contract.
 - Dependencies between modules enter by parameter or constructor (ports), so each module is tested with fakes without waiting for the others. "depends_on" only when a module truly needs another's real implementation.

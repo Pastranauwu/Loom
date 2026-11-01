@@ -8,6 +8,7 @@ import (
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/task"
+	"github.com/Pastranauwu/loom/internal/tui"
 	"github.com/Pastranauwu/loom/internal/ui"
 )
 
@@ -35,6 +36,7 @@ func newRootCmd() *cobra.Command {
 			plainMode = plain
 			out = ui.New(os.Stdout, jsonOut)
 			configurarSandbox()
+			tui.AplicarTema(tui.TemaPreferido())
 		},
 	}
 
@@ -80,6 +82,7 @@ func newRootCmd() *cobra.Command {
 		newHealCmd(),
 		newMapCmd(),
 		newLanguageCmd(),
+		newTemaCmd(),
 		newTutorialCmd(),
 		newRedteamCmd(),
 		newWrapCmd(),

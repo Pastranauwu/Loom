@@ -107,7 +107,7 @@ func bandaCapa(capa, total, ancho int, t etiquetasMapa) string {
 }
 
 func chip(s string, fondo lipgloss.Color) string {
-	return lipgloss.NewStyle().Background(fondo).Foreground(lipgloss.Color("#0B0B0B")).Padding(0, 1).Render(s)
+	return lipgloss.NewStyle().Background(fondo).Foreground(lipgloss.Color(temaActual.Fondo)).Padding(0, 1).Render(s)
 }
 
 func cabeceraMapa(m topo.Mapa, t etiquetasMapa, ancho int) string {

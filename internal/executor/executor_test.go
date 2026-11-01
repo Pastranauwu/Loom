@@ -181,6 +181,24 @@ func TestClaudePasaEsfuerzoExplicito(t *testing.T) {
 	}
 }
 
+func TestOpenCodePasaEsfuerzoComoVariante(t *testing.T) {
+	fakeBin(t, "opencode", `printf '%s\n' "$@"`)
+	req := reqDePrueba()
+	req.Effort = "low"
+	res, err := (OpenCode{}).Run(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Stdout, "--variant\nlow\n") {
+		t.Fatalf("argumentos: %q", res.Stdout)
+	}
+	req.Effort = ""
+	res, err = (OpenCode{}).Run(context.Background(), req)
+	if err != nil || strings.Contains(res.Stdout, "--variant") {
+		t.Fatalf("alteró la variante por defecto: %q, %v", res.Stdout, err)
+	}
+}
+
 // Con claude casi todo el prompt llega como caché: input_tokens solo
 // cuenta lo que quedó fuera de ella. Y el total real está en modelUsage:
 // el usage del resultado se queda corto (789k contra 4,58M medidos).

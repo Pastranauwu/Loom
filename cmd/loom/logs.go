@@ -65,6 +65,12 @@ func runLogs(id string) error {
 		}
 		out.Line(idioma.T("  intento %d  salida %s  +%d/-%d  %s  modelo %s  tokens %d/%d"),
 			a.Intento, code, a.LineasMas, a.LineasMenos, archivos, a.Modelo, a.Tokens.Entrada, a.Tokens.Salida)
+		// la caché leída es casi todo lo que entra: cada turno relee el
+		// contexto entero; sin ella "17477 de entrada" escondía 968k
+		if t := a.Tokens; t.CacheLeida+t.CacheEscrita+t.Turnos > 0 {
+			out.Line(idioma.T("    entrada %d · caché leída %d · caché escrita %d · salida %d · %d turnos · $%.3f"),
+				t.Entrada, t.CacheLeida, t.CacheEscrita, t.Salida, t.Turnos, t.CostoUSD)
+		}
 		if a.ErrorAgente != "" {
 			out.Line(idioma.T("    ✗ el agente falló · %s"), a.ErrorAgente)
 		}

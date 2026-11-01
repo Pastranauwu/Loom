@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/Pastranauwu/loom/internal/budget"
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/Pastranauwu/loom/internal/state"
@@ -31,8 +32,8 @@ func Consumo(root string, ancho, alto int) string {
 		ls = append(ls, estiloTitulo.Render("opencode")+estiloApagado.Render(" · "+idioma.T("sin medidor de cuenta")))
 	}
 	ls = append(ls, lineaLoom(root, cfg))
-	for _, l := range lineasPresupuesto(root) {
-		ls = append(ls, estiloApagado.Render("  tokens "+l))
+	if l := lineaTokens(root, cfg); l != "" {
+		ls = append(ls, l)
 	}
 	if alto > 0 && len(ls) > alto {
 		ls = ls[:alto]
@@ -55,23 +56,24 @@ func usaCLI(cfg config.Config, cli string) bool {
 	return false
 }
 
+// lineasCuenta pone el proveedor en la columna de la izquierda de su
+// primer medidor y el plan en la del segundo: una línea por medidor, sin
+// cabecera aparte, para que el panel de uso quepa en 5 filas.
 func lineasCuenta(c ventanas.Cuenta, ancho int) []string {
-	cab := estiloTitulo.Render(c.Proveedor)
-	if c.Plan != "" {
-		cab += estiloApagado.Render(" · " + c.Plan)
-	}
+	etiquetas := []string{estiloTitulo.Render(fmt.Sprintf("%-7s", c.Proveedor)), estiloApagado.Render(fmt.Sprintf("%-7s", recorte(c.Plan, 7)))}
 	if c.Motivo != "" {
-		return []string{cab + estiloApagado.Render(" · "+idioma.T(c.Motivo))}
+		return []string{etiquetas[0] + estiloApagado.Render(" "+idioma.T(c.Motivo))}
 	}
+	nota := ""
 	if c.Proveedor == "codex" && time.Since(c.Leido) > time.Hour {
-		cab += estiloApagado.Render(" · " + idioma.T("última sesión") + " " + hace(c.Leido))
+		nota = estiloApagado.Render(" · " + hace(c.Leido))
 	}
 	if c.Proveedor == "claude" && time.Since(c.Leido) > 10*time.Minute {
-		cab += estiloApagado.Render(" · " + idioma.T("leído") + " " + hace(c.Leido))
+		nota = estiloApagado.Render(" · " + idioma.T("leído") + " " + hace(c.Leido))
 	}
-	out := []string{cab}
-	barra := min(max(ancho-25, 6), 30)
-	for _, m := range c.Medidores {
+	var out []string
+	barra := min(max(ancho-33, 6), 30)
+	for i, m := range c.Medidores {
 		if !m.Reinicia.IsZero() && m.Reinicia.Before(time.Now()) {
 			m.Pct, m.Reinicia = 0, time.Time{} // la ventana ya se reinició desde la lectura
 		}
@@ -79,13 +81,42 @@ func lineasCuenta(c ventanas.Cuenta, ancho int) []string {
 		if nombre == "semana" {
 			nombre = idioma.T("semana")
 		}
-		fila := fmt.Sprintf("  %-7s %s %s", nombre, Medidor(m.Pct, barra), estiloDePct(m.Pct).Render(fmt.Sprintf("%3d%%", m.Pct)))
+		etiqueta := strings.Repeat(" ", 7)
+		if i < len(etiquetas) {
+			etiqueta = etiquetas[i]
+		}
+		fila := fmt.Sprintf("%s %-6s %s %s", etiqueta, nombre, Medidor(m.Pct, barra), estiloDePct(m.Pct).Render(fmt.Sprintf("%3d%%", m.Pct)))
 		if !m.Reinicia.IsZero() {
-			fila += estiloApagado.Render("  ↻ " + falta(m.Reinicia))
+			fila += estiloApagado.Render(" ↻ " + falta(m.Reinicia))
+		}
+		if i == 0 {
+			fila += nota
 		}
 		out = append(out, fila)
 	}
+	if len(out) == 0 {
+		out = append(out, etiquetas[0]+nota)
+	}
 	return out
+}
+
+// lineaTokens junta en una fila lo que loom gastó esta semana por CLI;
+// el presupuesto absoluto, si lo hay, va primero.
+func lineaTokens(root string, cfg config.Config) string {
+	var partes []string
+	if cfg.PresupuestoTokens > 0 {
+		partes = append(partes, budget.Barra(budget.GastoEnDisco(root), cfg.PresupuestoTokens))
+	}
+	registro := ventanas.Nuevo(ventanas.LedgerPath(), cfg.PresupuestoVentanas)
+	for _, p := range config.Clis {
+		if g := registro.Gasto(p, ventanas.VentanaSemanal); g > 0 {
+			partes = append(partes, p+" "+budget.FormatearGasto(g))
+		}
+	}
+	if len(partes) == 0 {
+		return ""
+	}
+	return estiloApagado.Render(fmt.Sprintf("%-7s ", idioma.T("tokens")) + idioma.T("semana") + " · " + strings.Join(partes, " · "))
 }
 
 // Medidor dibuja una barra de ancho celdas llena al pct, coloreada por
@@ -95,7 +126,7 @@ func Medidor(pct, ancho int) string {
 	if pct > 0 && llenas == 0 {
 		llenas = 1
 	}
-	return estiloDePct(pct).Render(strings.Repeat("█", llenas)) + estiloApagado.Render(strings.Repeat("░", ancho-llenas))
+	return estiloDePct(pct).Render(strings.Repeat("█", llenas)) + lipgloss.NewStyle().Foreground(superficie).Render(strings.Repeat("█", ancho-llenas))
 }
 
 func estiloDePct(pct int) lipgloss.Style {
@@ -109,13 +140,13 @@ func estiloDePct(pct int) lipgloss.Style {
 }
 
 func lineaLoom(root string, cfg config.Config) string {
-	l := estiloTitulo.Render("loom")
+	l := estiloTitulo.Render(fmt.Sprintf("%-7s", "loom"))
 	if filas, err := Tablero(root); err == nil {
 		n := map[string]int{}
 		for _, f := range filas {
 			n[f.Estado]++
 		}
-		l += estiloTinta.Render(fmt.Sprintf("  ✓ %d  ◐ %d  ⏸ %d  · %d", n[state.Lista], n[state.EnCurso], n[state.Detenida], n[state.Pendiente]))
+		l += estiloTinta.Render(fmt.Sprintf(" ✓ %d  ◐ %d  ⏸ %d  · %d", n[state.Lista], n[state.EnCurso], n[state.Detenida], n[state.Pendiente]))
 	}
 	return l
 }

@@ -72,6 +72,13 @@ func (e OpenCode) Run(ctx context.Context, req Request) (Result, error) {
 	if req.Model != "" {
 		args = append(args, "--model", req.Model)
 	}
+	// Sin --variant deepseek razona con su esfuerzo por defecto en cada
+	// turno: medido con el prompt real del revisor en flash, low tardó
+	// 32 s y 5k tokens razonando; sin variante, 96 s y 15k. Una variante
+	// que el modelo no define (deepseek no tiene medium) cae a su default.
+	if req.Effort != "" {
+		args = append(args, "--variant", req.Effort)
+	}
 	req.Env = append(append([]string(nil), req.Env...), entornoOpenCode...)
 	req.avanceDe = avanceOpenCode(req.RoomPath)
 	stdout, stderr, code, err := run(ctx, req, "opencode", args...)

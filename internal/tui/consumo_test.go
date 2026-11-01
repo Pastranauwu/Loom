@@ -18,7 +18,7 @@ func TestLineasCuenta(t *testing.T) {
 	}}
 	ls := lineasCuenta(c, 50)
 	txt := ansi.ReplaceAllString(strings.Join(ls, "\n"), "")
-	for _, quiero := range []string{"claude · pro", "23%", "↻ 3h12m", "  0%"} {
+	for _, quiero := range []string{"claude  5h", "pro     semana", "23%", "↻ 3h12m", "  0%"} {
 		if !strings.Contains(txt, quiero) {
 			t.Errorf("falta %q en:\n%s", quiero, txt)
 		}
@@ -26,7 +26,7 @@ func TestLineasCuenta(t *testing.T) {
 	if strings.Contains(txt, "80%") {
 		t.Error("una ventana ya reiniciada no muestra el porcentaje viejo")
 	}
-	if m := ansi.ReplaceAllString(Medidor(50, 10), ""); m != "█████░░░░░" {
+	if m := ansi.ReplaceAllString(Medidor(50, 10), ""); m != "██████████" {
 		t.Errorf("medidor = %q", m)
 	}
 	if got := ansi.ReplaceAllString(strings.Join(lineasCuenta(ventanas.Cuenta{Proveedor: "claude", Motivo: "sin red"}, 50), ""), ""); !strings.Contains(got, "claude") {

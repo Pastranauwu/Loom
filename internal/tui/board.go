@@ -234,7 +234,8 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 	cab = append(append(cab, gasto...), lineaSticker{})
 
 	if len(filas) == 0 && filtro == "" {
-		return recortarAncho(append(cab, lineaSticker{texto: idioma.T("sin tareas · empieza con loom plan \"lo que necesitas\""), color: rgbApagado}), ancho)
+		return recortarAncho(append(cab, lineaSticker{texto: idioma.T("sin tareas · empieza con loom plan \"lo que necesitas\""), color: rgbApagado},
+			lineaSticker{}, lineaSticker{texto: idioma.T("q o esc sale"), color: rgbApagado}), ancho)
 	}
 
 	var cuerpo []lineaSticker
@@ -333,12 +334,14 @@ type Accion struct {
 // CorrerBoard muestra el tablero sobre un plasma animado; sale con q o esc.
 // El tablero no ejecuta nada: devuelve lo que el humano pidió para que el
 // comando lo corra en la misma terminal, con su salida normal.
-func CorrerBoard(root string) (Accion, error) {
+func CorrerBoard(root string, quieto bool) (Accion, error) {
 	filas, err := Tablero(root)
 	if err != nil {
 		return Accion{}, err
 	}
-	m := boardModel{todas: filas, filas: filas, cursor: cursorInicial(filas), params: DefaultPlasma(), root: root, presupuesto: lineasPresupuesto(root)}
+	params := DefaultPlasma()
+	params.Quieto = quieto
+	m := boardModel{todas: filas, filas: filas, cursor: cursorInicial(filas), params: params, root: root, presupuesto: lineasPresupuesto(root)}
 	final, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
 	if err != nil {
 		return Accion{}, err

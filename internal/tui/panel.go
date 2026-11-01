@@ -150,12 +150,13 @@ func (m panelModel) tecla(t string) panelModel {
 func (m panelModel) View() string {
 	ancho, cuerpoAlto := max(m.ancho, 20), max(m.alto-3, 1)
 	pestana := func(n int, nombre string) string {
+		nombre = strings.ToUpper(nombre)
 		if m.tab == n {
-			return estiloTitulo.Underline(true).Render(nombre)
+			return lipgloss.NewStyle().Background(presion).Foreground(lipgloss.Color(temaActual.Fondo)).Bold(true).Padding(0, 1).Render(nombre)
 		}
-		return estiloApagado.Render(nombre)
+		return estiloApagado.Padding(0, 1).Render(nombre)
 	}
-	cab := " " + pestana(0, idioma.T("tareas")) + estiloApagado.Render("  │  ") + pestana(1, idioma.T("mapa"))
+	cab := estiloApagado.Render("[") + pestana(0, idioma.T("tareas")) + estiloApagado.Render("│") + pestana(1, idioma.T("mapa")) + estiloApagado.Render("]")
 
 	var lineas []string
 	pie := idioma.T("tab cambia · j/k · enter detalle · esc")

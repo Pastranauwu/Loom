@@ -159,7 +159,7 @@ func TestTaskSetPersisteElContratoYSeLee(t *testing.T) {
 	if err := os.Chdir(root); err != nil {
 		t.Fatal(err)
 	}
-	if err := runBoard(); err != nil {
+	if err := runBoard(false); err != nil {
 		t.Fatal(err)
 	}
 	for _, quiero := range []string{`"weight": "heavy"`, `"max_retries": 5`, `"exposes": [`} {

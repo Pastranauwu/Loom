@@ -92,7 +92,8 @@ func UsaSesion(dir, script string) bool {
 
 // DefaultMax es el tope de capturas por revisión visual. En una corrida
 // real, 38 capturas en dos rondas fueron un tercio del gasto de la tarea.
-const DefaultMax = 5
+// 3: la hoja de componentes y dos pantallas; más se pide con pantallas_max.
+const DefaultMax = 3
 
 // Tope devuelve Max, o DefaultMax si no se declaró.
 func (p Pantallas) Tope() int {

@@ -2,20 +2,26 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/Pastranauwu/loom/internal/skills"
+	"github.com/Pastranauwu/loom/internal/state"
 	"github.com/Pastranauwu/loom/internal/tui"
 )
 
@@ -111,75 +117,251 @@ func modeloTechLead(root string) string {
 	return "sonnet"
 }
 
+// ajustesClaude es el settings.json de usuario de Claude Code.
+func ajustesClaude() string {
+	casa, _ := os.UserHomeDir()
+	return filepath.Join(casa, ".claude", "settings.json")
+}
+
+// soloCaveman apaga para el tech lead los plugins del usuario que no son
+// caveman: cada uno mete su texto en cada turno (ponytail y
+// frontend-design eran 3k de 25k) y el tech lead no escribe código.
+func soloCaveman(settings string) string {
+	var cfg struct {
+		Plugins map[string]bool `json:"enabledPlugins"`
+	}
+	data, err := os.ReadFile(settings)
+	if err != nil || json.Unmarshal(data, &cfg) != nil {
+		return ""
+	}
+	apagar := map[string]bool{}
+	for p, on := range cfg.Plugins {
+		if on && !strings.HasPrefix(p, "caveman@") {
+			apagar[p] = false
+		}
+	}
+	if len(apagar) == 0 {
+		return ""
+	}
+	out, _ := json.Marshal(map[string]any{"enabledPlugins": apagar})
+	return " --settings " + comillas(string(out))
+}
+
 func crearIDE(root, exe, s string) error {
 	mcp := fmt.Sprintf(`{"mcpServers":{"loom":{"command":%q,"args":["mcp"]}}}`, exe)
 	var tools []string
 	for _, t := range mcpSoloLectura {
 		tools = append(tools, "mcp__loom__"+t)
 	}
-	claude := "claude --model " + comillas(modeloTechLead(root)) + " --mcp-config " + comillas(mcp) +
+	// Sin MCP del usuario (Chrome y conectores de claude.ai) ni sus plugins
+	// salvo caveman: la sesión real arrancó en 47k tokens y creció a 308k
+	// en 505 pasos sin compactar, releyendo todo en cada paso; el 77% del
+	// gasto fue releer contexto. Compactar a los 120k la mantiene chica.
+	// Los ajustes de usuario se quedan: ahí viven las skills del
+	// orquestador (grilling, domain-modeling) y caveman.
+	claude := "CLAUDE_CODE_AUTO_COMPACT_WINDOW=120000 claude --model " + comillas(modeloTechLead(root)) +
+		" --strict-mcp-config --no-chrome" + soloCaveman(ajustesClaude()) +
+		" --mcp-config " + comillas(mcp) +
 		" --allowedTools " + comillas(strings.Join(tools, ",")) +
 		" --append-system-prompt " + comillas(rolTechLead)
 	panel := func(p string) string { return comillas(exe) + " panel " + p }
 
-	// derecha: el navegador (tareas y mapa) arriba y el consumo, chico, abajo
-	pasos := [][]string{
-		{"new-session", "-d", "-s", s, "-c", root, claude},
-		{"split-window", "-h", "-t", s, "-l", "34%", "-c", root, panel("nav")},
-		{"split-window", "-v", "-t", s + ":.1", "-l", "9", "-c", root, panel("usage")},
-		{"set-option", "-t", s, "mouse", "on"},
-		{"set-option", "-t", s, "pane-border-status", "top"},
-		{"set-option", "-t", s, "pane-border-format", " #{pane_title} "},
-		{"set-option", "-t", s, "pane-border-style", "fg=#3a3f42"},
-		{"set-option", "-t", s, "pane-active-border-style", "fg=#4FB3A2"},
-		{"set-option", "-t", s, "status-style", "bg=#1c1f21,fg=#6B6F72"},
-		{"set-option", "-t", s, "status-left", "#[fg=#4FB3A2,bold] loom #[default]· "},
-		{"set-option", "-t", s, "window-status-current-format", ""},
-		{"set-option", "-t", s, "window-status-format", ""},
-		{"set-option", "-t", s, "status-right", " ctrl+b d · " + idioma.T("ocultar") + "   loom ide · " + idioma.T("volver") + " "},
-		{"select-pane", "-t", s + ":.0", "-T", "claude"},
-		{"select-pane", "-t", s + ":.1", "-T", idioma.T("tareas · mapa")},
-		{"select-pane", "-t", s + ":.2", "-T", idioma.T("uso")},
-		{"select-pane", "-t", s + ":.0"},
+	// con paneles flotantes (tmux 3.8) cada caja dibuja su borde entero y
+	// la activa se ilumina sin cruces compartidos con sus vecinas. Debajo,
+	// el fondo pinta la cabecera y la base. Sin ellos, mosaico
+	if err := crearCajas(root, s, claude, panel); err == nil {
+		_ = tmux("set-option", "-t", s, "mouse", "on")
+		estiloIDE(s, root, exe)
+		return nil
 	}
-	for _, p := range pasos {
-		if err := tmux(p...); err != nil {
-			_ = exec.Command("tmux", "kill-session", "-t", s).Run()
+	_ = exec.Command("tmux", "kill-session", "-t", s).Run()
+
+	// derecha: el navegador (tareas y mapa) arriba y el consumo, chico,
+	// abajo, pegados: comparten la línea con el título del consumo
+	chat, err := tmuxID("new-session", "-d", "-s", s, "-c", root, claude)
+	var nav string
+	if err == nil {
+		nav, err = tmuxID("split-window", "-h", "-t", chat, "-l", "34%", "-c", root, panel("nav"))
+	}
+	if err == nil {
+		_, err = tmuxID("split-window", "-v", "-t", nav, "-l", "5", "-c", root, panel("usage"))
+	}
+	if err != nil {
+		_ = exec.Command("tmux", "kill-session", "-t", s).Run()
+		return err
+	}
+	// abajo, la base: loom y las teclas, siempre iluminada. Va antes del
+	// marco lateral para quedar entre sus dos líneas: así su borde de
+	// arriba se une con ellas (╠═╣) en vez de sobresalir una celda
+	if id, err := tmuxID("split-window", "-d", "-vf", "-t", s, "-l", "1", "-c", root, panel("barra")); err == nil {
+		_ = tmux("select-pane", "-t", id, "-d")
+	}
+	// arriba, la cabecera: el título de claude y los agentes activos. Su
+	// borde de abajo es la tapa de las cajas
+	if id, err := tmuxID("split-window", "-d", "-vbf", "-t", s, "-l", "1", "-c", root, panel("cabecera")); err == nil {
+		_ = tmux("select-pane", "-t", id, "-d")
+	}
+	_ = separar(sepVertical, "-hbf", "-t", s, "-l", "1")
+	_ = separar(sepVertical, "-hf", "-t", s, "-l", "1")
+	_ = tmux("set-option", "-t", s, "mouse", "on")
+	estiloIDE(s, root, exe)
+	return nil
+}
+
+// crearCajas arma la sesión con claude, navegador y consumo como cajas
+// flotantes sobre el fondo. Falla si tmux no tiene paneles flotantes.
+func crearCajas(root, s, claude string, panel func(string) string) error {
+	if _, err := tmuxID("new-session", "-d", "-s", s, "-c", root, panel("fondo")); err != nil {
+		return err
+	}
+	// el tamaño real llega con client-resized al entrar
+	c, n, u := cajasIDE(80, 24)
+	for _, caja := range []struct {
+		r   [4]int
+		cmd string
+	}{{n, panel("nav")}, {u, panel("usage")}, {c, claude}} {
+		if _, err := tmuxID("new-pane", "-t", s, "-c", root, "-x", strconv.Itoa(caja.r[2]), "-y", strconv.Itoa(caja.r[3]),
+			"-X", strconv.Itoa(caja.r[0]), "-Y", strconv.Itoa(caja.r[1]), caja.cmd); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// loom panel <nav|usage> es lo que corre en los paneles de la derecha;
-// no tiene uso fuera de loom ide.
+// loom panel <nav|usage|cabecera|barra|ayuda> es lo que corre en los
+// paneles y los atajos de loom ide; no tiene uso fuera de él.
 func newPanelCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:    "panel <nav|usage>",
+		Use:    "panel <nav|usage|fondo|cabecera|barra|ajustar|ayuda>",
 		Hidden: true,
 		Args:   cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] == "ayuda" {
+				fmt.Print(ayudaIDE())
+				// sin modo crudo la terminal espera un enter
+				if st, err := term.MakeRaw(os.Stdin.Fd()); err == nil {
+					defer func() { _ = term.Restore(os.Stdin.Fd(), st) }()
+				}
+				_, _ = os.Stdin.Read(make([]byte, 1))
+				return nil
+			}
 			root, err := projectRoot()
 			if err != nil {
 				return err
 			}
 			switch args[0] {
+			case "ajustar":
+				s := sesionIDE(root)
+				acomodarCajas(s, leerPaneles(s))
+				return nil
+			case "fondo":
+				fmt.Print("\033[?25l")
+				// al cambiar de tamaño se redibuja ya: la base quedaba partida
+				cambio := make(chan os.Signal, 1)
+				signal.Notify(cambio, syscall.SIGWINCH)
+				for {
+					ancho, alto := tui.Terminal(os.Stdout.Fd())
+					fmt.Print("\033[H\033[2J", tui.CabeceraIDE(ancho, tituloClaude(), agentesActivos(root)),
+						fmt.Sprintf("\033[%d;1H", alto), tui.BarraIDE(ancho, idioma.T("ayuda"), idioma.T("ocultar")))
+					select {
+					case <-cambio:
+					case <-time.After(2 * time.Second):
+					}
+				}
+			case "cabecera":
+				fmt.Print("\033[?25l")
+				for {
+					ancho, _ := tui.Terminal(os.Stdout.Fd())
+					fmt.Print("\033[H\033[2J", tui.CabeceraIDE(ancho, tituloClaude(), agentesActivos(root)))
+					time.Sleep(2 * time.Second)
+				}
+			case "barra":
+				fmt.Print("\033[?25l")
+				for {
+					ancho, _ := tui.Terminal(os.Stdout.Fd())
+					fmt.Print("\033[H\033[2J", tui.BarraIDE(ancho, idioma.T("ayuda"), idioma.T("ocultar")))
+					time.Sleep(2 * time.Second)
+				}
 			case "nav":
 				return tui.Panel(root, func(ancho int) string {
 					m, _, err := construirMapa(root, false, 2)
 					if err != nil {
 						return err.Error()
 					}
+					// con todo entregado, el bosquejo de lo que hay; mientras
+					// se trabaja, las tarjetas con sus tareas
+					if !tui.EnObra(m) {
+						return tui.VistaArquitectura(m, ancho)
+					}
 					return tui.VistaMapa(m, ancho)
 				})
 			case "usage":
 				for {
-					ancho, alto := tui.Terminal(os.Stdout.Fd())
-					fmt.Print("\033[H\033[2J", tui.Consumo(root, ancho, alto))
+					// tamaño directo: tui.Terminal cae a 100×40 bajo 40 columnas
+					// y el panel envolvía hasta sacar el título
+					ancho, alto, _ := term.GetSize(os.Stdout.Fd())
+					titulo := tui.TituloPanel(strings.ToUpper(idioma.T("uso de recursos")))
+					fmt.Print("\033[H\033[2J", titulo+"\n"+tui.Consumo(root, ancho, alto-1))
 					time.Sleep(2 * time.Second)
 				}
 			}
 			return fmt.Errorf("panel desconocido: %s", args[0])
 		},
 	}
+}
+
+// tituloClaude es el título que claude le pone a su panel (lo que hace
+// ahora); "Claude Code" si no se puede leer.
+func tituloClaude() string {
+	pane := os.Getenv("TMUX_PANE")
+	o, err := exec.Command("tmux", "display-message", "-p", "-t", pane, "#{session_name}").Output()
+	if err != nil || pane == "" {
+		return "Claude Code"
+	}
+	if id := leerPaneles(strings.TrimSpace(string(o))).claude; id != "" {
+		if t, err := exec.Command("tmux", "display-message", "-p", "-t", id, "#{pane_title}").Output(); err == nil && strings.TrimSpace(string(t)) != "" {
+			return strings.TrimSpace(string(t))
+		}
+	}
+	return "Claude Code"
+}
+
+// agentesActivos es la derecha de la cabecera: cuántas tareas
+// de loom corren ahora; vacío si ninguna.
+func agentesActivos(root string) string {
+	estados, _ := state.List(root)
+	n := 0
+	for _, s := range estados {
+		if s.Estado == state.EnCurso {
+			n++
+		}
+	}
+	switch n {
+	case 0:
+		return ""
+	case 1:
+		return idioma.T("1 agente activo")
+	}
+	return fmt.Sprintf(idioma.T("%d agentes activos"), n)
+}
+
+func ayudaIDE() string {
+	filas := [][2]string{
+		{"F1", idioma.T("esta ayuda")},
+		{"F2", idioma.T("agranda o devuelve el panel activo")},
+		{"F3", idioma.T("tablero completo de tareas")},
+		{"F4", idioma.T("cambia el tema de colores")},
+		{"ctrl+b ←→", idioma.T("pasa de un panel a otro (o con el mouse)")},
+		{"tab", idioma.T("en el panel derecho: tareas o mapa")},
+		{"j/k enter", idioma.T("recorre las tareas y abre su detalle")},
+		{"F12", idioma.T("oculta loom ide; sigue corriendo (o ctrl+b d)")},
+		{"loom ide", idioma.T("lo vuelve a abrir")},
+	}
+	var b strings.Builder
+	b.WriteString("\n")
+	for _, f := range filas {
+		fmt.Fprintf(&b, "  %-11s %s\n", f[0], f[1])
+	}
+	b.WriteString("\n  " + idioma.T("cualquier tecla cierra"))
+	return b.String()
 }

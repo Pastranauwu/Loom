@@ -83,6 +83,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_run`* | Run pending tasks. `agents` sets parallelism, `retry` revives stopped tasks and reuses their work. |
 | `loom_up`* | Plan and run from a request or the spec. `ship` opens the PR at the end. |
 | `loom_stop` | Stop the run (run, up, apply) or the delivery (ship) and its agents. |
+| `loom_theme_add` | Save a custom color theme when the human asks for a new style: start from a built-in one and change only the colors that differ (#RRGGBB); `use` applies it. |
 | `loom_status` | One line: base branch and tip, `_integra` tip, green tasks not shipped, pending and stopped. Check it before shipping or when branches confuse you. |
 | `loom_archive` | Close the version after `loom_ship` `all` passed: files the spec and result, sets the shipped tasks aside, blanks the spec. |
 | `loom_log` | Read new lines of a detached run's log. |

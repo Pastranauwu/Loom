@@ -16,6 +16,9 @@ type PlasmaParams struct {
 	Scale      float64 // tamaño de los blobs
 	Distortion float64 // deformación (warp tipo lava)
 	Contrast   float64 // dureza de los bordes
+	// Quieto deja el fondo liso con el color del tema: sin animación. En
+	// una ventana flotante de tmux el plasma parpadeaba en cada fotograma.
+	Quieto bool
 }
 
 // DefaultPlasma es un equilibrio tipo lámpara de lava, relajado.
@@ -23,7 +26,8 @@ func DefaultPlasma() PlasmaParams {
 	return PlasmaParams{Speed: 0.5, Scale: 1.4, Distortion: 0.7, Contrast: 1.4}
 }
 
-// neon es la paleta: negro-azulado → verde oscuro → verde brillante → pálido.
+// neon es la paleta del plasma, de oscuro a pálido. AplicarTema la rehace
+// con los colores del tema (paletaPlasma).
 var neon = [][3]int{
 	{4, 6, 20},
 	{6, 26, 32},
@@ -83,6 +87,16 @@ type celda struct {
 // usando medio bloque ▀ (fg = fila par, bg = fila impar).
 func plasmaGrid(ancho, alto int, t float64, p PlasmaParams) [][]celda {
 	grid := make([][]celda, alto)
+	if p.Quieto {
+		liso := neon[0]
+		for row := range grid {
+			grid[row] = make([]celda, ancho)
+			for col := range grid[row] {
+				grid[row][col] = celda{bg: &liso, ch: " "}
+			}
+		}
+		return grid
+	}
 	w := float64(ancho)
 	h := float64(alto * 2)
 	for row := 0; row < alto; row++ {

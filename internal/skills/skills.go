@@ -186,6 +186,11 @@ func casa() string {
 // trabajo que el revisor y la esclusa ya juzgan), clean-code (4,8 KB;
 // queda completa en el catálogo) y caveman (estilo de prosa; aquí basta
 // una línea).
+// Minimo es la regla de ponytail en tres líneas: llega a todo constructor
+// (Base), al planificador y al arquitecto. La skill completa sigue
+// entrando a los roles que la tienen; esto es el piso para los demás.
+const Minimo = `Least code that works: build only what the request needs, nothing speculative (no layers, config, abstractions or features "for later"). Reuse what the repo already has, then the standard library, then dependencies already installed; never add a dependency for what a few lines do.`
+
 const Base = `How to work:
 - Implement what the contract asks, nothing outside your scope.
 - Run the tests of what you touch often, and done_when at the end.
@@ -195,7 +200,8 @@ const Base = `How to work:
 Code is machine IR: the human audits the contracts (spec, DNA, exposes), not function bodies; the compiler and the tests are the readers.
 - Type-driven design: make invalid states unrepresentable. Newtypes for domain values, exhaustive enums or discriminated unions for states, strict signatures. No stringly-typed data, no boolean flags that encode a state, no null where absence is not a real state.
 - In code, machine efficiency over surface aesthetics: performance, determinism and memory safety first; no unnecessary allocations or copies; no syntactic sugar that costs either. The look of an interface is not surface: it is the deliverable.
-- Reuse what already exists before writing something new; nothing duplicated.
+- ` + Minimo + `
+- Nothing duplicated.
 - Errors are typed values: do not swallow them or return magic values.
 - Zero explanatory comments: only tool directives (//go:build, //nolint, #[allow(...)]).
 - Zero dead or commented-out code, zero debug prints.

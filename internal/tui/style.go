@@ -16,6 +16,10 @@ var (
 	espera  = lipgloss.Color("#C9A227")
 	apagado = lipgloss.Color("#6B6F72")
 	tinta   = lipgloss.Color("#E6E6E1")
+	// superficie, borde y fondo los usa solo la vista con tema (AplicarTema)
+	superficie = lipgloss.Color("#2a2e31")
+	borde      = lipgloss.Color("#3a3f42")
+	fondo      = lipgloss.Color("#141618")
 )
 
 var (
