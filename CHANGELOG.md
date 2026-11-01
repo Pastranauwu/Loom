@@ -2,6 +2,10 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.9.2 (31 oct 2026)
+**Base que avanzó por fuera de loom, antes de gastar:** `run` se frena si la rama base choca con lo verde sin entregar (commits a mano o de subagentes del conductor con una spec abierta), y `loom status`/`loom_status` lo avisan con los archivos; lo calcula `git merge-tree` sin tocar nada. Antes solo se veía en `ship`, con el trabajo pagado. `ship` nombra la causa en el conflicto de rebase.
+**El conductor no hace commits a la base con una spec abierta:** lo dicen su rol y el manual; las reparaciones van por loom. `loom_task_set` sobre una tarea ya verde avisa que el contrato nuevo solo vale si vuelve a correr.
+
 ## v2.9.1 (31 oct 2026)
 Corrige la compilación en Windows (`SIGWINCH` del fondo de `loom ide`), que frenó el release de v2.9.0.
 
