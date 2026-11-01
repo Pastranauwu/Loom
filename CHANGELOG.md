@@ -2,7 +2,16 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
-## Sin publicar
+## v2.9.0 (31 oct 2026)
+**Tech lead de `loom ide` más barato:** arranca sin Chrome, sin los MCP del usuario y con sus plugins apagados salvo caveman (de 47k a ~22k tokens de base), y se compacta solo a los 120k; una sesión real llegó a 308k sin compactar y el 77% de su gasto fue releer contexto.
+**Deepseek piensa lo que se le pide:** el esfuerzo de loom llega a opencode como `--variant`; el revisor corre en `low` (con flash: 32 s y 5k tokens razonando en vez de 96 s y 15k).
+**Menos tareas, más grandes:** planificador y arquitecto parten por funcionalidad o módulo, no por archivo (2 a 6 tareas por feature): cada tarea paga arranque, revisor y reintentos en cada intento.
+**ponytail para todos:** la regla "lo mínimo que funciona, reusa lo que hay, stdlib antes que dependencias" entra a todo constructor, al planificador y al arquitecto.
+**`loom logs` muestra el gasto real:** entrada, caché leída y escrita, salida, turnos y costo por intento; antes "17477 de entrada" escondía 968k de caché.
+**Revisión visual con 3 capturas** por defecto (antes 5; `screens_max` lo cambia).
+**loom ide como ventana:** marco doble alrededor de toda la pantalla, cajas cerradas e independientes para Claude, tareas/mapa y uso donde solo la activa se ilumina (con tmux 3.8, cajas flotantes; antes, mosaico); cabecera con el título de Claude y los agentes de loom activos, y una base con loom y las teclas. Un clic en el marco devuelve el foco a Claude. F1 ayuda, F2 agranda el panel, F3 tablero, F4 tema, F12 oculta (también `ctrl+b ctrl+d`). El consumo cabe en 6 filas con su título y el diseño se reacomoda al cambiar el tamaño de la terminal.
+**Temas:** `loom theme` (`tema`) elige entre loom, nord, gruvbox, tokyo-night, catppuccin y rose-pine; vale para todos tus proyectos (`~/.loom/theme`) y repinta `loom ide` abierto. `loom theme add` (y `loom_theme_add` por MCP, para pedírselo al agente) guarda temas propios en `~/.loom/themes/`. El plasma del tablero toma los colores del tema y `loom board --still` (el de F3) lo deja quieto.
+**Mapa de arquitectura:** con todo entregado, el mapa muestra los bloques del proyecto por capa y de qué depende cada uno en forma de árbol, sin pruebas ni migraciones.
 
 ## v2.8.0 (30 oct 2026)
 **Spec reescrito sin archivar:** `run` suma a la integración todo lo verde sin entregar, aunque ninguna tarea nueva dependa de ello, y `apply` lo avisa; antes la integración salía de la base y ese trabajo se perdía.
