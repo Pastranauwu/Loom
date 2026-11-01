@@ -2,6 +2,9 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.9.1 (31 oct 2026)
+Corrige la compilación en Windows (`SIGWINCH` del fondo de `loom ide`), que frenó el release de v2.9.0.
+
 ## v2.9.0 (31 oct 2026)
 **Tech lead de `loom ide` más barato:** arranca sin Chrome, sin los MCP del usuario y con sus plugins apagados salvo caveman (de 47k a ~22k tokens de base), y se compacta solo a los 120k; una sesión real llegó a 308k sin compactar y el 77% de su gasto fue releer contexto.
 **Deepseek piensa lo que se le pide:** el esfuerzo de loom llega a opencode como `--variant`; el revisor corre en `low` (con flash: 32 s y 5k tokens razonando en vez de 96 s y 15k).
