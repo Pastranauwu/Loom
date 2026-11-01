@@ -554,3 +554,26 @@ func TestGestorNodePorLockfile(t *testing.T) {
 		}
 	}
 }
+
+func TestChoquesConBaseVeLaBaseQueAvanzoPorFuera(t *testing.T) {
+	root := repoConCommit(t)
+	commit := func(rama, archivo, texto string) {
+		gitCmd(t, root, "checkout", "-q", rama)
+		os.WriteFile(filepath.Join(root, archivo), []byte(texto), 0o644)
+		gitCmd(t, root, "add", archivo)
+		gitCmd(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", archivo)
+	}
+	gitCmd(t, root, "branch", "loom/T-001")
+	gitCmd(t, root, "branch", "loom/T-002")
+	commit("loom/T-001", "juego.js", "de loom")
+	commit("loom/T-002", "otro.js", "sin choque")
+	commit("main", "juego.js", "hecho a mano en main")
+
+	archivos, ramas, err := ChoquesConBase(context.Background(), root, "main", []string{"T-001", "T-002"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(archivos, ",") != "juego.js" || strings.Join(ramas, ",") != "loom/T-001" {
+		t.Fatalf("archivos=%v ramas=%v", archivos, ramas)
+	}
+}

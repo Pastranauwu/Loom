@@ -844,3 +844,31 @@ func tail(s string) string {
 	}
 	return strings.Join(lines, " · ")
 }
+
+// ChoquesConBase simula, sin tocar nada, la mezcla de la base con la
+// rama de cada tarea dada (`git merge-tree`) y devuelve los archivos que
+// chocarían y las ramas que los traen. Una base que avanzó por fuera de
+// loom (commits a mano, subagentes del conductor) solo se veía en `ship`,
+// con el trabajo ya pagado. Sin git 2.38 devuelve error.
+func ChoquesConBase(ctx context.Context, root, base string, ids []string) (archivos, ramas []string, err error) {
+	vistos := map[string]bool{}
+	for _, id := range ids {
+		ref := Branch(id)
+		s, err := git(ctx, root, "merge-tree", "--write-tree", "--name-only", "--no-messages", base, ref)
+		if err == nil {
+			continue
+		}
+		lineas := strings.Split(strings.TrimSpace(s), "\n")
+		if len(lineas) < 2 {
+			return nil, nil, fmt.Errorf("merge-tree %s: %s", ref, tail(s))
+		}
+		ramas = append(ramas, ref)
+		for _, f := range lineas[1:] {
+			if !vistos[f] {
+				vistos[f] = true
+				archivos = append(archivos, f)
+			}
+		}
+	}
+	return archivos, ramas, nil
+}

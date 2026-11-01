@@ -19,8 +19,10 @@ import (
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/mcp"
+	"github.com/Pastranauwu/loom/internal/room"
 	"github.com/Pastranauwu/loom/internal/skills"
 	"github.com/Pastranauwu/loom/internal/spec"
+	"github.com/Pastranauwu/loom/internal/state"
 	"github.com/Pastranauwu/loom/internal/task"
 	"github.com/Pastranauwu/loom/internal/wrap"
 )
@@ -820,6 +822,11 @@ func editTask(a map[string]any, set bool) (string, error) {
 		}
 	}
 	data, err := json.MarshalIndent(vistaTarea(t), "", "  ")
+	// el contrato solo gobierna intentos nuevos: recortar el alcance de
+	// lo que ya está verde no cambia su rama, y nada lo decía
+	if st, e := state.Get(root, id); set && e == nil && st.Estado == state.Lista && room.RamaExiste(context.Background(), root, id) {
+		return "note: " + id + " is already green · this contract applies only if it runs again (loom_run with retry) · its branch keeps the work it did\n" + string(data), err
+	}
 	return string(data), err
 }
 

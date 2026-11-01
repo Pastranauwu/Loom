@@ -8,6 +8,7 @@ package ship
 
 import (
 	"context"
+	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"strings"
 	"time"
@@ -109,7 +110,13 @@ func Run(ctx context.Context, o Opciones) Resultado {
 	if err != nil {
 		if len(conflictos) > 0 {
 			res.Conflicto = true
-			apuntar(Paso{"base", false, idioma.T("rebase en conflicto · archivos: ") + unir(conflictos) + " · resuélvelo a mano"})
+			// la causa casi siempre es una base que avanzó por fuera de loom:
+			// decirlo evita leer el choque como un problema de alcances
+			causa := ""
+			if n, err := gitRun(o.Room.Path, "rev-list", "--count", "HEAD.."+target); err == nil && strings.TrimSpace(n) != "0" {
+				causa = fmt.Sprintf(idioma.T("%s avanzó %s commits que la rama no tiene, hechos por fuera de loom · "), target, strings.TrimSpace(n))
+			}
+			apuntar(Paso{"base", false, idioma.T("rebase en conflicto · ") + causa + idioma.T("archivos: ") + unir(conflictos) + " · resuélvelo a mano"})
 		} else {
 			apuntar(Paso{"base", false, idioma.T("no se pudo rebasear · ") + err.Error()})
 		}

@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/Pastranauwu/loom/internal/room"
 	"github.com/Pastranauwu/loom/internal/ship"
 	"github.com/Pastranauwu/loom/internal/state"
@@ -25,6 +27,10 @@ type estadoRepo struct {
 	SinEntregar []string `json:"sin_entregar"`
 	Pendientes  []string `json:"pendientes,omitempty"`
 	Detenidas   []string `json:"detenidas,omitempty"`
+	// ChoqueBase son los archivos que chocarían al entregar lo verde: la
+	// base avanzó por fuera de loom y los cambió (`room.ChoquesConBase`)
+	ChoqueBase  []string `json:"choque_base,omitempty"`
+	RamasChoque []string `json:"ramas_choque,omitempty"`
 }
 
 func newStatusCmd() *cobra.Command {
@@ -38,13 +44,16 @@ func newStatusCmd() *cobra.Command {
 				return err
 			}
 			e, err := leerEstadoRepo(root)
-			if err != nil {
+			if err != nil && e.Base == "" {
 				return err
 			}
 			if err := out.Data(e); err != nil {
 				return err
 			}
 			out.Line("%s", e.String())
+			if err != nil {
+				out.Line(idioma.T("· no se pudo revisar si la base choca con lo verde de loom · %v"), err)
+			}
 			return nil
 		},
 	}
@@ -90,7 +99,23 @@ func leerEstadoRepo(root string) (estadoRepo, error) {
 			e.Pendientes = append(e.Pendientes, t.ID)
 		}
 	}
-	return e, nil
+	// lo pendiente no cuenta: Ensure lo rebasea solo sobre la base nueva
+	e.ChoqueBase, e.RamasChoque, err = room.ChoquesConBase(ctx, root, cfg.Base, e.SinEntregar)
+	return e, err
+}
+
+// avisoChoque dice qué pasa y qué hacer cuando la base chocaría con lo
+// verde de loom; "" si no choca.
+func (e estadoRepo) avisoChoque() string {
+	if len(e.ChoqueBase) == 0 {
+		return ""
+	}
+	archivos := e.ChoqueBase
+	if len(archivos) > 5 {
+		archivos = append(archivos[:5:5], "…")
+	}
+	return fmt.Sprintf(idioma.T("%s avanzó por fuera de loom y choca con lo verde de %d tareas en %d archivos (%s) · ship va a fallar · no hagas commits a la base con una spec abierta: entrega o archiva primero, o descarta esas ramas y replanea sobre la base actual"),
+		e.Base, len(e.RamasChoque), len(e.ChoqueBase), strings.Join(archivos, ", "))
 }
 
 func (e estadoRepo) String() string {
@@ -113,6 +138,9 @@ func (e estadoRepo) String() string {
 	}
 	if len(e.Detenidas) > 0 {
 		partes = append(partes, "detenidas: "+strings.Join(e.Detenidas, ", "))
+	}
+	if a := e.avisoChoque(); a != "" {
+		partes = append(partes, a)
 	}
 	return strings.Join(partes, " · ")
 }

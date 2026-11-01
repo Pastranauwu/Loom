@@ -50,6 +50,7 @@ What code enforces, so you do not need to ask for it in prompts:
 ## Versions
 
 One spec is one version. The cycle is: write spec → apply → run → `ship all` → `loom_archive` → write the next spec from blank.
+- While a spec has unshipped work, never commit to the base branch, by hand or through your own subagents: loom's branches are built on it, so `loom_run` stops and `ship` conflicts. Repairs go through loom (`loom_task_set`, then `loom_run`); hand fixes wait until `ship all` and `loom_archive`. `loom_status` reports the clash.
 - `loom_archive` refuses if the last `ship all` failed or the spec changed after it: fix and ship again, do not force it.
 - It files the spec and its result in `.loom/historial/NNNN-<feature>/` (versioned), moves the shipped tasks with their
   states and runs to `.loom/archivo/NNNN-<feature>/` and frees their rooms. The next spec starts with a clean board.

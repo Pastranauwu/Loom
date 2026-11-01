@@ -171,6 +171,12 @@ func runCmd(agentes int, ejecutor, modelo string, reintentar, fondo bool) error 
 	if perdidas := verdesPerdidas(context.Background(), root, cfg.Base, pendientes); len(perdidas) > 0 {
 		return fmt.Errorf(idioma.T("%s figuran listas pero su rama ya no existe y su trabajo no está en %s · las tareas que dependen de ellas arrancarían sin ese código · borra .loom y replanea con loom up, o quítalas con loom task rm si ya están entregadas"), strings.Join(perdidas, ", "), cfg.Base)
 	}
+	// antes de gastar: lo verde sin entregar ya no entra en la base
+	if e, err := leerEstadoRepo(root); err != nil {
+		out.Line(idioma.T("· no se pudo revisar si la base choca con lo verde de loom · %v"), err)
+	} else if a := e.avisoChoque(); a != "" {
+		return errors.New(a)
+	}
 	if len(detenidas) > 0 {
 		out.Line(idioma.T("· reintentando %s · se reusa el cuarto y el trabajo parcial de cada una"), strings.Join(detenidas, ", "))
 	}
