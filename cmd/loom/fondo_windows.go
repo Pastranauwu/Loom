@@ -2,7 +2,10 @@
 
 package main
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // detachedProcess es DETACHED_PROCESS de la API de Windows: el hijo
 // arranca sin heredar la consola del padre, que es el equivalente de
@@ -19,3 +22,7 @@ func desprender() *syscall.SysProcAttr {
 		CreationFlags: detachedProcess | syscall.CREATE_NEW_PROCESS_GROUP,
 	}
 }
+
+// avisarTamanio no hace nada: Windows no tiene SIGWINCH y el fondo de
+// loom ide se redibuja igual cada 2 s.
+func avisarTamanio(chan os.Signal) {}

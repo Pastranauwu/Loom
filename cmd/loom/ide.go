@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/charmbracelet/x/term"
@@ -258,7 +256,7 @@ func newPanelCmd() *cobra.Command {
 				fmt.Print("\033[?25l")
 				// al cambiar de tamaño se redibuja ya: la base quedaba partida
 				cambio := make(chan os.Signal, 1)
-				signal.Notify(cambio, syscall.SIGWINCH)
+				avisarTamanio(cambio)
 				for {
 					ancho, alto := tui.Terminal(os.Stdout.Fd())
 					fmt.Print("\033[H\033[2J", tui.CabeceraIDE(ancho, tituloClaude(), agentesActivos(root)),
