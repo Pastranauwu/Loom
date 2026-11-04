@@ -32,7 +32,10 @@ const EntregaLocal = "local"
 
 // Config is the content of .loom/config.yml.
 type Config struct {
-	Base    string `json:"base"`
+	Base string `json:"base"`
+	// Release es la rama que solo recibe versiones: `archive` deja ahí un
+	// commit por versión con su tag y su resumen. Vacío: sin releases.
+	Release string `json:"release,omitempty"`
 	Pruebas string `json:"pruebas"`
 	// Cli fija el CLI de agente por defecto (opencode | claude). Se llama
 	// "cli" y no "ejecutor" a propósito: ese nombre ya lo usa el rol
@@ -278,6 +281,9 @@ func Load(root string) (Config, error) {
 func (c Config) Save(root string) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base: %s\n", c.Base)
+	if c.Release != "" {
+		fmt.Fprintf(&b, "release: %s\n", c.Release)
+	}
 	fmt.Fprintf(&b, "pruebas: %s\n", c.Pruebas)
 	if !c.Pantallas.Vacia() {
 		fmt.Fprintf(&b, "pantallas_levantar: %s\n", kv.Quote(c.Pantallas.Levantar))
@@ -645,6 +651,8 @@ func Parse(data []byte) (Config, error) {
 		switch p.Key {
 		case "base":
 			cfg.Base = kv.Unquote(p.Value)
+		case "release":
+			cfg.Release = kv.Unquote(p.Value)
 		case "pruebas":
 			cfg.Pruebas = kv.Unquote(p.Value)
 		case "cli":

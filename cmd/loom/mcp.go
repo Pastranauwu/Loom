@@ -294,7 +294,7 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return runQuick(exe, dir, args)
 			}},
-		quick("loom_archive", "Close the version: after loom_ship all passed every acceptance command, file the spec and its result in .loom/historial, set the shipped tasks aside and leave the spec blank for the next version. Refuses if the last joint delivery did not pass. Never archive by moving .loom files yourself.", nil, fixed("archive", "--json")),
+		quick("loom_archive", "Close the version: after loom_ship all passed every acceptance command, file the spec and its result in .loom/historial, set the shipped tasks aside and leave the spec blank for the next version. Without a remote it fast-forwards the base to the delivery branch first; with release: <branch> in config it also commits the version there with its vX.Y.Z tag and summary. Refuses if the last joint delivery did not pass. Never archive by moving .loom files yourself.", nil, fixed("archive", "--json")),
 		{Name: "loom_task_show", Description: "Contract of one task: what it may touch, what it may not, exposes, weight, retries, network.",
 			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
 			Call: func(a map[string]any) (string, error) {

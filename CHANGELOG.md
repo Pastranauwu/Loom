@@ -3,6 +3,8 @@
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
 ## Sin publicar
+**`main` solo con versiones:** con `release: main` en `.loom/config.yml` (y `base: dev`), `loom archive` deja en `main` un solo commit por versión con el árbol de la base, su tag `vX.Y.Z` (minor si hubo `feat`, patch si solo `fix`, major con `!`) y un resumen de mejoras y reparaciones sacado de los Conventional Commits. `dev` guarda todo el historial de loom; no se sube nada.
+**Sin merge a mano tras entregar:** sin remoto, `archive` avanza la base hasta `loom/_entrega` en línea recta antes de su commit; antes quedaba un merge por versión.
 **Un arreglo de backend ya no paga el script de capturas:** el arquitecto solo tiene que hacer funcionar `pantallas.script` (sesión y prueba contra la app levantada) si alguna tarea toca la interfaz; un arreglo de backend gastaba sus dos correcciones reparando capturas.
 **El planificador parte del mapa:** además de los archivos que coinciden con el pedido, recibe el `loom map <módulo>` de los dos módulos más relevantes, con qué hace cada archivo, su API y qué pruebas lo importan (`probado en`). Una firma de Python partida en varias líneas se ve completa.
 **El mismo rechazo dos veces para la tarea:** si el revisor señala el mismo `archivo:línea` en dos intentos seguidos, la tarea pasa al humano sin escalar (es un choque con el contrato, no falta de modelo). Antes podía dar decenas de vueltas pagadas para el mismo veredicto.

@@ -52,6 +52,8 @@ What code enforces, so you do not need to ask for it in prompts:
 ## Versions
 
 One spec is one version. The cycle is: write spec → apply → run → `ship all` → `loom_archive` → write the next spec from blank.
+- Without a remote, `loom_archive` first fast-forwards the base to `loom/_entrega`: never merge the delivery branch by hand.
+- With `release: main` in `.loom/config.yml` (and `base: dev`), `loom_archive` also leaves one commit per version on `main`: the base's tree, a `vX.Y.Z` tag (minor if any `feat`, patch if only `fix`) and a summary of improvements and fixes from the Conventional Commits. The base keeps every commit; `main` only versions. It pushes nothing: tell the human the push command it prints.
 - While a spec has unshipped work, never commit to the base branch, by hand or through your own subagents: loom's branches are built on it, so `loom_run` stops and `ship` conflicts. Repairs go through loom (`loom_task_set`, then `loom_run`); hand fixes wait until `ship all` and `loom_archive`. `loom_status` reports the clash.
 - `loom_archive` refuses if the last `ship all` failed or the spec changed after it: fix and ship again, do not force it.
 - It files the spec and its result in `.loom/historial/NNNN-<feature>/` (versioned), moves the shipped tasks with their
