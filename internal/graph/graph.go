@@ -20,7 +20,7 @@ const archivo = "repo-graph.json"
 // version sube cuando cambia lo que se extrae de cada archivo: un grafo de
 // otra versión se reconstruye entero, porque el hash no cambió y no se
 // re-parsearía.
-const version = 4
+const version = 5
 
 type Node struct {
 	Hash       string   `json:"hash"`

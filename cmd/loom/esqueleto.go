@@ -278,12 +278,15 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 			}
 			// las rutas cayeron en el login: sin sesión en el script nadie
 			// ve el panel, y la luz verde visual no vale
-			if p, _ := cfg.Pantallas.Completar(res.Pantallas); len(sinSesion) > 0 && p.Script != "" && !capturas.UsaSesion(r.Path, p.Script) {
+			// solo si alguna tarea toca la interfaz: un arreglo de backend
+			// gastaba sus dos correcciones reparando el script de capturas
+			ui := tocaUI(res.Tareas)
+			if p, _ := cfg.Pantallas.Completar(res.Pantallas); ui && len(sinSesion) > 0 && p.Script != "" && !capturas.UsaSesion(r.Path, p.Script) {
 				problemas = append(problemas, "las rutas "+strings.Join(sinSesion, ", ")+" redirigen al login y \"pantallas.script\" no inicia sesión: la semilla debe crear el usuario $SCREENS_USER / $SCREENS_PASSWORD y el script entrar con él antes de capturar")
 			}
 			// un script roto le muestra al revisor una página de error y le
 			// hace rechazar tareas que no lo son; se prueba antes de repartir
-			if p, _ := cfg.Pantallas.Completar(res.Pantallas); len(problemas) == 0 && p.Script != "" && !p.Vacia() && capturas.Navegador() != "" {
+			if p, _ := cfg.Pantallas.Completar(res.Pantallas); ui && len(problemas) == 0 && p.Script != "" && !p.Vacia() && capturas.Navegador() != "" {
 				dir := filepath.Join(loop.RunsDir(root), id, fmt.Sprintf("flujos-prueba-%d", vuelta))
 				err := capturas.ProbarFlujos(ctx, r.Path, p, r.Puerto, room.Entorno(r.Path), dir)
 				// la app ya no levantaba antes de que el arquitecto tocara

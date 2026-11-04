@@ -1,11 +1,14 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"github.com/spf13/cobra"
 
 	"github.com/Pastranauwu/loom/internal/config"
 	"github.com/Pastranauwu/loom/internal/graph"
+	"github.com/Pastranauwu/loom/internal/topo"
 )
 
 func newGraphCmd() *cobra.Command {
@@ -36,5 +39,40 @@ func resumenGrafo(root, consulta string) string {
 		out.Line(idioma.T("· grafo del repo no disponible (%v) · el planificador explora por su cuenta"), err)
 		return ""
 	}
-	return graph.Resumen(g, consulta)
+	return graph.Resumen(g, consulta) + detallesRelevantes(g, consulta)
+}
+
+const (
+	maxModulosDetalle = 2
+	maxBytesDetalle   = 3000
+)
+
+// detallesRelevantes es el `loom map <módulo>` de los módulos donde están
+// los archivos que más coinciden con el pedido: qué hace cada archivo,
+// quién lo usa y qué pruebas lo cubren. Con eso el planificador sabe qué
+// abrir y qué pruebas correr sin explorar el repo turno por turno (cada
+// turno relee su contexto). Vacío si el pedido no coincide con nada.
+func detallesRelevantes(g *graph.Graph, consulta string) string {
+	e := topo.Entrada{Grafo: g, Profundidad: 2}
+	var b strings.Builder
+	vistos := map[string]bool{}
+	for _, f := range graph.Relevantes(g, consulta) {
+		if len(vistos) == maxModulosDetalle {
+			break
+		}
+		d, err := topo.Detalle(e, f)
+		if err != nil {
+			continue
+		}
+		cab, _, _ := strings.Cut(d, " ·")
+		if vistos[cab] {
+			continue
+		}
+		vistos[cab] = true
+		if len(d) > maxBytesDetalle {
+			d = d[:strings.LastIndex(d[:maxBytesDetalle], "\n")] + "\n  …"
+		}
+		b.WriteString("\n\nMódulo " + d)
+	}
+	return b.String()
 }

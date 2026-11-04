@@ -153,10 +153,10 @@ func TestPropositoCapasYDetalle(t *testing.T) {
 
 func TestImportDePaqueteNoApuntaAlPadre(t *testing.T) {
 	g := &graph.Graph{Files: map[string]graph.Node{
-		"manage.py":            {},
-		"banco/models.py":      {},
-		"banco/views.py":       {Imports: []string{"banco", "banco/models"}}, // from . import x; from .models import y
-		"panel/views/lista.py": {Imports: []string{"banco"}},
+		"manage.py":             {},
+		"pagos/models.py":       {},
+		"pagos/views.py":        {Imports: []string{"pagos", "pagos/models"}}, // from . import x; from .models import y
+		"tienda/views/lista.py": {Imports: []string{"pagos"}},
 	}}
 	m := Construir(Entrada{Grafo: g, Profundidad: 2})
 	for _, a := range m.Aristas {
@@ -164,7 +164,7 @@ func TestImportDePaqueteNoApuntaAlPadre(t *testing.T) {
 			t.Errorf("un import del propio paquete no es de la raíz: %+v", a)
 		}
 	}
-	if len(m.Aristas) != 1 || m.Aristas[0].De != "panel/views" || m.Aristas[0].A != "banco" {
+	if len(m.Aristas) != 1 || m.Aristas[0].De != "tienda/views" || m.Aristas[0].A != "pagos" {
 		t.Errorf("aristas = %+v", m.Aristas)
 	}
 }
@@ -184,39 +184,50 @@ func TestPruebasNoBajanCapas(t *testing.T) {
 
 func TestContenidoListaLoQueDiceCadaArchivo(t *testing.T) {
 	g := &graph.Graph{Files: map[string]graph.Node{
-		"core/__init__.py":  {},
-		"core/boveda.py":    {Doc: "única puerta para cifrar"},
-		"core/claves.py":    {Doc: "claves de un solo uso"},
-		"panel/__init__.py": {Doc: "pantallas del administrador"},
-		"panel/urls.py":     {Doc: "rutas del panel"},
-		"js/examen.js":      {Doc: "examen una por vista"},
+		"pagos/__init__.py":  {},
+		"pagos/cobro.py":     {Doc: "cobra con tarjeta"},
+		"pagos/reembolso.py": {Doc: "devuelve cobros"},
+		"admin/__init__.py":  {Doc: "vistas de administración"},
+		"admin/urls.py":      {Doc: "rutas de administración"},
+		"js/carrito.js":      {Doc: "carrito de compras"},
 	}}
 	por := map[string]Modulo{}
 	for _, m := range Construir(Entrada{Grafo: g, Profundidad: 1}).Modulos {
 		por[m.Ruta] = m
 	}
-	if c := por["core"]; c.Proposito != "" || len(c.Contenido) != 2 || c.Contenido[0] != (Parte{"boveda.py", "única puerta para cifrar"}) {
+	if c := por["pagos"]; c.Proposito != "" || len(c.Contenido) != 2 || c.Contenido[0] != (Parte{"cobro.py", "cobra con tarjeta"}) {
 		t.Errorf("la línea de un archivo no es el propósito del módulo; va a su contenido: %+v", c)
 	}
-	if p := por["panel"]; p.Proposito != "pantallas del administrador" || len(p.Contenido) != 1 {
+	if p := por["admin"]; p.Proposito != "vistas de administración" || len(p.Contenido) != 1 {
 		t.Errorf("__init__ habla por el módulo: %+v", p)
 	}
-	if j := por["js"]; j.Proposito != "examen una por vista" || len(j.Contenido) != 0 {
+	if j := por["js"]; j.Proposito != "carrito de compras" || len(j.Contenido) != 0 {
 		t.Errorf("un módulo de un archivo toma su línea: %+v", j)
 	}
 }
 
 func TestDetalleSeparaQuienLoUsaDeQuienLoPrueba(t *testing.T) {
 	g := &graph.Graph{Files: map[string]graph.Node{
-		"core/models.py":  {},
-		"banco/vista.py":  {Imports: []string{"core/models"}},
-		"core/tests/t.py": {Imports: []string{"core/models"}},
+		"pagos/models.py":  {},
+		"tienda/vista.py":  {Imports: []string{"pagos/models"}},
+		"pagos/tests/t.py": {Imports: []string{"pagos/models"}},
 	}}
-	d, err := Detalle(Entrada{Grafo: g, Profundidad: 2}, "core")
+	d, err := Detalle(Entrada{Grafo: g, Profundidad: 2}, "pagos")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(d, "lo usan: banco\n") || !strings.Contains(d, "lo prueban: core/tests") {
+	if !strings.Contains(d, "lo usan: tienda\n") || !strings.Contains(d, "lo prueban: pagos/tests") {
 		t.Errorf("las pruebas van aparte:\n%s", d)
+	}
+}
+
+func TestDetalleDeUnArchivoEsSuModuloMasHondo(t *testing.T) {
+	g := &graph.Graph{Files: map[string]graph.Node{
+		"tienda/urls.py":              {},
+		"tienda/servicios/pedidos.py": {Doc: "arma pedidos", ImportedBy: []string{"tienda/tests/test_pedidos.py", "tienda/views/r.py"}},
+	}}
+	d, err := Detalle(Entrada{Grafo: g, Profundidad: 2}, "tienda/servicios/pedidos.py")
+	if err != nil || !strings.HasPrefix(d, "tienda/servicios ·") || !strings.Contains(d, "probado en: tienda/tests/test_pedidos.py") {
+		t.Errorf("tienda y tienda/servicios lo contienen; es de tienda/servicios: %v\n%s", err, d)
 	}
 }

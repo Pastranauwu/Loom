@@ -159,6 +159,10 @@ func parsearRegex(f string, data []byte, export, imp *regexp.Regexp) (syms, imps
 	src := string(data)
 	for _, m := range export.FindAllString(src, -1) {
 		m = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(m), ":"))
+		// una firma partida en varias líneas: se ve completa como "f(…)"
+		if strings.Count(m, "(") > strings.Count(m, ")") {
+			m += "…)"
+		}
 		if !strings.Contains(m, " _") {
 			syms = append(syms, m)
 		}

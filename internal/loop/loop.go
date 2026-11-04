@@ -263,6 +263,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 	// las críticas visuales ya recibidas cuentan contra el tope aunque se
 	// haya escalado o retomado: un modelo exigente no quema intentos
 	rechazosVisuales := 0
+	anclaPrevia := "" // archivo:línea del último rechazo del revisor
 	for _, p := range previos {
 		if p.Revision != nil && p.Revision.Visual != "" {
 			rechazosVisuales++
@@ -619,6 +620,18 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 				a.Revision = &Revision{Aprobada: aprobada, Cambios: cambios}
 				gastar(tk)
 				motivo = "the reviewer asks for changes on green tests:\n" + cambios
+				// el mismo rechazo dos veces seguidas es un choque entre el
+				// agente y el contrato, no falta de intentos ni de modelo:
+				// repetir solo paga otra vuelta para el mismo veredicto
+				if ancla := anclaRevision(cambios); !aprobada && ancla != "" && ancla == anclaPrevia {
+					if err := s.Append(a); err != nil {
+						return Outcome{}, err
+					}
+					pregunta := fmt.Sprintf(idioma.T("el revisor rechazó dos veces seguidas lo mismo (%s) · el agente no lo resuelve solo · si ese caso dejó de valer, ponlo en Obsoleto: del contrato; si sigue valiendo, dile en el contrato que no lo cambie"), ancla)
+					return Outcome{Verde: false, Intentos: intento, UltimoError: motivo, Pregunta: pregunta, NoEscalar: true}, nil
+				} else if !aprobada {
+					anclaPrevia = ancla
+				}
 			}
 			// el código está bien: falta que se vea. Solo lo mira quien ve
 			// capturas; las pruebas de UI no saben si un efecto se nota
@@ -1087,4 +1100,15 @@ func promptContinuar(prevErr string) string {
 	}
 	b.WriteString("\nAnything you changed outside your scope was reverted: re-read a file before editing it. Fix it and commit.")
 	return b.String()
+}
+
+var reAncla = regexp.MustCompile(`(?m)^\s*([\w./-]+\.\w+:\d+)`)
+
+// anclaRevision es el primer "archivo:línea" con que el revisor señala lo
+// que rechaza; vacío si no señala ninguno.
+func anclaRevision(cambios string) string {
+	if m := reAncla.FindStringSubmatch(cambios); m != nil {
+		return m[1]
+	}
+	return ""
 }

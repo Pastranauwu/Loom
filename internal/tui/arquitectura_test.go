@@ -30,8 +30,8 @@ func TestVistaArquitectura(t *testing.T) {
 }
 
 func TestArquitecturaAjustaAlAncho(t *testing.T) {
-	largo := "convierte las preguntas del banco en exámenes con cronómetro del servidor y guardado por pregunta"
-	m := topo.Mapa{NumCapas: 1, Modulos: []topo.Modulo{{Ruta: "examen", Archivos: 2, Proposito: largo, NumSimbolos: 2, Simbolos: []string{"class Examen(models.Model)", "def calificar(e)"}}}}
+	largo := "guarda los productos elegidos y calcula el total con impuestos y el costo de envío por pedido"
+	m := topo.Mapa{NumCapas: 1, Modulos: []topo.Modulo{{Ruta: "carrito", Archivos: 2, Proposito: largo, NumSimbolos: 2, Simbolos: []string{"class Carrito(models.Model)", "def total(c)"}}}}
 	for _, ancho := range []int{40, 64, 100} {
 		txt := ansi.ReplaceAllString(VistaArquitectura(m, ancho), "")
 		for _, l := range strings.Split(txt, "\n") {
@@ -40,7 +40,7 @@ func TestArquitecturaAjustaAlAncho(t *testing.T) {
 			}
 		}
 		plano := strings.Join(strings.Fields(strings.NewReplacer("│", " ").Replace(txt)), " ")
-		if !strings.Contains(plano, "guardado por pregunta") || !strings.Contains(plano, "◇ Examen · calificar") {
+		if !strings.Contains(plano, "envío por pedido") || !strings.Contains(plano, "◇ Carrito · total") {
 			t.Errorf("ancho %d: el propósito se ajusta sin cortarse y se ve qué contiene:\n%s", ancho, txt)
 		}
 	}
@@ -58,7 +58,7 @@ func TestLineaArchivoPintaCadaRenglon(t *testing.T) {
 	AplicarTema("loom")
 	lipgloss.SetColorProfile(termenv.ANSI256)
 	defer lipgloss.SetColorProfile(termenv.Ascii)
-	l := lineaArchivo("boveda", "única puerta para cifrar y descifrar los datos de las preguntas", 24)
+	l := lineaArchivo("cobro", "cobra con tarjeta y guarda el recibo de cada pedido del cliente", 24)
 	rs := strings.Split(l, "\n")
 	if len(rs) < 2 {
 		t.Fatalf("debe partirse en varios renglones: %q", l)
@@ -74,10 +74,10 @@ func TestArquitecturaConIconosNerdCabeEnElAncho(t *testing.T) {
 	ic()
 	iconosAhora = iconosNerd
 	defer func() { iconosAhora = iconosPlano }()
-	m := topo.Mapa{NumCapas: 1, Modulos: []topo.Modulo{{Ruta: "core", Lenguaje: ".py", Archivos: 2,
-		Contenido: []topo.Parte{{Archivo: "boveda.py", Doc: "única puerta para cifrar"}}, NumSimbolos: 1, Simbolos: []string{"class Banco"}}}}
+	m := topo.Mapa{NumCapas: 1, Modulos: []topo.Modulo{{Ruta: "pagos", Lenguaje: ".py", Archivos: 2,
+		Contenido: []topo.Parte{{Archivo: "cobro.py", Doc: "cobra con tarjeta"}}, NumSimbolos: 1, Simbolos: []string{"class Pedido"}}}}
 	txt := ansi.ReplaceAllString(VistaArquitectura(m, 60), "")
-	for _, quiero := range []string{"\ue606 core", "\ue606 boveda", "\ueb5b Banco", "\uebd2 "} {
+	for _, quiero := range []string{"\ue606 pagos", "\ue606 cobro", "\ueb5b Pedido", "\uebd2 "} {
 		if !strings.Contains(txt, quiero) {
 			t.Errorf("falta %q:\n%s", quiero, txt)
 		}

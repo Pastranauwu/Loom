@@ -19,6 +19,50 @@ func Resumen(g *Graph, consulta string) string {
 	if g == nil || len(g.Files) == 0 {
 		return ""
 	}
+	elegidos, titulo := ranking(g, consulta)
+	var b strings.Builder
+	fmt.Fprintf(&b, "Mapa del repo (archivos %s: propósito, símbolos públicos y dependencias). Parte de aquí, no explores a ciegas:\n", titulo)
+	for i, f := range elegidos {
+		if i >= maxArchivos {
+			break
+		}
+		n := g.Files[f]
+		linea := f
+		if n.Doc != "" {
+			linea += " (" + n.Doc + ")"
+		}
+		linea += ": " + recorta(n.Symbols, 12)
+		if len(n.Imports) > 0 {
+			linea += " | importa: " + recorta(n.Imports, 6)
+		}
+		if len(n.ImportedBy) > 0 {
+			linea += " | usado por: " + recorta(n.ImportedBy, 6)
+		}
+		if b.Len()+len(linea) > maxBytes {
+			break
+		}
+		b.WriteString(linea + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// Relevantes son los archivos que más coinciden con la consulta, de mayor a
+// menor; vacío si ninguno coincide (los más importados no cuentan).
+func Relevantes(g *Graph, consulta string) []string {
+	if g == nil {
+		return nil
+	}
+	if fs, titulo := ranking(g, consulta); titulo == tituloCoinciden {
+		return fs
+	}
+	return nil
+}
+
+const tituloCoinciden = "relevantes a la petición"
+
+// ranking ordena los archivos por coincidencia con la consulta o, si
+// ninguno coincide, por cuántos los importan. Determinista.
+func ranking(g *Graph, consulta string) ([]string, string) {
 	palabras := []string{}
 	for _, w := range strings.FieldsFunc(strings.ToLower(consulta), func(r rune) bool {
 		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_')
@@ -53,7 +97,7 @@ func Resumen(g *Graph, consulta string) string {
 		}
 		hubs = append(hubs, punto{f, len(n.ImportedBy)})
 	}
-	elegidos, titulo := coinciden, "relevantes a la petición"
+	elegidos, titulo := coinciden, tituloCoinciden
 	if len(elegidos) == 0 {
 		elegidos, titulo = hubs, "más usados del repo"
 	}
@@ -63,30 +107,11 @@ func Resumen(g *Graph, consulta string) string {
 		}
 		return elegidos[i].f < elegidos[j].f
 	})
-	var b strings.Builder
-	fmt.Fprintf(&b, "Mapa del repo (archivos %s: propósito, símbolos públicos y dependencias). Parte de aquí, no explores a ciegas:\n", titulo)
+	out := make([]string, len(elegidos))
 	for i, p := range elegidos {
-		if i >= maxArchivos {
-			break
-		}
-		n := g.Files[p.f]
-		linea := p.f
-		if n.Doc != "" {
-			linea += " (" + n.Doc + ")"
-		}
-		linea += ": " + recorta(n.Symbols, 12)
-		if len(n.Imports) > 0 {
-			linea += " | importa: " + recorta(n.Imports, 6)
-		}
-		if len(n.ImportedBy) > 0 {
-			linea += " | usado por: " + recorta(n.ImportedBy, 6)
-		}
-		if b.Len()+len(linea) > maxBytes {
-			break
-		}
-		b.WriteString(linea + "\n")
+		out[i] = p.f
 	}
-	return strings.TrimRight(b.String(), "\n")
+	return out, titulo
 }
 
 func recorta(s []string, max int) string {

@@ -861,3 +861,34 @@ func TestSesionMuertaVuelveAlPromptCompleto(t *testing.T) {
 		t.Errorf("prompts = %d: sesión muerta debe repetir con el prompt completo", len(prompts))
 	}
 }
+
+// revisorTerco rechaza siempre lo mismo, como cuando el agente y el
+// contrato chocan sobre una prueba que existía
+type revisorTerco struct{}
+
+func (revisorTerco) Revisar(context.Context, string, task.Task, string, int) (bool, string, Tokens) {
+	return false, "tests/test_total.py:10: el diff cambia un caso que ya existía y la tarea no declara Obsolete:", Tokens{}
+}
+
+func TestMismoRechazoDosVecesPasaAlHumano(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "falso"}
+	ag.hacer = func(veces int, req Request) (string, int, error) {
+		escribir(t, req.RoomPath, "src/done.txt", fmt.Sprintf("%d\n", veces))
+		return "", 0, nil
+	}
+	tk := tareaDePrueba()
+	tk.LimiteIntentos = 6
+	opts := optsDePrueba(t, root, ag, tk)
+	opts.Revisor = revisorTerco{}
+	out, err := Run(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Verde || out.Intentos != 2 || !out.NoEscalar || !strings.Contains(out.Pregunta, "tests/test_total.py:10") {
+		t.Fatalf("dos rechazos iguales cortan en el intento 2, sin escalar: %+v", out)
+	}
+	if anclaRevision("falta el caso borde") != "" || anclaRevision("a/b.py:3 — x") != "a/b.py:3" {
+		t.Error("ancla mal leída")
+	}
+}

@@ -8,10 +8,11 @@ func init() {
 
 // internos holds the English text of the messages the internal packages return.
 var internos = map[string]string{
-	"sin navegador para capturas y sin npx para instalar uno · instala chromium o node": "no browser for screenshots and no npx to install one · install chromium or node",
-	"no se pudo instalar chrome-headless-shell · %s":                                    "could not install chrome-headless-shell · %s",
-	"la app no respondió":      "the app did not respond",
-	"sin pantallas declaradas": "no screens declared",
+	"el revisor rechazó dos veces seguidas lo mismo (%s) · el agente no lo resuelve solo · si ese caso dejó de valer, ponlo en Obsoleto: del contrato; si sigue valiendo, dile en el contrato que no lo cambie": "the reviewer rejected the same thing twice in a row (%s) · the agent will not solve it alone · if that case no longer holds, put it in the contract's Obsolete:; if it still holds, tell the contract not to change it",
+	"sin navegador para capturas y sin npx para instalar uno · instala chromium o node":                                                                                                                         "no browser for screenshots and no npx to install one · install chromium or node",
+	"no se pudo instalar chrome-headless-shell · %s": "could not install chrome-headless-shell · %s",
+	"la app no respondió":                            "the app did not respond",
+	"sin pantallas declaradas":                       "no screens declared",
 	"sin navegador headless · corre npx playwright install chromium-headless-shell":                    "no headless browser · run npx playwright install chromium-headless-shell",
 	"no se pudo levantar la app · %w":                                                                  "could not start the app · %w",
 	"%w en %s · %s · detalle en %s":                                                                    "%w in %s · %s · details in %s",

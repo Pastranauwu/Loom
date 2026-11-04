@@ -2,6 +2,11 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## Sin publicar
+**Un arreglo de backend ya no paga el script de capturas:** el arquitecto solo tiene que hacer funcionar `pantallas.script` (sesión y prueba contra la app levantada) si alguna tarea toca la interfaz; un arreglo de backend gastaba sus dos correcciones reparando capturas.
+**El planificador parte del mapa:** además de los archivos que coinciden con el pedido, recibe el `loom map <módulo>` de los dos módulos más relevantes, con qué hace cada archivo, su API y qué pruebas lo importan (`probado en`). Una firma de Python partida en varias líneas se ve completa.
+**El mismo rechazo dos veces para la tarea:** si el revisor señala el mismo `archivo:línea` en dos intentos seguidos, la tarea pasa al humano sin escalar (es un choque con el contrato, no falta de modelo). Antes podía dar decenas de vueltas pagadas para el mismo veredicto.
+
 ## v2.10.0 (4 nov 2026)
 **El mapa dice qué hace cada módulo:** el grafo guarda la primera frase del comentario del paquete o archivo (Go, Python, JS/TS) y `loom map` la muestra en el árbol, las tarjetas y Mermaid. El árbol va agrupado por capas (entradas arriba, cimientos abajo) con una leyenda que explica la abstracción; la API muestra tipos y funciones antes que constantes.
 **`loom map <módulo>` explica uno:** propósito, capa, de quién depende y quién lo usa (cada vecino con su propósito) y cada archivo con su API completa. `loom_map` con `module` le da lo mismo al modelo para responder sin leer código. El resumen del planificador también lleva el propósito por archivo. El tech lead, el MCP y el manual le dicen al modelo que pregunte al mapa antes de leer código y explique la arquitectura desde ahí; el detalle separa quién usa el módulo de qué pruebas lo cubren.

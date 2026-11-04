@@ -78,12 +78,16 @@ func TestDocDelArchivo(t *testing.T) {
 		"c.ts": "/**\n * Cliente HTTP del backend.\n */\nexport const x = 1\n",
 		"d.js": "// Rutas públicas\n// de la API.\nexport function f() {}\n",
 		"e.go": "package e\n",
+		"g.py": "def larga(\n    a: int,\n) -> int:\n    pass\n",
 	}
-	quiere := map[string]string{"a.go": "guarda el índice", "b.py": "Calcula tarifas", "c.ts": "Cliente HTTP del backend", "d.js": "Rutas públicas de la API", "e.go": "", "f.py": "Boveda: única puerta para cifrar; orquesta cifrado"}
+	quiere := map[string]string{"a.go": "guarda el índice", "b.py": "Calcula tarifas", "c.ts": "Cliente HTTP del backend", "d.js": "Rutas públicas de la API", "e.go": "", "g.py": "", "f.py": "Cobro: único punto para cobrar; usa la pasarela"}
 	for f, src := range casos {
 		if doc, _, _ := parsear(f, []byte(src), ""); doc != quiere[f] {
 			t.Errorf("%s: doc = %q, quiere %q", f, doc, quiere[f])
 		}
+	}
+	if _, syms, _ := parsear("g.py", []byte(casos["g.py"]), ""); len(syms) != 1 || syms[0] != "def larga(…)" {
+		t.Errorf("firma partida = %v", syms)
 	}
 	g := &Graph{Files: map[string]Node{"pago/cobro.go": {Doc: "cobra tarjetas", Symbols: []string{"func X()"}}}}
 	if r := Resumen(g, "arregla tarjetas"); !strings.Contains(r, "pago/cobro.go (cobra tarjetas)") {
@@ -93,14 +97,14 @@ func TestDocDelArchivo(t *testing.T) {
 
 func TestImportsExternosSeDescartan(t *testing.T) {
 	g := &Graph{Files: map[string]Node{
-		"core/models.py": {Imports: []string{"os", "django/conf"}},
-		"core/vista.py":  {Imports: []string{"core/models", "json"}},
+		"pagos/models.py": {Imports: []string{"os", "django/conf"}},
+		"pagos/vista.py":  {Imports: []string{"pagos/models", "json"}},
 	}}
 	enlazar(g)
-	if n := g.Files["core/models.py"]; len(n.Imports) != 0 {
+	if n := g.Files["pagos/models.py"]; len(n.Imports) != 0 {
 		t.Errorf("os y django son externos: %v", n.Imports)
 	}
-	if n := g.Files["core/vista.py"]; len(n.Imports) != 1 || n.Imports[0] != "core/models" {
+	if n := g.Files["pagos/vista.py"]; len(n.Imports) != 1 || n.Imports[0] != "pagos/models" {
 		t.Errorf("imports = %v", n.Imports)
 	}
 }

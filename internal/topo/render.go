@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Estilo colors the text view; the zero value prints plain text.
@@ -233,6 +235,15 @@ func Detalle(e Entrada, consulta string) (string, error) {
 			for _, s := range api {
 				b.WriteString("    " + s + "\n")
 			}
+			var pruebas []string
+			for _, p := range n.ImportedBy {
+				if task.EsArchivoDePrueba(p) || EsAndamio(path.Dir(p)) {
+					pruebas = append(pruebas, p)
+				}
+			}
+			if len(pruebas) > 0 {
+				b.WriteString("    probado en: " + strings.Join(pruebas, ", ") + "\n")
+			}
 		}
 	}
 	return strings.TrimRight(b.String(), "\n"), nil
@@ -248,13 +259,20 @@ func profundidad(e Entrada) int {
 func buscar(m Mapa, q string) (Modulo, error) {
 	q = strings.Trim(path.Clean(q), "/")
 	var cand []Modulo
-	for _, mod := range m.Modulos {
+	var dueño *Modulo // a file belongs to the deepest module that holds it
+	for i, mod := range m.Modulos {
 		if mod.Ruta == q {
 			return mod, nil
 		}
-		if strings.HasPrefix(q, mod.Ruta+"/") || path.Base(mod.Ruta) == q {
+		if strings.HasPrefix(q, mod.Ruta+"/") && (dueño == nil || len(mod.Ruta) > len(dueño.Ruta)) {
+			dueño = &m.Modulos[i]
+		}
+		if path.Base(mod.Ruta) == q {
 			cand = append(cand, mod)
 		}
+	}
+	if dueño != nil {
+		return *dueño, nil
 	}
 	switch len(cand) {
 	case 1:
