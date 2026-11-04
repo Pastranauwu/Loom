@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -63,12 +64,21 @@ const notaRellenoExamen = "An independent examiner writes the visible test from 
 // anterior como si fuera el de la tarea nueva, que al integrar chocaba
 // con su propia versión vieja. Toda tarea que corrió, y el
 // esqueleto cortado que se retoma, tiene su carpeta en runs.
+//
+// Con carpeta en runs pero sin contrato, la rama se descarta si no parte
+// de la base actual: es un esqueleto de una versión que se abandonó sin
+// archivar. La carpeta se queda (con su respuesta guardada); el cuarto se
+// rehace sobre la base de hoy.
 func soltarSinRastro(ctx context.Context, root, id string) {
-	if _, err := os.Stat(filepath.Join(loop.RunsDir(root), id)); err == nil {
-		return
-	}
 	if !room.RamaExiste(ctx, root, id) {
 		return
+	}
+	if _, err := os.Stat(filepath.Join(loop.RunsDir(root), id)); err == nil {
+		_, sinContrato := os.Stat(filepath.Join(config.TasksDir(root), id+".md"))
+		cfg, _ := config.Load(root)
+		if sinContrato == nil || cfg.Base == "" || exec.Command("git", "-C", root, "merge-base", "--is-ancestor", cfg.Base, room.Branch(id)).Run() == nil {
+			return
+		}
 	}
 	if err := room.Destroy(ctx, root, id); err != nil {
 		out.Line(idioma.T("· %s tiene una rama de otra corrida que no se pudo descartar · %s"), id, err)
