@@ -17,14 +17,21 @@ import (
 
 const archivo = "repo-graph.json"
 
+// version sube cuando cambia lo que se extrae de cada archivo: un grafo de
+// otra versión se reconstruye entero, porque el hash no cambió y no se
+// re-parsearía.
+const version = 4
+
 type Node struct {
 	Hash       string   `json:"hash"`
+	Doc        string   `json:"doc,omitempty"` // first sentence of the package or file comment
 	Symbols    []string `json:"symbols,omitempty"`
 	Imports    []string `json:"imports,omitempty"`
 	ImportedBy []string `json:"imported_by,omitempty"`
 }
 
 type Graph struct {
+	Version   int             `json:"version"`
 	CommitSHA string          `json:"commit_sha"`
 	Files     map[string]Node `json:"files"`
 }
@@ -40,8 +47,8 @@ func Update(root, loomDir string) (*Graph, int, error) {
 	head = strings.TrimSpace(head)
 	g := Load(loomDir)
 	var cand string
-	if g == nil || g.CommitSHA == "" || exec.Command("git", "-C", root, "cat-file", "-e", g.CommitSHA+"^{commit}").Run() != nil {
-		g = &Graph{Files: map[string]Node{}}
+	if g == nil || g.Version != version || g.CommitSHA == "" || exec.Command("git", "-C", root, "cat-file", "-e", g.CommitSHA+"^{commit}").Run() != nil {
+		g = &Graph{Version: version, Files: map[string]Node{}}
 		cand, err = git(root, "ls-files", "-co", "--exclude-standard")
 	} else {
 		var diff, nuevos string
@@ -73,8 +80,8 @@ func Update(root, loomDir string) (*Graph, int, error) {
 		if n, ok := g.Files[f]; ok && n.Hash == h {
 			continue
 		}
-		syms, imps := parsear(f, data, modulo)
-		g.Files[f] = Node{Hash: h, Symbols: syms, Imports: imps}
+		doc, syms, imps := parsear(f, data, modulo)
+		g.Files[f] = Node{Hash: h, Doc: doc, Symbols: syms, Imports: imps}
 		reparsed++
 	}
 	for f := range g.Files {
@@ -114,8 +121,9 @@ func guardar(loomDir string, g *Graph) error {
 	return os.WriteFile(filepath.Join(loomDir, archivo), data, 0o644)
 }
 
-// enlazar recalcula imported_by sobre todo el grafo: es barato y evita
-// aristas viejas cuando un archivo cambia sus imports.
+// enlazar recalcula imported_by sobre todo el grafo y descarta los imports
+// que no llevan a ningún archivo del repo: es barato y evita aristas viejas
+// cuando un archivo cambia sus imports.
 func enlazar(g *Graph) {
 	porClave := map[string][]string{}
 	for f := range g.Files {
@@ -138,6 +146,14 @@ func enlazar(g *Graph) {
 		}
 	}
 	for f, n := range g.Files {
+		// un import que no nombra un archivo del repo es externo (os, django)
+		propios := n.Imports[:0]
+		for _, imp := range n.Imports {
+			if len(porClave[imp]) > 0 {
+				propios = append(propios, imp)
+			}
+		}
+		n.Imports = propios
 		n.ImportedBy = n.ImportedBy[:0]
 		for p := range por[f] {
 			n.ImportedBy = append(n.ImportedBy, p)

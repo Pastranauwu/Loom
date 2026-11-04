@@ -247,7 +247,7 @@ func encajarTablero(filas []Fila, sel, aviso, filtro string, presupuesto []strin
 				suyos = append(suyos, f)
 			}
 		}
-		titulo := col.glifo + " " + idioma.T(col.nombre)
+		titulo := glifoColumna(col.estado, col.glifo) + " " + idioma.T(col.nombre)
 		if len(suyos) > 0 {
 			titulo += " · " + strconv.Itoa(len(suyos))
 		}

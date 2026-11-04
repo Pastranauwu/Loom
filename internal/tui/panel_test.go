@@ -25,4 +25,12 @@ func TestPanelPestanasYScroll(t *testing.T) {
 	if v := m.View(); strings.Count(v, "\n") >= m.alto {
 		t.Fatalf("G no debe pasarse del alto:\n%s", v)
 	}
+	abajo := m.offset
+	m = m.tecla("j").tecla("j").tecla("k")
+	if m.offset != abajo-1 {
+		t.Fatalf("pasado el final, k sube de inmediato: offset %d, quiere %d", m.offset, abajo-1)
+	}
+	if m = m.tecla("rueda-arriba"); m.offset != abajo-4 {
+		t.Fatalf("la rueda sube 3: offset %d", m.offset)
+	}
 }

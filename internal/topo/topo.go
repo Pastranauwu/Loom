@@ -28,6 +28,9 @@ type Contrato struct {
 
 type Modulo struct {
 	Ruta        string     `json:"ruta"`
+	Proposito   string     `json:"proposito,omitempty"` // what it is for, from the package comment or its entry file
+	Contenido   []Parte    `json:"contenido,omitempty"` // each file that says what it holds
+	Lenguaje    string     `json:"lenguaje,omitempty"`  // dominant file extension, e.g. ".py"
 	Archivos    int        `json:"archivos"`
 	NumSimbolos int        `json:"simbolos"`
 	Simbolos    []string   `json:"api,omitempty"` // first exported symbols, from the graph
@@ -38,6 +41,14 @@ type Modulo struct {
 	Consume     []string   `json:"consume,omitempty"` // modules whose contracts its tasks use
 	Capa        int        `json:"capa"`              // 0 = entry points: nobody depends on them
 }
+
+// Parte is one file of a module with the line its header declares.
+type Parte struct {
+	Archivo string `json:"archivo"` // relative to the module
+	Doc     string `json:"doc"`
+}
+
+const maxContenido = 8
 
 type Arista struct {
 	De       string `json:"de"`
@@ -105,17 +116,57 @@ func Construir(e Entrada) Mapa {
 	}
 
 	if e.Grafo != nil {
+		exts := map[string]map[string]int{}
+		docDe := map[string]string{} // module -> file its purpose comes from
+		conDoc := map[string][]string{}
 		for f, n := range e.Grafo.Files {
-			m := get(mod(path.Dir(f)))
+			r := mod(path.Dir(f))
+			m := get(r)
 			m.Archivos++
 			m.NumSimbolos += len(n.Symbols)
 			m.Simbolos = append(m.Simbolos, n.Symbols...)
+			if exts[r] == nil {
+				exts[r] = map[string]int{}
+			}
+			exts[r][path.Ext(f)]++
+			if n.Doc == "" {
+				continue
+			}
+			conDoc[r] = append(conDoc[r], f)
+			if hablaPorElModulo(f, r) && (docDe[r] == "" || mejorDoc(f, docDe[r])) {
+				docDe[r], m.Proposito = f, n.Doc
+			}
+		}
+		for r, c := range exts {
+			for x, n := range c {
+				if l := mods[r].Lenguaje; n > c[l] || n == c[l] && x < l {
+					mods[r].Lenguaje = x
+				}
+			}
+		}
+		for r, fs := range conDoc {
+			m := mods[r]
+			if m.Proposito == "" && m.Archivos == 1 {
+				docDe[r], m.Proposito = fs[0], e.Grafo.Files[fs[0]].Doc
+			}
+			sort.Strings(fs)
+			for _, f := range fs {
+				if f != docDe[r] && len(m.Contenido) < maxContenido {
+					m.Contenido = append(m.Contenido, Parte{Archivo: strings.TrimPrefix(f, r+"/"), Doc: e.Grafo.Files[f].Doc})
+				}
+			}
+		}
+		// outside Go an import names a file stem or, like Python's
+		// `from . import x`, a package directory itself
+		dirs := map[string]bool{}
+		for f := range e.Grafo.Files {
+			dirs[path.Dir(f)] = true
 		}
 		for f, n := range e.Grafo.Files {
 			de := mod(path.Dir(f))
 			for _, imp := range n.Imports {
 				dir := imp
-				if path.Ext(f) != ".go" {
+				if path.Ext(f) != ".go" && !dirs[imp] {
 					dir = path.Dir(imp)
 				}
 				if a := mod(dir); mods[a] != nil {
@@ -157,7 +208,7 @@ func Construir(e Entrada) Mapa {
 		if !e.Todos && hayTareas && len(m.Tareas) == 0 && len(m.Expone) == 0 {
 			continue
 		}
-		sort.Strings(m.Simbolos)
+		ordenarApi(m.Simbolos)
 		if len(m.Simbolos) > maxApi {
 			m.Simbolos = m.Simbolos[:maxApi]
 		}
@@ -211,6 +262,60 @@ func Construir(e Entrada) Mapa {
 	return Mapa{Modulos: out, Aristas: finales, DNA: dd, Compuertas: c, NumCapas: n}
 }
 
+// hablaPorElModulo says whether a file's header describes its whole module
+// and not only itself: a Go package comment, doc.go, __init__.py or an
+// index file at the module root.
+func hablaPorElModulo(f, modulo string) bool {
+	if path.Dir(f) != modulo && !(modulo == "." && path.Dir(f) == ".") {
+		return false
+	}
+	switch b := path.Base(f); {
+	case path.Ext(b) == ".go", b == "__init__.py":
+		return true
+	case strings.HasPrefix(b, "index."):
+		return true
+	}
+	return false
+}
+
+// mejorDoc says whether f describes its module better than actual: the
+// shallowest file wins, then doc.go, then the path order. Deterministic.
+func mejorDoc(f, actual string) bool {
+	pf, pa := strings.Count(f, "/"), strings.Count(actual, "/")
+	if pf != pa {
+		return pf < pa
+	}
+	if df, da := path.Base(f) == "doc.go", path.Base(actual) == "doc.go"; df != da {
+		return df
+	}
+	return f < actual
+}
+
+// ordenarApi puts types first, then free functions, then methods and the
+// rest, so the few symbols that fit say what the module offers.
+func ordenarApi(s []string) {
+	peso := func(x string) int {
+		for _, p := range []string{"export ", "default ", "async "} {
+			x = strings.TrimPrefix(x, p)
+		}
+		switch {
+		case strings.HasPrefix(x, "type "), strings.HasPrefix(x, "class "), strings.HasPrefix(x, "interface "), strings.HasPrefix(x, "enum "):
+			return 0
+		case strings.HasPrefix(x, "func ("):
+			return 2
+		case strings.HasPrefix(x, "func "), strings.HasPrefix(x, "function "), strings.HasPrefix(x, "def "):
+			return 1
+		}
+		return 3
+	}
+	sort.SliceStable(s, func(i, j int) bool {
+		if a, b := peso(s[i]), peso(s[j]); a != b {
+			return a < b
+		}
+		return s[i] < s[j]
+	})
+}
+
 // truncar keeps the first n segments of a directory.
 func truncar(dir string, n int) string {
 	dir = strings.Trim(path.Clean(dir), "/")
@@ -261,13 +366,26 @@ func unico(s []string) []string {
 	return out
 }
 
+// EsAndamio reconoce pruebas, migraciones y fixtures: sostienen el código
+// pero no son bloques de la arquitectura. No cuentan para las capas: si una
+// prueba importa un módulo, ese módulo no baja por eso.
+func EsAndamio(ruta string) bool {
+	switch path.Base(ruta) {
+	case "tests", "test", "__tests__", "spec", "specs", "e2e", "migrations", "fixtures", "testdata":
+		return true
+	}
+	return false
+}
+
 // asignarCapas puts each module one layer below the deepest module that
 // depends on it, so entry points land on layer 0 and shared foundations at
 // the bottom. A cycle is cut where it is found. It returns the layer count.
 func asignarCapas(mods []Modulo, aristas []Arista) int {
 	dependientes := map[string][]string{}
 	for _, a := range aristas {
-		dependientes[a.A] = append(dependientes[a.A], a.De)
+		if !EsAndamio(a.De) {
+			dependientes[a.A] = append(dependientes[a.A], a.De)
+		}
 	}
 	capa := map[string]int{}
 	enCurso := map[string]bool{}

@@ -35,7 +35,7 @@ func planoPython(t *testing.T) string {
 		t.Fatalf("%v %s", err, out)
 	}
 	escribir(t, dir, Documento, "# arquitectura\n")
-	escribir(t, dir, "calc/__init__.py", "")
+	escribir(t, dir, "calc/__init__.py", "\"\"\"Operaciones aritméticas de la calculadora.\"\"\"\n")
 	escribir(t, dir, "calc/suma.py", "def suma(a: int, b: int) -> int:\n    \"\"\"Suma a y b.\n\n    Idea: a + b, sin validar.\n    Casos: suma(2, 3) -> 5; suma(-1, 1) -> 0\n    \"\"\"\n    raise NotImplementedError(\""+Marca+"\")\n")
 	escribir(t, dir, "calc/resta.py", "def resta(a: int, b: int) -> int:\n    return a - b\n")
 	escribir(t, dir, "calc/mult.py", "def mult(a: int, b: int) -> int:\n    raise NotImplementedError(\""+Marca+"\")\n")
@@ -212,5 +212,17 @@ func TestSinCambiosYEsCodigo(t *testing.T) {
 	}
 	if EsCodigo("templates/base.html") || EsCodigo("static/a.css") || !EsCodigo("static/js/panel.js") {
 		t.Error("EsCodigo mal clasificado")
+	}
+}
+
+func TestProblemasExigeEncabezadoEnModulosNuevos(t *testing.T) {
+	dir := planoPython(t)
+	escribir(t, dir, "conv/__init__.py", "")
+	escribir(t, dir, "conv/grados.py", "def c_a_f(c: float) -> float:\n    raise NotImplementedError(\""+Marca+"\")\n")
+	escribir(t, dir, "calc/migrations/0001.py", "x = 1\n")
+	r := Resultado{Verificar: "python3 -m compileall -q calc conv"}
+	todo := strings.Join(Problemas(context.Background(), Verificacion{Dir: dir, Timeout: time.Minute}, r), "\n")
+	if !strings.Contains(todo, "without a purpose header: conv;") {
+		t.Errorf("conv es nuevo y no dice para qué es; calc sí y migrations es andamio:\n%s", todo)
 	}
 }

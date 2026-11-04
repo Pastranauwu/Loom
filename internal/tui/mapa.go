@@ -23,12 +23,12 @@ func etiquetas() etiquetasMapa {
 	if idioma.Es() {
 		return etiquetasMapa{"loom map", "módulos", "archivos", "símbolos", "listas", "en curso", "pendientes", "detenidas",
 			"aceptación", "Puntos de entrada", "Cimientos", "Capa", "usa", "depende de", "sin ADN · loom dna add <nombre>",
-			"✓ lista  ◐ en curso  ✗ detenida  · pendiente   ◆ contrato que expone   → depende de",
+			"✓ lista  ◐ en curso  ✗ detenida  · pendiente   ◆ contrato que expone   → depende de\nArriba lo que nadie importa (entradas), abajo en lo que todos se apoyan (cimientos) · loom map <módulo> explica uno",
 			"verde", "roja", "sin correr", "↑↓ desplaza · q sale", "archivo", "símbolo", "dependencias"}
 	}
 	return etiquetasMapa{"loom map", "modules", "files", "symbols", "ready", "running", "pending", "stopped",
 		"acceptance", "Entry points", "Foundations", "Layer", "uses", "depends on", "no DNA · loom dna add <name>",
-		"✓ ready  ◐ running  ✗ stopped  · pending   ◆ contract it exposes   → depends on",
+		"✓ ready  ◐ running  ✗ stopped  · pending   ◆ contract it exposes   → depends on\nOn top what nothing imports (entry points), below what everything leans on (foundations) · loom map <module> explains one",
 		"green", "red", "not run", "↑↓ scroll · q quits", "file", "symbol", "dependencies"}
 }
 
@@ -99,6 +99,7 @@ func bandaCapa(capa, total, ancho int, t etiquetasMapa) string {
 	case total > 1 && capa == total-1:
 		nombre = t.cimientos
 	}
+	nombre = conIcono(ic().Capa, nombre)
 	linea := "── " + nombre + " "
 	if r := ancho - 1 - len([]rune(linea)); r > 0 {
 		linea += strings.Repeat("─", r)
@@ -144,15 +145,16 @@ func cabeceraMapa(m topo.Mapa, t etiquetasMapa, ancho int) string {
 }
 
 func glifoEstado(e string) string {
+	i := ic()
 	switch e {
 	case "lista":
-		return "✓"
+		return i.Lista
 	case "en_curso":
-		return "◐"
+		return i.EnCurso
 	case "detenida":
-		return "✗"
+		return i.Detenida
 	}
-	return "·"
+	return i.Pendiente
 }
 
 func colorModulo(mod topo.Modulo) lipgloss.Color {
@@ -187,6 +189,9 @@ func tarjeta(mod topo.Modulo, ancho int, t etiquetasMapa) string {
 	in := ancho - 4 // border and padding
 	var l []string
 	l = append(l, estiloBold.Render(recorte(mod.Ruta, in)))
+	if mod.Proposito != "" {
+		l = append(l, recorte(mod.Proposito, in))
+	}
 	l = append(l, estiloApagado.Render(fmt.Sprintf("%s · %s", cuenta(mod.Archivos, t.archivo, t.archivos), cuenta(mod.NumSimbolos, t.simbolo, t.simbolos))))
 	for i, tk := range mod.Tareas {
 		if i == 3 {
@@ -200,14 +205,14 @@ func tarjeta(mod topo.Modulo, ancho int, t etiquetasMapa) string {
 			l = append(l, estiloApagado.Render(fmt.Sprintf("  +%d", len(mod.Expone)-3)))
 			break
 		}
-		linea := "◆ " + recorte(c.Firma, in-2)
+		linea := ic().Contrato + " " + recorte(c.Firma, in-2)
 		if len(c.Consumidores) > 0 {
 			linea += estiloApagado.Render(" ← " + strings.Join(c.Consumidores, ","))
 		}
 		l = append(l, linea)
 	}
 	if len(mod.Expone) == 0 && len(mod.Simbolos) > 0 {
-		l = append(l, estiloApagado.Render("◇ "+recorte(mod.Simbolos[0], in-2)))
+		l = append(l, estiloApagado.Render(ic().Simbolo+" "+recorte(mod.Simbolos[0], in-2)))
 	}
 	if len(mod.Importa)+len(mod.Consume) > 0 {
 		dep := unicoOrden(append(append([]string{}, mod.Importa...), mod.Consume...))

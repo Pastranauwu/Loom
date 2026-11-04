@@ -21,6 +21,7 @@ import (
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -28,9 +29,11 @@ import (
 
 	"github.com/Pastranauwu/loom/internal/capturas"
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/graph"
 	"github.com/Pastranauwu/loom/internal/plan"
 	"github.com/Pastranauwu/loom/internal/skills"
 	"github.com/Pastranauwu/loom/internal/task"
+	"github.com/Pastranauwu/loom/internal/topo"
 )
 
 // Marca es el texto con que lanza todo stub. La verificación no depende
@@ -136,6 +139,7 @@ You write no logic and no tests: every line you write is paid by the expensive m
    - "Cases:" 2 to 5 concrete examples of input → output or error, which the agent will turn into its test.
    The labels "Idea:" and "Cases:" are LITERAL: the word and the colon attached, nothing in between, also in the "how" of a change to existing code. "Cases (with mocks):" or "Examples:" do not count: loom looks for the exact text and sends the blueprint back to you.
    The body only throws an error with the exact text "` + Marca + `".
+   Every NEW module (folder of code) opens one file with a one-line header saying what the module is for, in the project's words: the Go package comment ("// Package x does ..."), the Python module docstring, the first "//" line in TypeScript/JavaScript. loom's map and the next agents read it to know what each module is and what to touch.
 5. Nothing else. Write no tests, reference implementations, sample data or code outside the repository. Run nothing except what is needed for "verify" to pass. No debugging commands left in the project: no "node -e", "sh -c", interactive shells or temporary scripts in package.json, manifests or tool configs.
 `)
 	if !p.SinDocker {
@@ -332,6 +336,7 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 		}
 		out = append(out, contrato(dir, nombre, t, archivos, previos)...)
 	}
+	out = append(out, sinProposito(dir, archivos, previos)...)
 	// "integracion" es la aceptación global. Si falla hoy (proyecto nuevo,
 	// o una prueba nueva que todavía no existe), una tarea final la hace
 	// pasar. Si ya pasa, es la regresión de un proyecto existente: vale
@@ -350,6 +355,39 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 		}
 	}
 	return out
+}
+
+// sinProposito exige que cada carpeta de código nueva declare para qué es en
+// el encabezado de alguno de sus archivos (graph.Doc): es lo que el mapa
+// muestra por módulo y lo que lee el siguiente agente para saber qué tocar.
+// Una carpeta que ya tenía código no se exige: no es del arquitecto.
+func sinProposito(dir string, archivos []string, previos map[string]bool) []string {
+	viejas, con, nuevas := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	for _, f := range archivos {
+		d := path.Dir(f)
+		if !EsCodigo(f) || task.EsArchivoDePrueba(f) {
+			continue
+		}
+		if previos[f] {
+			viejas[d] = true
+			continue
+		}
+		nuevas[d] = true
+		if b, err := os.ReadFile(filepath.Join(dir, f)); err == nil && graph.Doc(f, b) != "" {
+			con[d] = true
+		}
+	}
+	var faltan []string
+	for d := range nuevas {
+		if d != "." && !viejas[d] && !con[d] && !topo.EsAndamio(d) {
+			faltan = append(faltan, d)
+		}
+	}
+	if len(faltan) == 0 {
+		return nil
+	}
+	slices.Sort(faltan)
+	return []string{fmt.Sprintf(idioma.T("new modules without a purpose header: %s; open one file of each with a one-line comment saying what the module is for (Go package comment, Python module docstring, first // line in TypeScript/JavaScript)"), strings.Join(faltan, ", "))}
 }
 
 // contrato exige que cada tarea diga qué hacer y cómo probarlo. En un

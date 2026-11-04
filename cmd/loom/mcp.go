@@ -65,6 +65,7 @@ var manualAgentes string
 const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. Never write the builders' code yourself.
 Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply (if the architect asks, loom_answer and apply again) → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first) → loom_archive when ship all passed: one spec is one version.
 Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
+Before reading code, ask the map: loom_map (format: tree) for the whole architecture, loom_map with module for one module (purpose, layer, what it depends on, who uses and tests it, every file with its API). Open a file only once the map told you which one, and explain the architecture to the human from the map.
 Call loom_manual once for the full guide before your first heavy tool.`
 
 // loom mcp: the chat model is the tech lead, loom the builders. Every tool
@@ -189,9 +190,12 @@ func mcpTools(exe string) []mcp.Tool {
 	}
 
 	return []mcp.Tool{
-		quick("loom_map", "Map of the repo: modules by layer with their tasks, exposed contracts, gates and active DNA. Read it before writing a spec.",
-			map[string]string{"format": "string:json (default), tree for compact ASCII, or mermaid", "all": "boolean:include modules without tasks or contracts"},
+		quick("loom_map", "Map of the repo: modules by layer (entry points on top, foundations below) with their purpose, tasks, exposed contracts, gates and active DNA. Read it before writing a spec. Pass module to explain one module: purpose, layer, dependencies, who uses it and every file with its API; use it to answer how a module works instead of reading its code.",
+			map[string]string{"format": "string:json (default), tree for compact ASCII, or mermaid", "all": "boolean:include modules without tasks or contracts", "module": "string:module path, a file in it or its last segment, e.g. internal/graph or graph"},
 			func(a map[string]any) ([]string, error) {
+				if m := str(a, "module"); m != "" {
+					return []string{"map", m, "--plain"}, nil
+				}
 				args := []string{"map", "--json"}
 				switch str(a, "format") {
 				case "tree":

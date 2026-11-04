@@ -21,7 +21,7 @@ func newMapCmd() *cobra.Command {
 	var mermaid, todos bool
 	var profundidad int
 	cmd := &cobra.Command{
-		Use:     "map",
+		Use:     "map [módulo]",
 		Aliases: []string{"view"},
 		Short:   "mapa de módulos, contratos y compuertas sin abrir código",
 		Long: `Dibuja el sistema a alto nivel con lo que loom ya sabe: los módulos, los
@@ -29,17 +29,28 @@ contratos públicos (expone) que ofrece cada uno, quién consume a quién (usa e
 imports), el ADN activo y el estado de las compuertas. No abre archivos de
 código: sale del grafo del repo y de los contratos de tarea.
 
+Los módulos van por capas: arriba los puntos de entrada (nadie los importa),
+abajo los cimientos (en los que todos se apoyan). El propósito de cada uno
+sale del comentario de su paquete o archivo; sin comentario, de su API.
+
+Con un módulo (ruta, archivo dentro de él o último segmento) explica solo ese:
+propósito, capa, de quién depende y quién lo usa, y cada archivo con su API.
+
 En terminal es un árbol; --mermaid exporta un diagrama para Markdown o un PR;
 --json, la estructura completa.`,
 		Example: `  loom map
   loom map --mermaid > docs/arquitectura.md
+  loom map graph
   loom map --depth 3 --all
   loom view --json`,
-		Args: cobra.NoArgs,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := projectRoot()
 			if err != nil {
 				return err
+			}
+			if len(args) == 1 {
+				return runMapModulo(root, args[0], profundidad)
 			}
 			return runMap(root, mermaid, todos, profundidad)
 		},
@@ -53,9 +64,17 @@ En terminal es un árbol; --mermaid exporta un diagrama para Markdown o un PR;
 // construirMapa reads the repo and the contracts into the map. A graph
 // failure is returned apart: the map still comes out, from the contracts.
 func construirMapa(root string, todos bool, profundidad int) (topo.Mapa, error, error) {
-	cfg, err := config.Load(root)
+	e, grafoErr, err := entradaMapa(root, todos, profundidad)
 	if err != nil {
 		return topo.Mapa{}, nil, err
+	}
+	return topo.Construir(e), grafoErr, nil
+}
+
+func entradaMapa(root string, todos bool, profundidad int) (topo.Entrada, error, error) {
+	cfg, err := config.Load(root)
+	if err != nil {
+		return topo.Entrada{}, nil, err
 	}
 	e := topo.Entrada{Profundidad: profundidad, Todos: todos, Estados: map[string]string{}}
 	var grafoErr error
@@ -88,7 +107,26 @@ func construirMapa(root string, todos bool, profundidad int) (topo.Mapa, error, 
 		}
 	}
 
-	return topo.Construir(e), grafoErr, nil
+	return e, grafoErr, nil
+}
+
+func runMapModulo(root, modulo string, profundidad int) error {
+	e, grafoErr, err := entradaMapa(root, true, profundidad)
+	if err != nil {
+		return err
+	}
+	if grafoErr != nil {
+		out.Line(idioma.T("· sin grafo del repo (%v) · el mapa sale solo de los contratos"), grafoErr)
+	}
+	d, err := topo.Detalle(e, modulo)
+	if err != nil {
+		return err
+	}
+	if out.JSON() {
+		return out.Data(map[string]string{"modulo": modulo, "detalle": d})
+	}
+	out.Line("%s", d)
+	return nil
 }
 
 func runMap(root string, mermaid, todos bool, profundidad int) error {

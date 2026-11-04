@@ -27,25 +27,79 @@ func moduloGo(root string) string {
 	return ""
 }
 
-// parsear devuelve los símbolos públicos con firma y los imports internos
-// del repo, ya resueltos a la clave con que `claves` nombra al destino.
-func parsear(f string, data []byte, modulo string) (syms, imps []string) {
+// parsear devuelve el propósito declarado (primera frase del comentario
+// del paquete o del archivo), los símbolos públicos con firma y los imports
+// internos del repo, ya resueltos a la clave con que `claves` nombra al destino.
+func parsear(f string, data []byte, modulo string) (doc string, syms, imps []string) {
 	switch path.Ext(f) {
 	case ".go":
-		syms, imps = parsearGo(f, data, modulo)
+		doc, syms, imps = parsearGo(f, data, modulo)
 	case ".py":
 		syms, imps = parsearRegex(f, data, rePyExport, rePyImport)
+		if doc = primerGrupo(rePyComentario, data); doc == "" {
+			doc = primerGrupo(rePyDoc, data)
+		}
 	default:
 		syms, imps = parsearRegex(f, data, reJsExport, reJsImport)
+		doc = primerGrupo(reJsDoc, data)
 	}
 	sort.Strings(syms)
-	return syms, unicos(imps)
+	return primeraFrase(doc), syms, unicos(imps)
 }
 
-func parsearGo(f string, data []byte, modulo string) (syms, imps []string) {
-	file, _ := parser.ParseFile(token.NewFileSet(), f, data, parser.SkipObjectResolution)
+// Doc es el propósito que declara un archivo: la primera frase de su
+// comentario de paquete (Go), docstring de módulo (Python) o comentario
+// inicial (JS/TS). Vacío si no declara ninguno.
+func Doc(f string, data []byte) string {
+	doc, _, _ := parsear(f, data, "")
+	return doc
+}
+
+var (
+	// un bloque "#" al inicio, tras el shebang y la línea de coding
+	rePyComentario = regexp.MustCompile(`\A(?:#![^\n]*\n)?(?:#[^\n]*coding[:=][^\n]*\n)?((?:[ \t]*#(?:[^!\n][^\n]*)?\n)+)`)
+	rePyDoc        = regexp.MustCompile(`\A(?:\s*#[^\n]*\n)*\s*[rRuU]?(?:"""|''')([\s\S]*?)(?:"""|''')`)
+	reJsDoc        = regexp.MustCompile(`\A(?:#![^\n]*\n)?\s*(?:/\*\*?([\s\S]*?)\*/|((?:[ \t]*//[^\n]*\n)+))`)
+	reMarcas       = regexp.MustCompile(`(?m)^\s*(?://+|\*+|#+)\s?`)
+)
+
+func primerGrupo(re *regexp.Regexp, data []byte) string {
+	m := re.FindSubmatch(data)
+	for _, g := range m[min(1, len(m)):] {
+		if len(g) > 0 {
+			return reMarcas.ReplaceAllString(string(g), "")
+		}
+	}
+	return ""
+}
+
+// primeraFrase deja una línea corta: sin "Package x", hasta el primer punto
+// seguido de espacio y a lo más 160 runas. Es lo que lee el modelo por
+// módulo, así que pesa tokens en cada prompt.
+func primeraFrase(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if strings.HasPrefix(s, "Package ") {
+		if p := strings.SplitN(s, " ", 3); len(p) == 3 {
+			s = p[2]
+		}
+	}
+	if i := strings.Index(s, ". "); i >= 0 {
+		s = s[:i]
+	}
+	s = strings.TrimSuffix(s, ".")
+	if r := []rune(s); len(r) > 160 {
+		s = string(r[:159]) + "…"
+	}
+	return s
+}
+
+func parsearGo(f string, data []byte, modulo string) (doc string, syms, imps []string) {
+	file, _ := parser.ParseFile(token.NewFileSet(), f, data, parser.SkipObjectResolution|parser.ParseComments)
 	if file == nil {
-		return nil, nil
+		return "", nil, nil
+	}
+	if file.Doc != nil {
+		doc = file.Doc.Text()
 	}
 	for _, s := range file.Imports {
 		p, _ := strconv.Unquote(s.Path.Value)
@@ -81,7 +135,7 @@ func parsearGo(f string, data []byte, modulo string) (syms, imps []string) {
 			}
 		}
 	}
-	return syms, imps
+	return doc, syms, imps
 }
 
 func tipoDe(e ast.Expr) string {

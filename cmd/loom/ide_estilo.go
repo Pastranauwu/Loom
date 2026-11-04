@@ -133,6 +133,11 @@ func estiloIDE(s, root, exe string) {
 	for _, o := range opciones {
 		_ = tmux("set-option", "-t", s, o[0], o[1])
 	}
+	// los iconos Nerd viven en el área de uso privado y una fuente Mono los
+	// dibuja en una celda; tmux los contaba de dos y corría los bordes de las
+	// tarjetas. Es opción del servidor (tmux 3.5+); en uno viejo no hace nada
+	_ = tmux("set-option", "-s", "codepoint-widths[0]", "U+E000-U+F8FF=1")
+	_ = tmux("set-option", "-s", "codepoint-widths[1]", "U+F0000-U+FFFFD=1")
 
 	// las teclas de función solo actúan en las sesiones de loom: en
 	// cualquier otra sesión tmux siguen llegando a la aplicación

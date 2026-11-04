@@ -70,3 +70,37 @@ func TestResumen(t *testing.T) {
 		t.Error("vacío debe ser vacío y el resumen estable")
 	}
 }
+
+func TestDocDelArchivo(t *testing.T) {
+	casos := map[string]string{
+		"a.go": "// Package a guarda el índice. Detalle que sobra.\npackage a\n",
+		"b.py": "#!/usr/bin/env python\n\"\"\"Calcula tarifas.\n\nMás texto.\"\"\"\nimport os\n",
+		"c.ts": "/**\n * Cliente HTTP del backend.\n */\nexport const x = 1\n",
+		"d.js": "// Rutas públicas\n// de la API.\nexport function f() {}\n",
+		"e.go": "package e\n",
+	}
+	quiere := map[string]string{"a.go": "guarda el índice", "b.py": "Calcula tarifas", "c.ts": "Cliente HTTP del backend", "d.js": "Rutas públicas de la API", "e.go": "", "f.py": "Boveda: única puerta para cifrar; orquesta cifrado"}
+	for f, src := range casos {
+		if doc, _, _ := parsear(f, []byte(src), ""); doc != quiere[f] {
+			t.Errorf("%s: doc = %q, quiere %q", f, doc, quiere[f])
+		}
+	}
+	g := &Graph{Files: map[string]Node{"pago/cobro.go": {Doc: "cobra tarjetas", Symbols: []string{"func X()"}}}}
+	if r := Resumen(g, "arregla tarjetas"); !strings.Contains(r, "pago/cobro.go (cobra tarjetas)") {
+		t.Errorf("el resumen debe llevar el propósito y buscarlo: %q", r)
+	}
+}
+
+func TestImportsExternosSeDescartan(t *testing.T) {
+	g := &Graph{Files: map[string]Node{
+		"core/models.py": {Imports: []string{"os", "django/conf"}},
+		"core/vista.py":  {Imports: []string{"core/models", "json"}},
+	}}
+	enlazar(g)
+	if n := g.Files["core/models.py"]; len(n.Imports) != 0 {
+		t.Errorf("os y django son externos: %v", n.Imports)
+	}
+	if n := g.Files["core/vista.py"]; len(n.Imports) != 1 || n.Imports[0] != "core/models" {
+		t.Errorf("imports = %v", n.Imports)
+	}
+}

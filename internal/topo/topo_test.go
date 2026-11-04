@@ -11,7 +11,8 @@ import (
 
 func fixture() Entrada {
 	g := &graph.Graph{Files: map[string]graph.Node{
-		"internal/domain/orden.go":    {Symbols: []string{"func Nueva() Orden"}, Imports: nil},
+		"internal/domain/orden.go":    {Doc: "reglas de negocio de las órdenes", Symbols: []string{"func Nueva() Orden", "const Max", "type Orden struct"}, Imports: nil},
+		"internal/domain/sub/x.go":    {Doc: "detalle interno"},
 		"internal/adapters/http.go":   {Symbols: []string{"func Handler() http.Handler"}, Imports: []string{"internal/domain"}},
 		"internal/adapters/helper.go": {Imports: []string{"internal/domain"}},
 		"cmd/app/main.go":             {Imports: []string{"internal/adapters"}},
@@ -92,7 +93,7 @@ func TestTextoYMermaid(t *testing.T) {
 }
 
 func TestListasLargasSeCortan(t *testing.T) {
-	m := Mapa{Modulos: []Modulo{{Ruta: "hub", Importa: []string{"a", "b", "c", "d", "e", "f", "g", "h"}, NumSimbolos: 9, Simbolos: []string{"x", "y"}}}}
+	m := Mapa{Modulos: []Modulo{{Ruta: "hub", Importa: []string{"a", "b", "c", "d", "e", "f", "g", "h"}, NumSimbolos: 9, Simbolos: []string{"x", "y"}}}, NumCapas: 1}
 	txt := Texto(m, Estilo{})
 	if !strings.Contains(txt, "a, b, c, d, e, f (+2)") || !strings.Contains(txt, "(+7)") {
 		t.Errorf("%s", txt)
@@ -109,5 +110,113 @@ func TestCapasPonenLasEntradasArribaYLosCimientosAbajo(t *testing.T) {
 	}
 	if capa["cmd/app"] != 0 || capa["internal/adapters"] != 1 || capa["internal/domain"] != 2 || m.NumCapas != 3 {
 		t.Errorf("capas = %v de %d", capa, m.NumCapas)
+	}
+}
+
+func TestPropositoCapasYDetalle(t *testing.T) {
+	e := fixture()
+	e.Tareas = nil
+	m := Construir(e)
+	var dom Modulo
+	for _, mod := range m.Modulos {
+		if mod.Ruta == "internal/domain" {
+			dom = mod
+		}
+	}
+	if dom.Proposito != "reglas de negocio de las órdenes" {
+		t.Errorf("el propósito sale del archivo menos profundo: %q", dom.Proposito)
+	}
+	if strings.Join(dom.Simbolos, "|") != "type Orden struct|func Nueva() Orden|const Max" {
+		t.Errorf("la api pone tipos y funciones antes que constantes: %v", dom.Simbolos)
+	}
+	txt := Texto(m, Estilo{})
+	i, j := strings.Index(txt, "CAPA 1 · entradas"), strings.Index(txt, "CAPA 3 · cimientos")
+	if i < 0 || j < i || !strings.Contains(txt, "reglas de negocio de las órdenes") || !strings.Contains(txt, Leyenda) {
+		t.Errorf("el árbol va por capas con propósito y leyenda:\n%s", txt)
+	}
+	d, err := Detalle(e, "domain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, quiero := range []string{"internal/domain · capa 3 · cimientos de 3", "propósito: reglas de negocio", "lo usan: internal/adapters", "orden.go · reglas de negocio", "    type Orden struct", "sub/x.go · detalle interno"} {
+		if !strings.Contains(d, quiero) {
+			t.Errorf("el detalle no contiene %q:\n%s", quiero, d)
+		}
+	}
+	if _, err := Detalle(e, "internal/domain/orden.go"); err != nil {
+		t.Errorf("un archivo del módulo también lo nombra: %v", err)
+	}
+	if _, err := Detalle(e, "nada"); err == nil {
+		t.Error("un módulo que no existe es error")
+	}
+}
+
+func TestImportDePaqueteNoApuntaAlPadre(t *testing.T) {
+	g := &graph.Graph{Files: map[string]graph.Node{
+		"manage.py":            {},
+		"banco/models.py":      {},
+		"banco/views.py":       {Imports: []string{"banco", "banco/models"}}, // from . import x; from .models import y
+		"panel/views/lista.py": {Imports: []string{"banco"}},
+	}}
+	m := Construir(Entrada{Grafo: g, Profundidad: 2})
+	for _, a := range m.Aristas {
+		if a.A == "." {
+			t.Errorf("un import del propio paquete no es de la raíz: %+v", a)
+		}
+	}
+	if len(m.Aristas) != 1 || m.Aristas[0].De != "panel/views" || m.Aristas[0].A != "banco" {
+		t.Errorf("aristas = %+v", m.Aristas)
+	}
+}
+
+func TestPruebasNoBajanCapas(t *testing.T) {
+	g := &graph.Graph{Files: map[string]graph.Node{
+		"config/settings.py": {},
+		"config/tests/t.py":  {Imports: []string{"config/settings"}},
+	}}
+	m := Construir(Entrada{Grafo: g, Profundidad: 2})
+	for _, mod := range m.Modulos {
+		if mod.Ruta == "config" && mod.Capa != 0 {
+			t.Errorf("solo lo importan sus pruebas: es entrada, no capa %d", mod.Capa+1)
+		}
+	}
+}
+
+func TestContenidoListaLoQueDiceCadaArchivo(t *testing.T) {
+	g := &graph.Graph{Files: map[string]graph.Node{
+		"core/__init__.py":  {},
+		"core/boveda.py":    {Doc: "única puerta para cifrar"},
+		"core/claves.py":    {Doc: "claves de un solo uso"},
+		"panel/__init__.py": {Doc: "pantallas del administrador"},
+		"panel/urls.py":     {Doc: "rutas del panel"},
+		"js/examen.js":      {Doc: "examen una por vista"},
+	}}
+	por := map[string]Modulo{}
+	for _, m := range Construir(Entrada{Grafo: g, Profundidad: 1}).Modulos {
+		por[m.Ruta] = m
+	}
+	if c := por["core"]; c.Proposito != "" || len(c.Contenido) != 2 || c.Contenido[0] != (Parte{"boveda.py", "única puerta para cifrar"}) {
+		t.Errorf("la línea de un archivo no es el propósito del módulo; va a su contenido: %+v", c)
+	}
+	if p := por["panel"]; p.Proposito != "pantallas del administrador" || len(p.Contenido) != 1 {
+		t.Errorf("__init__ habla por el módulo: %+v", p)
+	}
+	if j := por["js"]; j.Proposito != "examen una por vista" || len(j.Contenido) != 0 {
+		t.Errorf("un módulo de un archivo toma su línea: %+v", j)
+	}
+}
+
+func TestDetalleSeparaQuienLoUsaDeQuienLoPrueba(t *testing.T) {
+	g := &graph.Graph{Files: map[string]graph.Node{
+		"core/models.py":  {},
+		"banco/vista.py":  {Imports: []string{"core/models"}},
+		"core/tests/t.py": {Imports: []string{"core/models"}},
+	}}
+	d, err := Detalle(Entrada{Grafo: g, Profundidad: 2}, "core")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(d, "lo usan: banco\n") || !strings.Contains(d, "lo prueban: core/tests") {
+		t.Errorf("las pruebas van aparte:\n%s", d)
 	}
 }

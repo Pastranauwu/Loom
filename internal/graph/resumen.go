@@ -39,6 +39,9 @@ func Resumen(g *Graph, consulta string) string {
 			if strings.Contains(lf, w) {
 				score += 3
 			}
+			if strings.Contains(strings.ToLower(n.Doc), w) {
+				score += 2
+			}
 			for _, s := range n.Symbols {
 				if strings.Contains(strings.ToLower(s), w) {
 					score += 2
@@ -61,13 +64,17 @@ func Resumen(g *Graph, consulta string) string {
 		return elegidos[i].f < elegidos[j].f
 	})
 	var b strings.Builder
-	fmt.Fprintf(&b, "Mapa del repo (archivos %s: símbolos públicos y dependencias). Parte de aquí, no explores a ciegas:\n", titulo)
+	fmt.Fprintf(&b, "Mapa del repo (archivos %s: propósito, símbolos públicos y dependencias). Parte de aquí, no explores a ciegas:\n", titulo)
 	for i, p := range elegidos {
 		if i >= maxArchivos {
 			break
 		}
 		n := g.Files[p.f]
-		linea := p.f + ": " + recorta(n.Symbols, 12)
+		linea := p.f
+		if n.Doc != "" {
+			linea += " (" + n.Doc + ")"
+		}
+		linea += ": " + recorta(n.Symbols, 12)
 		if len(n.Imports) > 0 {
 			linea += " | importa: " + recorta(n.Imports, 6)
 		}

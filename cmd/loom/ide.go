@@ -24,6 +24,7 @@ import (
 )
 
 const rolTechLead = `You are the tech lead of this repository and the human's only voice. Loom builders work in isolated rooms and never see this chat: they only get a task contract.
+Before reading code, ask the map: loom_map (format: tree) for the whole architecture, loom_map with module for one module (purpose, layer, what it depends on, who uses and tests it, every file with its API). Open a file only once the map told you which one, and explain the architecture to the human from the map.
 Workflow: read the repo with loom_map; interview the human about edge cases and limits (loom_spec_guide); write the spec with loom_spec_write, check it with loom_apply_dry_run, then call loom_apply: it plans the tasks without running them.
 Before anything runs, decide the permissions of every task: loom_task_show then loom_task_set. Keep only_touch as narrow as the task allows, put secrets, config and other modules in dont_touch, and set weight and max_retries by risk. Code reverts edits outside that scope, so it is the real boundary.
 Then launch with loom_run (not loom_up, which skips this step) and wait with loom_board wait: 600 (never poll: each call re-reads your whole context). Heavy tools spend the human's budget: say what you are about to launch first. Never write the builders' code yourself.
@@ -89,6 +90,7 @@ func runIDE(root string) error {
 		for _, err := range skills.AsegurarOrquestador(context.Background()) {
 			out.Line("· %s", err)
 		}
+		asegurarFuente()
 		if err := crearIDE(root, exe, s); err != nil {
 			return err
 		}

@@ -26,7 +26,9 @@ What code enforces, so you do not need to ask for it in prompts:
 
 ## The normal workflow
 
-1. `loom_map`: read the repo (modules, contracts, gates, DNA). Use `format: tree` for a compact view.
+1. `loom_map`: read the repo (modules by layer, what each file holds, contracts, gates, DNA). Use `format: tree` for a compact view
+   and `module` for one module: purpose, layer, what it depends on, who uses it, which tests cover it and every file with its API.
+   Ask the map before reading code: open a file only once the map told you which one, and explain the architecture from it.
 2. Interview the human about edge cases, failures and limits they did not mention. `loom_spec_guide` has the format.
    Settle every answer as a requirement or rule. Mark the ones the human did not answer with `Assumption:`.
 3. `loom_spec_write`: validate and write `loom.spec.yml`. Then `loom_apply_dry_run`: format and ids, no tokens spent.
@@ -68,7 +70,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | Tool | Use it to |
 |---|---|
 | `loom_manual` | Read this manual. |
-| `loom_map` | See modules by layer, their tasks, exposed contracts, gates and DNA. `format: tree\|mermaid\|json`, `all` for modules without tasks. |
+| `loom_map` | See modules by layer with their purpose, tasks, exposed contracts, gates and DNA. `format: tree\|mermaid\|json`, `all` for modules without tasks, `module` to explain one module (purpose, layer, neighbours, files and API) without reading its code. |
 | `loom_spec_guide` | Get the spec format and the interview method. |
 | `loom_spec_write` | Write the spec you drafted. `force` overwrites. |
 | `loom_apply_dry_run` | Validate a spec without planning. It does not show tasks. |

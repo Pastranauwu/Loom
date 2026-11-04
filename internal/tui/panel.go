@@ -31,7 +31,7 @@ type (
 func Panel(root string, mapa func(ancho int) string) error {
 	m := panelModel{root: root, mapa: mapa}
 	m.cargar()
-	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	return err
 }
 
@@ -97,6 +97,13 @@ func (m panelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mapaTexto = strings.Split(string(k), "\n")
 	case tea.KeyMsg:
 		return m.tecla(k.String()), nil
+	case tea.MouseMsg:
+		switch k.Button {
+		case tea.MouseButtonWheelUp:
+			return m.tecla("rueda-arriba"), nil
+		case tea.MouseButtonWheelDown:
+			return m.tecla("rueda-abajo"), nil
+		}
 	}
 	return m, nil
 }
@@ -125,6 +132,10 @@ func (m panelModel) tecla(t string) panelModel {
 		mover(1)
 	case "up", "k":
 		mover(-1)
+	case "rueda-abajo":
+		mover(3)
+	case "rueda-arriba":
+		mover(-3)
 	case "pgdown", " ":
 		mover(max(m.alto-3, 1))
 	case "pgup":
@@ -144,6 +155,15 @@ func (m panelModel) tecla(t string) panelModel {
 		m.detalleID, m.offset = "", 0
 	}
 	m.cursor = max(0, min(m.cursor, len(planas(m.filas))-1))
+	// el tope va en el modelo: View recorta una copia, y un offset pasado
+	// del final hacía que subir tardara tantas teclas como se bajó de más
+	if scroll {
+		total := len(m.mapaTexto)
+		if m.detalleID != "" {
+			total = len(m.detalle)
+		}
+		m.offset = max(0, min(m.offset, total-max(m.alto-3, 1)))
+	}
 	return m
 }
 
@@ -156,7 +176,7 @@ func (m panelModel) View() string {
 		}
 		return estiloApagado.Padding(0, 1).Render(nombre)
 	}
-	cab := estiloApagado.Render("[") + pestana(0, idioma.T("tareas")) + estiloApagado.Render("│") + pestana(1, idioma.T("mapa")) + estiloApagado.Render("]")
+	cab := estiloApagado.Render("[") + pestana(0, conIcono(ic().Tareas, idioma.T("tareas"))) + estiloApagado.Render("│") + pestana(1, conIcono(ic().Mapa, idioma.T("mapa"))) + estiloApagado.Render("]")
 
 	var lineas []string
 	pie := idioma.T("tab cambia · j/k · enter detalle · esc")
@@ -165,7 +185,7 @@ func (m panelModel) View() string {
 		lineas = m.detalle
 	case m.tab == 1:
 		lineas = m.mapaTexto
-		pie = idioma.T("tab cambia · j/k desplaza · g/G inicio/fin")
+		pie = idioma.T("tab cambia · j/k o rueda desplaza · g/G inicio/fin")
 	default:
 		lineas, m.offset = m.listaTareas(cuerpoAlto)
 	}
@@ -202,7 +222,7 @@ func (m panelModel) listaTareas(alto int) ([]string, int) {
 		if len(suyos) == 0 {
 			continue
 		}
-		ls = append(ls, lineaSticker{texto: fmt.Sprintf("%s %s · %d", col.glifo, idioma.T(col.nombre), len(suyos)), color: col.color})
+		ls = append(ls, lineaSticker{texto: fmt.Sprintf("%s %s · %d", glifoColumna(col.estado, col.glifo), idioma.T(col.nombre), len(suyos)), color: col.color})
 		for _, f := range suyos {
 			if f.ID == sel {
 				lineaSel = len(ls)
