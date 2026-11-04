@@ -64,6 +64,7 @@ func TestSpecSinCambiosNoReplanea(t *testing.T) {
 	if err := spec.SaveIntencion(root, spec.IntencionDe(s)); err != nil {
 		t.Fatal(err)
 	}
+	tareas := conUnaTarea(t, root)
 	// sin config ni ejecutor: si intentara planear, fallaría
 	got, err := runApply(root, ruta, false, false)
 	if err != nil {
@@ -72,8 +73,17 @@ func TestSpecSinCambiosNoReplanea(t *testing.T) {
 	if got.Feature != "gastos" {
 		t.Errorf("feature = %q", got.Feature)
 	}
-	if es, _ := os.ReadDir(filepath.Join(root, ".loom", "tasks")); len(es) != 0 {
-		t.Errorf("escribió %d tareas", len(es))
+	if es, _ := os.ReadDir(tareas); len(es) != 1 {
+		t.Errorf("hay %d tareas, quiero solo la que ya estaba", len(es))
+	}
+
+	// con las tareas borradas para replanear, el spec igual sí se planea:
+	// aquí falla porque no hay config, que es justo lo que se quiere ver
+	if err := os.Remove(filepath.Join(tareas, "T-001.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runApply(root, ruta, false, false); err == nil {
+		t.Error("sin tareas del plan anterior, el spec igual se replanea")
 	}
 }
 
@@ -98,7 +108,22 @@ func TestSpecSinIntencionUsaFeatureJSON(t *testing.T) {
 	if err := spec.SaveFeatureState(root, s); err != nil {
 		t.Fatal(err)
 	}
+	conUnaTarea(t, root)
 	if _, err := runApply(root, ruta, false, false); err != nil {
 		t.Fatalf("replaneó un spec ya planeado: %v", err)
 	}
+}
+
+// conUnaTarea deja el plan anterior con una tarea viva y devuelve su carpeta.
+func conUnaTarea(t *testing.T, root string) string {
+	t.Helper()
+	tareas := filepath.Join(root, ".loom", "tasks")
+	if err := os.MkdirAll(tareas, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contrato := "---\nversion: 1\nid: T-001\ntitulo: registrar\nlisto_cuando: go test ./...\ntocar_solo: [\"gastos/**\"]\n---\n"
+	if err := os.WriteFile(filepath.Join(tareas, "T-001.md"), []byte(contrato), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return tareas
 }

@@ -84,6 +84,13 @@ func runApply(root, filePath string, runImmediately, dryRun bool) (spec.Spec, er
 	if dryRun && !d.Vacio() {
 		out.Line("%s", d)
 	}
+	// sin ninguna tarea, el plan anterior ya no existe (se borraron sus
+	// tareas para replanear): saltarlo dejaba el tablero vacío y la única
+	// salida era borrar el estado a mano
+	if ts, _ := task.List(config.TasksDir(root)); ok && len(ts) == 0 {
+		ok = false
+		out.Line("%s", idioma.T("· el plan anterior ya no tiene tareas · planeo el spec entero"))
+	}
 	if ok && d.Vacio() {
 		if !dryRun {
 			_ = spec.SaveEstadoSpec(root, clave, actual) // repo que venía de intencion.json o feature.json

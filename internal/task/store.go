@@ -90,8 +90,15 @@ func NextID(dir string) (string, error) {
 	// repetido, la rama y el cuarto viejos de T-009 se colaban en la
 	// corrida nueva con conflictos de merge
 	viejos, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), "archivo", "*", "tasks", "T-*.md"))
+	// y los que corrieron alguna vez: una tarea borrada o una versión que
+	// nunca se archivó deja runs/T-00N con su rama y su cuarto, y la
+	// tarea nueva con ese id construía sobre la base vieja
+	corridas, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), "runs", "T-*"))
 	for _, v := range viejos {
 		nombres = append(nombres, filepath.Base(v))
+	}
+	for _, v := range corridas {
+		nombres = append(nombres, filepath.Base(v)+".md")
 	}
 	max := 0
 	for _, nombre := range nombres {

@@ -130,6 +130,7 @@ var comandos = map[string]string{
 	"archivado, pero sin release · %w": "archived, but no release · %w",
 	"✓ release %s en %s · %d mejoras · %d reparaciones":               "✓ release %s on %s · %d improvements · %d fixes",
 	"· publícala con git push origin %s %s":                           "· publish it with git push origin %s %s",
+	"· el plan anterior ya no tiene tareas · planeo el spec entero":   "· the previous plan has no tasks left · planning the whole spec",
 	"· sin grafo del repo (%v) · el mapa sale solo de los contratos":  "· no repo graph (%v) · the map comes from the contracts only",
 	"el CLI no devolvió catálogo de modelos · revisa loom doctor":     "the CLI returned no model catalog · check loom doctor",
 	"el panel necesita terminal · edita modelos: en .loom/config.yml": "the panel needs a terminal · edit models: in .loom/config.yml",

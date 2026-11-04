@@ -2,6 +2,9 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## Sin publicar
+**Una versión abandonada ya no se cuela en la siguiente:** los ids nuevos saltan todo `T-00N` que ya corrió (con `runs/`), no solo los archivados. Borrar las tareas sin archivar y replanear reusaba `T-001` con la rama y el cuarto de la versión vieja, construidos sobre la base de antes, y `run` frenaba por un choque con la base. El manual le dice al tech lead que pida `loom task rm` y `loom clean`.
+
 ## v2.10.1 (4 nov 2026)
 **`main` solo con versiones:** con `release: main` en `.loom/config.yml` (y `base: dev`), `loom archive` deja en `main` un solo commit por versión con el árbol de la base, su tag `vX.Y.Z` (minor si hubo `feat`, patch si solo `fix`, major con `!`) y un resumen de mejoras y reparaciones sacado de los Conventional Commits. `dev` guarda todo el historial de loom; no se sube nada.
 **Sin merge a mano tras entregar:** sin remoto, `archive` avanza la base hasta `loom/_entrega` en línea recta antes de su commit; antes quedaba un merge por versión.

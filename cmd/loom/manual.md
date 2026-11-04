@@ -60,7 +60,7 @@ One spec is one version. The cycle is: write spec → apply → run → `ship al
   states and runs to `.loom/archivo/NNNN-<feature>/` and frees their rooms. The next spec starts with a clean board.
 - Never archive, rename or move `.loom/` files or spec files yourself, and do not keep several spec copies in the repo root
   (`loom.ux.yml`, `loom.v2.yml`): extra specs in `specs/*.yml` are live features, not backups. Old versions live in the history.
-- A version that was abandoned is not archived: ask the human to remove its tasks with `loom task rm <id>` and rewrite the spec.
+- A version that was abandoned is not archived: ask the human to remove its tasks with `loom task rm <id>` and run `loom clean` (it drops the rooms and branches without a contract), then rewrite the spec. New tasks never reuse an id that already ran, so old branches cannot leak into the new plan; never delete loom branches yourself.
 
 `loom_up` plans and runs in one step, with no chance to set permissions in between. Prefer `loom_apply` + `loom_run`.
 
