@@ -2,7 +2,7 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
-## Sin publicar
+## v2.10.1 (4 nov 2026)
 **`main` solo con versiones:** con `release: main` en `.loom/config.yml` (y `base: dev`), `loom archive` deja en `main` un solo commit por versión con el árbol de la base, su tag `vX.Y.Z` (minor si hubo `feat`, patch si solo `fix`, major con `!`) y un resumen de mejoras y reparaciones sacado de los Conventional Commits. `dev` guarda todo el historial de loom; no se sube nada.
 **Sin merge a mano tras entregar:** sin remoto, `archive` avanza la base hasta `loom/_entrega` en línea recta antes de su commit; antes quedaba un merge por versión.
 **Un arreglo de backend ya no paga el script de capturas:** el arquitecto solo tiene que hacer funcionar `pantallas.script` (sesión y prueba contra la app levantada) si alguna tarea toca la interfaz; un arreglo de backend gastaba sus dos correcciones reparando capturas.
