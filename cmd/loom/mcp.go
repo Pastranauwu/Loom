@@ -62,7 +62,7 @@ var manualAgentes string
 
 // instruccionesMCP reach every MCP client on connect, so codex and opencode
 // get the same role the loom ide prompt gives claude.
-const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. Never write the builders' code yourself.
+const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. The builders write the code, not you, unless the human asks you to fix something yourself: then do it, never refuse citing loom (loom_manual, "Hand fixes").
 Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply (if the architect asks, loom_answer and apply again) → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first) → loom_archive when ship all passed: one spec is one version.
 Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
 Before reading code, ask the map: loom_map (format: tree) for the whole architecture, loom_map with module for one module (purpose, layer, what it depends on, who uses and tests it, every file with its API). Open a file only once the map told you which one, and explain the architecture to the human from the map.
@@ -295,6 +295,20 @@ func mcpTools(exe string) []mcp.Tool {
 				return runQuick(exe, dir, args)
 			}},
 		quick("loom_archive", "Close the version: after loom_ship all passed every acceptance command, file the spec and its result in .loom/historial, set the shipped tasks aside and leave the spec blank for the next version. Without a remote it fast-forwards the base to the delivery branch first; with release: <branch> in config it also commits the version there with its vX.Y.Z tag and summary. Refuses if the last joint delivery did not pass. Never archive by moving .loom files yourself.", nil, fixed("archive", "--json")),
+		quick("loom_task_rm", "Remove tasks: contract and state, and drop them from other tasks' depends_on. Warns if green work or a feature acceptance is lost. The human approves the call.",
+			map[string]string{"ids": "array:task ids, e.g. [\"T-003\"]"}, func(a map[string]any) ([]string, error) {
+				ids, _ := a["ids"].([]any)
+				if len(ids) == 0 {
+					return nil, errors.New("ids is required, e.g. [\"T-003\"]")
+				}
+				args := []string{"task", "rm"}
+				for _, id := range ids {
+					s, _ := id.(string)
+					args = append(args, s)
+				}
+				return append(args, "--plain"), nil
+			}, "ids"),
+		quick("loom_clean", "Free the rooms and branches of tasks already in the base, of tasks with no contract (removed or archived) and of integration and delivery. Leaves pending, running and stopped tasks alone.", nil, fixed("clean", "--plain")),
 		{Name: "loom_task_show", Description: "Contract of one task: what it may touch, what it may not, exposes, weight, retries, network.",
 			Schema: schema(map[string]string{"id": "string:task id"}, "id"),
 			Call: func(a map[string]any) (string, error) {
