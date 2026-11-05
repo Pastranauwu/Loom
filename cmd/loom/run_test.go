@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/executor"
 	"github.com/Pastranauwu/loom/internal/gate"
 	"github.com/Pastranauwu/loom/internal/state"
 	"github.com/Pastranauwu/loom/internal/task"
@@ -386,7 +387,7 @@ func TestSkillsDelContratoMandanSobreElRol(t *testing.T) {
 }
 
 func TestModeloExaminadorSinModelos(t *testing.T) {
-	cl, _ := elegirEjecutor("claude")
+	cl := executor.Claude{} // sin el binario: en CI no hay claude
 	if m := modeloExaminador(config.Config{}, cl); m != "claude-sonnet-5-5" {
 		t.Errorf("sin modelos con claude = %q, quiero sonnet: vacío cae al default de la cuenta", m)
 	}
