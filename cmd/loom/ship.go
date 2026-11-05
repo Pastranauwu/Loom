@@ -299,10 +299,10 @@ func revisorDelProyecto(root string, cfg config.Config) (ship.Revisor, error) {
 	}
 	modelo := config.ModeloRol(cfg, "revisor")
 	if modelo == "" {
-		modelo = cfg.ModeloPeso("media")
+		modelo = cfg.ModeloPeso("liviana")
 	}
 	if modelo == "" {
-		modelo = cfg.ModeloPeso("liviana")
+		modelo = medioPorDefecto(ex)
 	}
 	return revisorAgente{gen: generadorPlan{ex: ex, modelo: modelo, root: root}}, nil
 }

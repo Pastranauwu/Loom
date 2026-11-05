@@ -1027,24 +1027,38 @@ func revisorParaBucle(root string, cfg config.Config, ex executor.Executor) loop
 	}
 	modelo := config.ModeloRol(cfg, "revisor")
 	if modelo == "" {
-		modelo = cfg.ModeloPeso("media")
+		modelo = cfg.ModeloPeso("liviana")
 	}
 	if modelo == "" {
-		modelo = cfg.ModeloPeso("liviana")
+		modelo = medioPorDefecto(ex)
 	}
 	return revisorEnBucle{ex: ejecutorPara(ex, modelo), modelo: modelo, root: root}
 }
 
 // modeloExaminador resuelve el modelo del examinador ciego: el rol
-// `examinador` declarado en config.yml, o el modelo liviano por defecto.
-// Escribir pruebas por tarea es trabajo repetitivo, no arquitectura:
-// quemar el modelo pesado ahí multiplica el costo de la corrida sin
-// mejorar el examen.
-func modeloExaminador(cfg config.Config) string {
+// `examinador` declarado en config.yml, el medio, o el liviano. Escribir
+// pruebas por tarea es trabajo repetitivo, no arquitectura: quemar el
+// modelo pesado ahí multiplica el costo de la corrida sin mejorar el
+// examen.
+func modeloExaminador(cfg config.Config, ex executor.Executor) string {
 	if m := config.ModeloRol(cfg, "examinador"); m != "" {
 		return m
 	}
-	return cfg.ModeloPeso("liviana")
+	if m := cfg.ModeloPeso("liviana"); m != "" {
+		return m
+	}
+	return medioPorDefecto(ex)
+}
+
+// medioPorDefecto es el modelo de los roles que corren por tarea cuando
+// config.yml no declara `modelos:`. Con "" claude usa el default de la
+// cuenta, que puede ser el de frontera. Id y no alias: el alias puede ir
+// una versión atrás. Los otros CLIs no tienen un medio fijo: "".
+func medioPorDefecto(ex executor.Executor) string {
+	if ex != nil && ex.Name() == "claude" {
+		return "claude-sonnet-5-5"
+	}
+	return ""
 }
 
 // correrUno ejecuta una tarea completa: cuarto, esclusa de estado,
@@ -1086,12 +1100,13 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 	// se quedaba sin suite: el examinador no alcanzaba a responder,
 	// degradaba, y la tarea moría con "listo_cuando pasó sin ejecutar
 	// ninguna prueba" porque la veda le quita al implementador las suyas.
-	examEx := ejecutorPara(exTarea, modeloExaminador(cfg))
+	modeloExam := modeloExaminador(cfg, exTarea)
+	examEx := ejecutorPara(exTarea, modeloExam)
 	exam := examiner.Runner{Options: examiner.Options{
 		Agent:    agenteExecutor{examEx},
 		Task:     t,
 		Root:     root,
-		Model:    modeloExaminador(cfg),
+		Model:    modeloExam,
 		Timeout:  agentTimeout,
 		Lenguaje: config.DetectLanguage(root),
 		OnUsage: func(tk loop.Tokens) {

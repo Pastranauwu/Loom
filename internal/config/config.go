@@ -500,8 +500,9 @@ func sortedAgentNames(m map[string]Agente) []string {
 // El default de cada rol sigue el principio de no quemar el modelo de
 // frontera en trabajo repetitivo: planificador (arquitectura y
 // decisiones) cae al modelo pesado; revisor y examinador (juicio y
-// pruebas por tarea, corren muchas veces por corrida) caen a modelos
-// baratos. Quien quiera otra cosa, lo escribe en config.yml.
+// pruebas por tarea, corren muchas veces por corrida) caen al medio: un
+// liviano escribe pruebas que chocan con la integración. Quien quiera
+// otra cosa, lo escribe en config.yml.
 func ModeloRol(c Config, rol string) string {
 	if a, ok := c.Agentes[rol]; ok && a.Modelo != "" {
 		return a.Modelo
@@ -512,10 +513,8 @@ func ModeloRol(c Config, rol string) string {
 	switch rol {
 	case "planificador":
 		return c.ModeloPeso("pesada")
-	case "revisor", "techlead":
+	case "revisor", "techlead", "examinador":
 		return c.ModeloPeso("media")
-	case "examinador":
-		return c.ModeloPeso("liviana")
 	}
 	return ""
 }

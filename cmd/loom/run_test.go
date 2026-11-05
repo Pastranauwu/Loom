@@ -384,3 +384,14 @@ func TestSkillsDelContratoMandanSobreElRol(t *testing.T) {
 		}
 	}
 }
+
+func TestModeloExaminadorSinModelos(t *testing.T) {
+	cl, _ := elegirEjecutor("claude")
+	if m := modeloExaminador(config.Config{}, cl); m != "claude-sonnet-5-5" {
+		t.Errorf("sin modelos con claude = %q, quiero sonnet: vacío cae al default de la cuenta", m)
+	}
+	cfg := config.Config{Modelos: map[string]string{"liviana": "h", "media": "s"}}
+	if m := modeloExaminador(cfg, cl); m != "s" {
+		t.Errorf("con modelos = %q, quiero el medio", m)
+	}
+}

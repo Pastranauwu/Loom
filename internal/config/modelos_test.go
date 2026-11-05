@@ -90,8 +90,8 @@ func TestPlanificadorUsaModeloGrande(t *testing.T) {
 
 func TestRolRepetitivoNuncaCaeAlPesado(t *testing.T) {
 	c := Config{Modelos: map[string]string{"liviana": "small", "media": "mid", "pesada": "large"}}
-	if got := ModeloRol(c, "examinador"); got != "small" {
-		t.Fatalf("examinador = %q, quiere liviana", got)
+	if got := ModeloRol(c, "examinador"); got != "mid" {
+		t.Fatalf("examinador = %q, quiere media", got)
 	}
 	if got := ModeloRol(c, "revisor"); got != "mid" {
 		t.Fatalf("revisor = %q, quiere media", got)
