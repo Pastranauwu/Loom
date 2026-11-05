@@ -2,8 +2,13 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
-## Sin publicar
-**Una versión abandonada ya no se cuela en la siguiente:** los ids nuevos saltan todo `T-00N` que ya corrió (con `runs/`), no solo los archivados. Borrar las tareas sin archivar y replanear reusaba `T-001` con la rama y el cuarto de la versión vieja, construidos sobre la base de antes, y `run` frenaba por un choque con la base. El manual le dice al tech lead que pida `loom task rm` y `loom clean`.
+## v2.10.2 (5 nov 2026)
+**El examinador ve lo que ve el implementador:** requisitos, aceptación, arquitectura recortada, notas y las líneas `usa` de quien consume lo que expone, más `listo_cuando` y los manifiestos más cercanos (package.json, go.mod, pyproject, requirements, Cargo.toml) en todo lenguaje. La suite oculta prueba solo comportamiento declarado y puede usar las dependencias del manifiesto; antes probaba en el vacío y chocaba con la integración.
+**Suite que no llega al código, liberada:** `listo_cuando` corre una vez antes del implementador; si pasa sin nada implementado o su rojo no nombra el stub ni lo expuesto (runner equivocado, paquete que falta, import roto), la prueba pasa al implementador y el motivo va al primer prompt. Sin examen, las pruebas se liberan en cualquier lenguaje.
+**TS/JS sin esqueleto se examina:** si tiene `expone` y `listo_cuando` nombra su archivo de prueba; solo se vedan las dos suites del examinador.
+**Examinador y revisor en sonnet:** sin `modelos:` corrían con el modelo por defecto de la cuenta (podía ser opus); ahora toman `media` (o `liviana`) y, con claude y nada declarado, `claude-sonnet-5-5`. Nunca `pesada`.
+**El tech lead arregla a mano si se lo piden** y borra tareas y cuartos él mismo (`loom task rm`, `loom clean` por MCP); `loom_task_show/set` dice quién escribe las pruebas. `peso` acepta S/M/L.
+**Una versión abandonada ya no se cuela en la siguiente:** los ids nuevos saltan todo `T-00N` que ya implementó algo (intentos en `runs/`), no solo los archivados, y un cuarto viejo que no parte de la base actual se descarta. Borrar las tareas sin archivar y replanear reusaba `T-001` con la rama de la versión vieja y `run` frenaba por un choque con la base. Los ids del esqueleto ya no se corren mientras el arquitecto planea.
 
 ## v2.10.1 (4 nov 2026)
 **`main` solo con versiones:** con `release: main` en `.loom/config.yml` (y `base: dev`), `loom archive` deja en `main` un solo commit por versión con el árbol de la base, su tag `vX.Y.Z` (minor si hubo `feat`, patch si solo `fix`, major con `!`) y un resumen de mejoras y reparaciones sacado de los Conventional Commits. `dev` guarda todo el historial de loom; no se sube nada.
