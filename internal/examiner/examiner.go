@@ -12,12 +12,15 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Pastranauwu/loom/internal/loop"
+	"github.com/Pastranauwu/loom/internal/plan"
 	"github.com/Pastranauwu/loom/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/spec"
 	"github.com/Pastranauwu/loom/internal/task"
 )
 
@@ -80,8 +83,18 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 	if lenguaje == "" {
 		return false, nil
 	}
-	if (lenguaje == "typescript" || lenguaje == "javascript") && !o.Task.ExamenEsqueleto {
-		return false, nil // los contratos Node antiguos conservan sus propias pruebas
+	// TS/JS sin esqueleto: la visible es el archivo que listo_cuando nombra
+	// y la oculta vive a su lado. Sin archivo de prueba nombrado no hay
+	// dónde poner la suite.
+	node := (lenguaje == "typescript" || lenguaje == "javascript") && !o.Task.ExamenEsqueleto
+	if node {
+		v, _ := RutasNode(o.Task)
+		if v == "" {
+			return false, nil
+		}
+		if _, err := os.Stat(filepath.Join(roomPath, v)); err == nil {
+			return visibleDelExaminador(roomPath, v), nil
+		}
 	}
 	var contrato string
 	if o.Task.ExamenEsqueleto {
@@ -174,10 +187,14 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 
 	prompt := buildPrompt(o.Task, pkg, lenguaje)
 	rel := o.Task.ExamenVisible
+	if node {
+		rel, _ = RutasNode(o.Task)
+	}
 	if rel == "" && len(o.Task.TocarSolo) > 0 {
 		rel = o.Task.TocarSolo[0]
 	}
 	prompt += pistaProyecto(roomPath, rel, o.Task.ListoCuando)
+	prompt += contextoTarea(o.Root, o.Task)
 	if contrato != "" {
 		prompt += "\nFIRMAS Y CASOS DEL ESQUELETO (sin cuerpos de implementación):\n" + contrato + "\n"
 	}
@@ -230,9 +247,15 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		visibleRelPath = o.Task.ExamenVisible
 		_, hiddenName := nombresSuite(lenguaje)
 		hiddenRelPath = toRelPath(filepath.Join(filepath.Dir(visibleRelPath), hiddenName))
+	}
+	if node {
+		visibleRelPath, hiddenRelPath = RutasNode(o.Task)
+	}
+	if o.Task.ExamenEsqueleto || node {
 		// el implementador no puede tocar esta prueba: si importa un
-		// archivo que no existe no pasa nunca y la tarea quema sus intentos
-		if roto := importRelativoRoto(roomPath, visibleRelPath, imports); roto != "" {
+		// archivo que no existe (ni lo va a crear la tarea) no pasa nunca y
+		// la tarea quema sus intentos
+		if roto := importRelativoRoto(roomPath, visibleRelPath, imports, o.Task.TocarSolo); roto != "" {
 			return false, fmt.Errorf(idioma.T("la suite del examinador importa %s, que no existe desde %s"), roto, visibleRelPath)
 		}
 	}
@@ -299,9 +322,9 @@ func visibleDelExaminador(roomPath, rel string) bool {
 }
 
 // importRelativoRoto devuelve el primer import relativo de la suite que
-// no lleva a ningún archivo del cuarto, o "". Los de paquete (vitest,
-// node:test) no se miran.
-func importRelativoRoto(roomPath, visibleRel string, imports []string) string {
+// no lleva a ningún archivo del cuarto ni a uno que la tarea va a crear
+// (tocar_solo), o "". Los de paquete (vitest, node:test) no se miran.
+func importRelativoRoto(roomPath, visibleRel string, imports, tocarSolo []string) string {
 	dir := filepath.Dir(filepath.Join(roomPath, filepath.FromSlash(visibleRel)))
 	for _, imp := range imports {
 		i := strings.LastIndexAny(imp, "'\"")
@@ -326,11 +349,157 @@ func importRelativoRoto(roomPath, visibleRel string, imports []string) string {
 				break
 			}
 		}
-		if !existe {
+		if !existe && !dentroDeAlcance(roomPath, base, tocarSolo) {
 			return ruta
 		}
 	}
 	return ""
+}
+
+// dentroDeAlcance reporta si el archivo abs (con o sin extensión) cae en
+// tocar_solo: la tarea todavía no lo escribió, pero lo va a escribir.
+func dentroDeAlcance(roomPath, abs string, tocarSolo []string) bool {
+	r, err := filepath.Rel(roomPath, abs)
+	if err != nil {
+		return false
+	}
+	r = filepath.ToSlash(r)
+	sin := strings.TrimSuffix(r, path.Ext(r))
+	for _, p := range tocarSolo {
+		p = filepath.ToSlash(p)
+		if d, ok := strings.CutSuffix(p, "/**"); ok && strings.HasPrefix(r, d+"/") {
+			return true
+		}
+		if p == r || strings.TrimSuffix(p, path.Ext(p)) == sin {
+			return true
+		}
+		if ok, _ := path.Match(p, r); ok {
+			return true
+		}
+		for _, ext := range []string{".ts", ".tsx", ".js", ".jsx", ".mjs"} {
+			if ok, _ := path.Match(p, sin+ext); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// RutasNode devuelve la suite visible y la oculta de una tarea TS/JS sin
+// esqueleto: la visible es el archivo de prueba que nombra listo_cuando
+// (con la ruta de tocar_solo si la trae relativa a un cd) y la oculta va a
+// su lado. Sin archivo nombrado, "".
+func RutasNode(t task.Task) (visible, oculta string) {
+	for _, a := range task.ArchivosDePrueba(t.ListoCuando) {
+		ext := path.Ext(a)
+		if !task.EsArchivoDePrueba(a) || !strings.Contains(".ts.tsx.js.jsx.mjs.cjs", ext) || ext == "" {
+			continue
+		}
+		// relativa a un `cd dir &&` del comando, la suite vive en dir
+		visible = a
+		if f := strings.Fields(t.ListoCuando); len(f) > 2 && f[0] == "cd" && f[2] == "&&" {
+			visible = path.Join(f[1], a)
+		}
+		for _, p := range t.TocarSolo {
+			if p == a || strings.HasSuffix(p, "/"+a) {
+				visible = p
+				break
+			}
+		}
+		lenguaje := "typescript"
+		if !strings.HasPrefix(ext, ".ts") {
+			lenguaje = "javascript"
+		}
+		_, o := nombresSuite(lenguaje)
+		return toRelPath(visible), toRelPath(path.Join(path.Dir(visible), o))
+	}
+	return "", ""
+}
+
+// contextoTarea le da al examinador lo mismo que ve el implementador sobre
+// el porqué de la tarea: requisitos que cubre, aceptación del feature,
+// arquitectura recortada, notas y cómo la consumen las demás tareas. Sin
+// eso prueba la firma en el vacío e inventa semántica que nadie pidió.
+// Cada parte que no se puede leer se omite.
+func contextoTarea(root string, t task.Task) string {
+	if root == "" {
+		return ""
+	}
+	var b strings.Builder
+	if f, err := spec.LoadFeatureState(root); err == nil {
+		ids := f.IDs()
+		var reqs []string
+		for i, id := range ids {
+			for _, c := range t.Cubre {
+				if c == id && i < len(f.Requirements) {
+					reqs = append(reqs, "- "+id+": "+f.Requirements[i])
+				}
+			}
+		}
+		if len(reqs) > 0 {
+			b.WriteString("\nREQUIREMENTS this task covers:\n" + strings.Join(reqs, "\n") + "\n")
+		}
+		if len(f.Acceptance) > 0 {
+			b.WriteString("\nFEATURE ACCEPTANCE criteria:\n")
+			for _, a := range f.Acceptance {
+				fmt.Fprintf(&b, "- %s\n", a.Criterion)
+			}
+		}
+	}
+	notas := plan.SepararNotas(t.Notas)
+	if notas.Arquitectura != "" {
+		r := plan.RecortarArquitectura(notas.Arquitectura, t)
+		comun := r.Comun
+		if len(comun) > 3000 {
+			comun = comun[:3000]
+		}
+		b.WriteString("\nARCHITECTURE (excerpt):\n" + strings.TrimSpace(strings.Join([]string{comun, r.Arbol, r.Firmas}, "\n")) + "\n")
+	}
+	if n := strings.TrimSpace(notas.Tarea); n != "" {
+		b.WriteString("\nTASK NOTES:\n" + n + "\n")
+	}
+	if usos := usosDe(root, t); len(usos) > 0 {
+		b.WriteString("\nHOW OTHER TASKS USE THIS (test what they rely on):\n" + strings.Join(usos, "\n") + "\n")
+	}
+	return b.String()
+}
+
+// usosDe devuelve las líneas `usa` de otras tareas que nombran un símbolo
+// que esta tarea expone.
+func usosDe(root string, t task.Task) []string {
+	var nombres []string
+	for _, e := range t.Expone {
+		n := e
+		if i := strings.IndexByte(n, '('); i >= 0 {
+			n = n[:i]
+		}
+		n = strings.TrimSpace(n)
+		if i := strings.LastIndexAny(n, ". "); i >= 0 {
+			n = n[i+1:]
+		}
+		if n != "" {
+			nombres = append(nombres, n)
+		}
+	}
+	otras, err := task.List(filepath.Join(root, ".loom", "tasks"))
+	if err != nil || len(nombres) == 0 {
+		return nil
+	}
+	var out []string
+	for _, o := range otras {
+		if o.ID == t.ID {
+			continue
+		}
+		for _, u := range o.Usa {
+			for _, n := range nombres {
+				if strings.Contains(u, n) {
+					out = append(out, "- "+o.ID+": "+u)
+					break
+				}
+			}
+		}
+	}
+	return out
 }
 
 // manifiestos son los archivos donde un proyecto declara qué puede
@@ -382,8 +551,12 @@ func buildPrompt(t task.Task, pkg, lenguaje string) string {
 	if len(t.Expone) > 0 {
 		fmt.Fprintf(&b, "Public contract (signatures it must expose): %s\n", strings.Join(t.Expone, "; "))
 	}
-	if t.ExamenEsqueleto {
-		fmt.Fprintf(&b, "The visible test must live in %s and be discovered by done_when.\n", t.ExamenVisible)
+	v := t.ExamenVisible
+	if !t.ExamenEsqueleto {
+		v, _ = RutasNode(t)
+	}
+	if v != "" {
+		fmt.Fprintf(&b, "The visible test must live in %s and be discovered by done_when.\n", v)
 	}
 	if len(t.TocarSolo) > 0 {
 		fmt.Fprintf(&b, "Files it may touch: %s\n", strings.Join(t.TocarSolo, ", "))
@@ -406,6 +579,7 @@ Rules:
 - 30% go in "hidden": edge cases and limits the implementer will NOT see.
 - "hidden" tests must fail if the implementation is superficial or only tuned for "visible".
 - Each test function is independent.
+- Test only behavior something states: the contract, Casos, requirements, acceptance criteria, task notes or how other tasks use it. Never invent semantics nothing states (None/null/empty handling, exception types, error messages); "hidden" probes the limits of stated behavior, not new behavior.
 `)
 	b.WriteString(reglasDe(lenguaje))
 	return b.String()
@@ -442,7 +616,7 @@ func parseRespText(text string) (visible, hidden, imports []string, err error) {
 // extra are stdlib packages declared by the examiner; only those a test
 // body actually references are kept, so a package used only by the other
 // suite does not turn into an "imported and not used" build error.
-func buildGoFile(pkg, importPath string, extra, funcs []string) string {
+func buildGoFile(pkg, importPath string, requeridos, extra, funcs []string) string {
 	body := strings.Join(funcs, "\n")
 
 	var b strings.Builder
@@ -457,7 +631,7 @@ func buildGoFile(pkg, importPath string, extra, funcs []string) string {
 		fmt.Fprintf(&b, "\t%q\n", importPath)
 	}
 	for _, imp := range dedup(extra) {
-		if !importPermitido(imp, importPath) || imp == "testing" {
+		if !importPermitido(imp, importPath, requeridos) || imp == "testing" {
 			continue
 		}
 		if !strings.Contains(body, selector(imp)+".") {
@@ -489,14 +663,19 @@ func stdlibImport(path string) bool {
 	return !strings.Contains(first, ".")
 }
 
-// importPermitido acepta la stdlib y los paquetes del mismo módulo que el
-// paquete bajo prueba. Filtrar por stdlibImport a secas tiraba el import
+// importPermitido acepta la stdlib, los paquetes del mismo módulo que el
+// paquete bajo prueba y los de los módulos que go.mod requiere. Filtrar por stdlibImport a secas tiraba el import
 // hermano cuando la ruta del módulo lleva punto ("github.com/x/y"), y la
 // suite quedaba con `ast.Number` sin importar ast: no compila y el
 // implementador no puede tocarla.
-func importPermitido(imp, importPath string) bool {
+func importPermitido(imp, importPath string, requeridos []string) bool {
 	if stdlibImport(imp) {
 		return true
+	}
+	for _, r := range requeridos {
+		if imp == r || strings.HasPrefix(imp, r+"/") {
+			return true
+		}
 	}
 	a, b := primerSegmento(imp), primerSegmento(importPath)
 	return a != "" && a == b

@@ -15,7 +15,7 @@ func TestBuildGoFileImports(t *testing.T) {
 	visible := []string{
 		"func TestLen(t *testing.T) {\n\tif !bytes.Equal(nil, nil) { t.Fatal(\"x\") }\n}",
 	}
-	src := buildGoFile("wol", "wakeup/internal/wol", []string{"bytes", "time", "github.com/x/y"}, visible)
+	src := buildGoFile("wol", "wakeup/internal/wol", nil, []string{"bytes", "time", "github.com/x/y"}, visible)
 
 	if !strings.Contains(src, `"bytes"`) {
 		t.Error("falta import usado: bytes")
@@ -172,5 +172,37 @@ func TestPistaProyecto(t *testing.T) {
 		if !strings.Contains(p, w) {
 			t.Fatalf("pistaProyecto sin %q: %s", w, p)
 		}
+	}
+}
+
+func TestRutasNodeSinEsqueleto(t *testing.T) {
+	tk := task.Task{ListoCuando: "cd web && npx vitest run src/a.test.ts", TocarSolo: []string{"web/src/a.ts"}, Expone: []string{"a(x: number): number"}}
+	v, o := RutasNode(tk)
+	if v != "web/src/a.test.ts" || !strings.HasPrefix(o, "web/src/") || o == v {
+		t.Fatalf("RutasNode = %q %q", v, o)
+	}
+	if !Examinable(t.TempDir(), tk, "node") {
+		t.Error("TS con expone y prueba en listo_cuando debe examinarse")
+	}
+	// la prueba exacta en tocar_solo es de quien implementa
+	tk.TocarSolo = append(tk.TocarSolo, v)
+	if Examinable(t.TempDir(), tk, "node") {
+		t.Error("prueba exacta en tocar_solo: sin examen")
+	}
+}
+
+func TestRequeridosYReglas(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module x\n\nrequire github.com/a/b v1.0.0\nrequire (\n\tgithub.com/c/d v1 // indirect\n)\n"), 0o644)
+	r := requeridos(dir)
+	if len(r) != 2 || r[0] != "github.com/a/b" || r[1] != "github.com/c/d" {
+		t.Fatalf("requeridos = %v", r)
+	}
+	src := buildGoFile("p", "x/p", r, []string{"github.com/a/b"}, []string{"func TestA(t *testing.T) { b.X() }"})
+	if !strings.Contains(src, `"github.com/a/b"`) {
+		t.Errorf("import declarado en go.mod debe quedar:\n%s", src)
+	}
+	if strings.Contains(reglasDe("python"), "a_csv(None)") {
+		t.Error("el ejemplo oculto no debe probar entradas no declaradas")
 	}
 }

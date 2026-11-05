@@ -123,7 +123,7 @@ func RutasSuite(t task.Task, lenguaje string) (visible, oculta string) {
 }
 
 // armarSuite arma el archivo de pruebas completo para el lenguaje.
-func armarSuite(lenguaje, pkg, importPath string, imports, funcs []string) string {
+func armarSuite(lenguaje, pkg, importPath string, requeridos, imports, funcs []string) string {
 	if lenguaje == "python" {
 		return buildPyFile(imports, funcs)
 	}
@@ -133,7 +133,7 @@ func armarSuite(lenguaje, pkg, importPath string, imports, funcs []string) strin
 	if lenguaje == "rust" {
 		return buildRustFile(pkg, imports, funcs)
 	}
-	return buildGoFile(pkg, importPath, imports, funcs)
+	return buildGoFile(pkg, importPath, requeridos, imports, funcs)
 }
 
 func buildNodeFile(imports, funcs []string) string {
@@ -284,7 +284,7 @@ func ultimaLinea(s string) string {
 func reglasDe(lenguaje string) string {
 	if lenguaje == "rust" {
 		return `- Write Rust integration tests: each item is one complete ` + "`#[test] fn name() { ... }`" + ` function, independent of the others.
-- loom adds ` + "`use <crate>::*;`" + `: call the public API by its name. In "imports" put only extra ` + "`use`" + ` lines from std, core or the crate under test. No external crates, no ` + "`mod`" + `, no ` + "`extern crate`" + `.
+- loom adds ` + "`use <crate>::*;`" + `: call the public API by its name. In "imports" put only extra ` + "`use`" + ` lines from std, core, the crate under test or crates its Cargo.toml declares in [dependencies]/[dev-dependencies]. No ` + "`mod`" + `, no ` + "`extern crate`" + `.
 - Pin exact values with assert_eq!/matches!; use #[should_panic] only where the contract promises a panic.
 
 Return ONLY this JSON (no text around it, no markdown):
@@ -301,7 +301,7 @@ Return ONLY this JSON (no markdown):
 	}
 	if lenguaje == "python" {
 		return `- Write pytest tests: module-level functions ` + "`def test_xxx():`" + `, assertions with assert.
-- Use only the Python stdlib and the module under test. No pip, no external dependencies.
+- Use the Python stdlib, the module under test and only packages the project manifest below declares. Nothing else gets installed.
 - "imports" holds COMPLETE import lines, including the one for the module under test (e.g. "from exportador import a_csv", "import json").
 - Do not put imports inside function bodies: loom writes them at the top of the file.
 
@@ -309,11 +309,11 @@ Return ONLY this JSON (no text around it, no markdown):
 {
   "imports": ["import json", "from exportador import a_csv"],
   "visible": ["def test_xxx():\n    assert a_csv([]) == \"\"", "..."],
-  "hidden":  ["def test_yyy():\n    assert a_csv(None) == \"\"", "..."]
+  "hidden":  ["def test_yyy():\n    assert a_csv([{\"a\": 1}]).splitlines()[0] == \"a\"", "..."]
 }`
 	}
-	return `- Use only the Go stdlib. No external imports.
-- In "imports" list EVERY stdlib package your tests use besides "testing" (e.g. "net", "time", "bytes", "encoding/json"). If you forget one, the suite does not compile and is discarded.
+	return `- Use the Go stdlib, the module's own packages and modules go.mod requires. Nothing else.
+- In "imports" list EVERY package your tests use besides "testing", by full import path (e.g. "net", "time", "encoding/json", "github.com/google/go-cmp/cmp"). If you forget one, the suite does not compile and is discarded.
 - Do not put the import block in the code: only the functions. loom builds the file.
 
 Return ONLY this JSON (no text around it, no markdown):

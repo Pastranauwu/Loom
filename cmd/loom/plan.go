@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -400,8 +401,17 @@ func sanearAlcance(bs []plan.Borrador, zonas, patrones []string, ocupados map[st
 // agente la suite que intente crear y la tarea queda roja para siempre,
 // quemando los tres intentos. Aquí el comando se mira de forma
 // determinista: cada path de prueba que mencione entra al alcance.
+//
+// Una tarea TS/JS con expone es la excepción: su suite la escribe el
+// examinador ciego (`examiner.RutasNode`), así que su archivo sale de
+// tocar_solo. Si el examen falla, el bucle se la devuelve al agente.
 func ampliarPruebasPropias(bs []plan.Borrador) {
 	for i := range bs {
+		t := task.Task{ListoCuando: bs[i].ListoCuando, TocarSolo: bs[i].TocarSolo, Expone: bs[i].Expone}
+		if v, _ := examiner.RutasNode(t); v != "" && len(t.Expone) > 0 {
+			bs[i].TocarSolo = slices.DeleteFunc(bs[i].TocarSolo, func(p string) bool { return p == v })
+			continue
+		}
 		for _, path := range task.ArchivosDePrueba(bs[i].ListoCuando) {
 			if config.MatchesAny(bs[i].TocarSolo, path) {
 				continue

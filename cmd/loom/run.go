@@ -1390,6 +1390,11 @@ func patronesPruebaTarea(cfg config.Config, root string, t task.Task) []string {
 		// La ruta exacta del examen sí debe quedar vedada siempre.
 		return append(patrones, t.ExamenVisible)
 	}
+	// TS/JS sin esqueleto: se vedan solo las suites del examinador; el
+	// resto de las pruebas del proyecto sigue siendo de quien implementa.
+	if v, o := examiner.RutasNode(t); v != "" {
+		return []string{v, o}
+	}
 	return patronesPrueba(cfg, root)
 }
 

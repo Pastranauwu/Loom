@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Pastranauwu/loom/internal/task"
@@ -145,6 +146,35 @@ func modulo(roomPath string) string {
 	return ""
 }
 
+// requeridos lee los módulos que el go.mod del cuarto requiere: la suite
+// puede importarlos igual que el código del proyecto.
+func requeridos(roomPath string) []string {
+	data, err := os.ReadFile(filepath.Join(roomPath, "go.mod"))
+	if err != nil {
+		return nil
+	}
+	var out []string
+	bloque := false
+	for _, linea := range strings.Split(string(data), "\n") {
+		if i := strings.Index(linea, "//"); i >= 0 {
+			linea = linea[:i]
+		}
+		f := strings.Fields(linea)
+		switch {
+		case len(f) == 0:
+		case bloque && f[0] == ")":
+			bloque = false
+		case bloque:
+			out = append(out, f[0])
+		case f[0] == "require" && len(f) >= 2 && f[1] == "(":
+			bloque = true
+		case f[0] == "require" && len(f) >= 3:
+			out = append(out, f[1])
+		}
+	}
+	return out
+}
+
 // paqueteEnModulo busca dentro del módulo un paquete que se llame nombre
 // y devuelve su ruta de import, o "" si no existe. Recorre el árbol del
 // cuarto: los paquetes hermanos que la tarea consume (`usa`) ya están ahí
@@ -184,7 +214,8 @@ func paqueteEnModulo(roomPath, mod, nombre string) string {
 // que no se puede resolver: es mejor dejar al implementador sin examen
 // que con uno que no compila y que él no puede arreglar.
 func suiteCompleta(lenguaje, roomPath, pkg, importPath string, imports, funcs []string) (string, bool) {
-	contenido := armarSuite(lenguaje, pkg, importPath, imports, funcs)
+	req := requeridos(roomPath)
+	contenido := armarSuite(lenguaje, pkg, importPath, req, imports, funcs)
 	if lenguaje != "go" {
 		return contenido, true
 	}
@@ -195,7 +226,7 @@ func suiteCompleta(lenguaje, roomPath, pkg, importPath string, imports, funcs []
 	if len(rutas) == 0 {
 		return contenido, true
 	}
-	contenido = armarSuite(lenguaje, pkg, importPath, append(imports, rutas...), funcs)
+	contenido = armarSuite(lenguaje, pkg, importPath, req, append(imports, rutas...), funcs)
 	// el segundo pase tiene que quedar cerrado: si sigue faltando algo,
 	// la suite no compila y no vale la pena escribirla
 	if faltan, quedan := importsFaltantes(roomPath, contenido); len(faltan) > 0 || len(quedan) > 0 {
@@ -220,7 +251,8 @@ func Examinable(root string, t task.Task, lenguaje string) bool {
 		return t.ExamenVisible != "" && lenguajeDeTarea(lenguaje, t) != ""
 	}
 	if lenguajeDeTarea(lenguaje, t) == "typescript" || lenguajeDeTarea(lenguaje, t) == "javascript" {
-		return false
+		v, _ := RutasNode(t)
+		return len(t.Expone) > 0 && v != "" && !slices.Contains(t.TocarSolo, v)
 	}
 	if len(t.Expone) == 0 || lenguajeDeTarea(lenguaje, t) == "" {
 		return false

@@ -353,7 +353,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 	// examinador automático: el usuario ya pagó esas pruebas y volver a
 	// generarlas las pisaría.
 	var fallaExamen string
-	var liberada bool
+	var liberada, sinExamen bool
 	if sealed.Exists(o.Root, o.Task.ID) {
 		suiteManualEnCuarto(o.Root, o.Task.ID, o.Room.Path)
 	} else if o.Examinador != nil {
@@ -369,9 +369,11 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 			fallaExamen = err.Error()
 			guardarExamen(o.Root, o.Task.ID, err)
 		}
-		if o.Task.ExamenEsqueleto && !hayExamen {
+		if !hayExamen {
 			// Una suite que no se pudo generar no debe dejar a la tarea
-			// imposible: el implementador recupera el archivo de prueba.
+			// imposible, en ningún lenguaje: el implementador recupera
+			// sus pruebas.
+			sinExamen = len(o.PatronesPrueba) > 0
 			o.PatronesPrueba = []string{}
 			o.Task.TocarSolo = conPruebasPropias(o.Task)
 			if o.Task.ExamenVisible != "" {
@@ -402,6 +404,8 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		prevErr = fallaExamen
 	} else if o.Task.ExamenEsqueleto && len(o.PatronesPrueba) == 0 {
 		prevErr = "The blind exam could not be prepared. Write the test in " + o.Task.ExamenVisible + " from Cases: and make it pass. " + fallaExamen
+	} else if sinExamen {
+		prevErr = "The blind exam could not be prepared. Write the tests yourself from the contract and make done_when pass. " + fallaExamen
 	}
 	var noCorrio bool
 	var sesion string

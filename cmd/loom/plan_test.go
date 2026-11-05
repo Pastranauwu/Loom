@@ -53,6 +53,12 @@ func TestAmpliarPruebasPropias(t *testing.T) {
 			ListoCuando: "go test ./internal/wol/...",
 			TocarSolo:   []string{"internal/wol/**"},
 		},
+		{
+			Titulo:      "exportar",
+			ListoCuando: "npx vitest run src/csv.test.ts",
+			TocarSolo:   []string{"src/csv.ts", "src/csv.test.ts"},
+			Expone:      []string{"aCsv(filas: Fila[]): string"},
+		},
 	}
 	ampliarPruebasPropias(bs)
 
@@ -66,6 +72,10 @@ func TestAmpliarPruebasPropias(t *testing.T) {
 	// la suite del paquete.
 	if len(bs[2].TocarSolo) != 1 {
 		t.Errorf("go no debe ampliarse: tocar_solo[2] = %v", bs[2].TocarSolo)
+	}
+	// TS con expone: la suite es del examinador, sale del alcance
+	if strings.Join(bs[3].TocarSolo, ",") != "src/csv.ts" {
+		t.Errorf("TS examinable: tocar_solo[3] = %v, quiero src/csv.ts", bs[3].TocarSolo)
 	}
 }
 

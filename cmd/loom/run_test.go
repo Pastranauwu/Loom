@@ -355,6 +355,10 @@ func TestVedaNoAplicaALaTareaDeIntegracion(t *testing.T) {
 		TocarSolo:   []string{"internal/lexer/**"},
 		Expone:      []string{"lexer.Tokenize(s string) []Token"},
 	}
+	ts := task.Task{Version: task.Version, ID: "T-005", ListoCuando: "npx vitest run src/csv.test.ts", TocarSolo: []string{"src/csv.ts"}, Expone: []string{"aCsv(f: Fila[]): string"}}
+	if got := patronesPruebaTarea(cfg, goRepo, ts); len(got) != 2 || got[0] != "src/csv.test.ts" {
+		t.Errorf("veda TS = %v · solo las dos suites del examinador", got)
+	}
 	if got := patronesPruebaTarea(cfg, goRepo, normal); len(got) != 2 {
 		t.Errorf("veda = %v · una tarea examinable no toca sus pruebas", got)
 	}
