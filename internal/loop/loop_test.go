@@ -892,3 +892,29 @@ func TestMismoRechazoDosVecesPasaAlHumano(t *testing.T) {
 		t.Error("ancla mal leída")
 	}
 }
+
+func TestSuiteSinAlcance(t *testing.T) {
+	tk := task.Task{Expone: []string{"precios.CalcularTotal(xs []int) int"}}
+	n := func(i int) *int { return &i }
+	casos := []struct {
+		salida string
+		code   *int
+		roto   bool
+	}{
+		{"panic: loom: sin implementar", n(1), false},                      // stub alcanzado
+		{"ImportError: cannot import name 'calculartotal'", n(1), false},   // símbolo aún sin escribir
+		{"Error: Cannot find package 'vitest'", n(1), true},                // paquete ausente
+		{"ModuleNotFoundError: No module named 'pytest_mock'", n(4), true}, // runner sin plugin
+		{"ok", n(0), true},               // pasa sin nada hecho
+		{"", n(124), false},              // timeout: no se juzga
+		{"sh: no such file", nil, false}, // no arrancó
+	}
+	for _, c := range casos {
+		if got := suiteSinAlcance(tk, c.salida, c.code) != ""; got != c.roto {
+			t.Errorf("suiteSinAlcance(%q) roto=%v, quiero %v", c.salida, got, c.roto)
+		}
+	}
+	if juzgaSuite(task.Task{ListoCuando: "pytest tests/test_b.py"}, []string{"tests/test_a.py"}) {
+		t.Error("juzga una suite que listo_cuando no corre")
+	}
+}

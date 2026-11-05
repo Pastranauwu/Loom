@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -174,9 +173,11 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 	}
 
 	prompt := buildPrompt(o.Task, pkg, lenguaje)
-	if lenguaje == "typescript" || lenguaje == "javascript" {
-		prompt += pistaNode(roomPath, o.Task.ExamenVisible)
+	rel := o.Task.ExamenVisible
+	if rel == "" && len(o.Task.TocarSolo) > 0 {
+		rel = o.Task.TocarSolo[0]
 	}
+	prompt += pistaProyecto(roomPath, rel, o.Task.ListoCuando)
 	if contrato != "" {
 		prompt += "\nFIRMAS Y CASOS DEL ESQUELETO (sin cuerpos de implementación):\n" + contrato + "\n"
 	}
@@ -233,9 +234,6 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		// archivo que no existe no pasa nunca y la tarea quema sus intentos
 		if roto := importRelativoRoto(roomPath, visibleRelPath, imports); roto != "" {
 			return false, fmt.Errorf(idioma.T("la suite del examinador importa %s, que no existe desde %s"), roto, visibleRelPath)
-		}
-		if falta := paqueteAusente(roomPath, visibleRelPath, imports); falta != "" {
-			return false, fmt.Errorf(idioma.T("la suite del examinador importa %s, que el proyecto no tiene instalado"), falta)
 		}
 	}
 
@@ -335,80 +333,39 @@ func importRelativoRoto(roomPath, visibleRel string, imports []string) string {
 	return ""
 }
 
-// paqueteJSON lee el package.json más cercano subiendo desde el
-// directorio de rel hasta el cuarto.
-func paqueteJSON(roomPath, rel string) (dir string, pj struct {
-	Scripts         map[string]string
-	Dependencies    map[string]string
-	DevDependencies map[string]string
-}) {
-	dir = filepath.Dir(filepath.Join(roomPath, filepath.FromSlash(rel)))
-	for {
-		if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
-			_ = json.Unmarshal(data, &pj)
-			return dir, pj
+// manifiestos son los archivos donde un proyecto declara qué puede
+// importar una prueba, en cualquier lenguaje.
+var manifiestos = []string{"package.json", "go.mod", "pyproject.toml", "requirements.txt", "requirements-dev.txt", "setup.cfg", "Cargo.toml"}
+
+// pistaProyecto le dice al examinador con qué corre la tarea sus pruebas y
+// qué declara el proyecto (el manifiesto más cercano subiendo desde rel):
+// sin verlo escribe una suite con un runner o un paquete que el proyecto
+// no tiene, y esa suite no pasa nunca.
+func pistaProyecto(roomPath, rel, listoCuando string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\nThe suite runs with: %s\nUse only that runner and what the project declares below; anything else breaks the suite.\n", listoCuando)
+	visto := map[string]bool{}
+	dir := filepath.Dir(filepath.Join(roomPath, filepath.FromSlash(rel)))
+	for strings.HasPrefix(dir, roomPath) {
+		for _, m := range manifiestos {
+			if visto[m] {
+				continue
+			}
+			if data, err := os.ReadFile(filepath.Join(dir, m)); err == nil {
+				visto[m] = true
+				if len(data) > 1500 {
+					data = data[:1500]
+				}
+				r, _ := filepath.Rel(roomPath, filepath.Join(dir, m))
+				fmt.Fprintf(&b, "\n--- %s ---\n%s\n", filepath.ToSlash(r), data)
+			}
 		}
-		if dir == roomPath || !strings.HasPrefix(dir, roomPath) {
-			return "", pj
+		if dir == roomPath {
+			break
 		}
 		dir = filepath.Dir(dir)
 	}
-}
-
-// pistaNode le dice al examinador con qué corre el proyecto sus pruebas:
-// sin verlo escribió vitest e `import 'three'` en un proyecto de
-// `node --test` que carga three desde un archivo vendido.
-func pistaNode(roomPath, rel string) string {
-	_, pj := paqueteJSON(roomPath, rel)
-	var deps []string
-	for d := range pj.Dependencies {
-		deps = append(deps, d)
-	}
-	for d := range pj.DevDependencies {
-		deps = append(deps, d)
-	}
-	sort.Strings(deps)
-	s := "\nThe project's test script (package.json): " + pj.Scripts["test"] + "\n"
-	s += "Packages you may import: node: builtins and " + strings.Join(deps, ", ") + ". Anything else breaks the suite. Without vitest or jest above, use node:test and node:assert.\n"
-	return s
-}
-
-// paqueteAusente devuelve el primer import de paquete (no relativo, no
-// node:) que no está en el package.json ni en node_modules, o "".
-func paqueteAusente(roomPath, visibleRel string, imports []string) string {
-	dir, pj := paqueteJSON(roomPath, visibleRel)
-	for _, imp := range imports {
-		i := strings.LastIndexAny(imp, "'\"")
-		j := -1
-		if i > 0 {
-			j = strings.LastIndexAny(imp[:i], "'\"")
-		}
-		if j < 0 {
-			continue
-		}
-		ruta := imp[j+1 : i]
-		if ruta == "" || strings.HasPrefix(ruta, ".") || strings.HasPrefix(ruta, "/") || strings.HasPrefix(ruta, "node:") {
-			continue
-		}
-		partes := strings.SplitN(ruta, "/", 3)
-		nombre := partes[0]
-		if strings.HasPrefix(nombre, "@") && len(partes) > 1 {
-			nombre += "/" + partes[1]
-		}
-		if _, ok := pj.Dependencies[nombre]; ok {
-			continue
-		}
-		if _, ok := pj.DevDependencies[nombre]; ok {
-			continue
-		}
-		if dir != "" {
-			if _, err := os.Stat(filepath.Join(dir, "node_modules", nombre)); err == nil {
-				continue
-			}
-		}
-		return nombre
-	}
-	return ""
+	return b.String()
 }
 
 // buildPrompt constructs the examiner instruction. lenguaje va explícito

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/esqueleto"
 	"github.com/Pastranauwu/loom/internal/plan"
 	"github.com/Pastranauwu/loom/internal/room"
 	"github.com/Pastranauwu/loom/internal/sealed"
@@ -352,6 +353,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 	// examinador automático: el usuario ya pagó esas pruebas y volver a
 	// generarlas las pisaría.
 	var fallaExamen string
+	var liberada bool
 	if sealed.Exists(o.Root, o.Task.ID) {
 		suiteManualEnCuarto(o.Root, o.Task.ID, o.Room.Path)
 	} else if o.Examinador != nil {
@@ -376,10 +378,29 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 				o.Task.TocarSolo = append(o.Task.TocarSolo, o.Task.ExamenVisible)
 			}
 		}
+		// Una suite que el implementador no puede tocar y que no llega al
+		// código no pasa nunca, sea cual sea el lenguaje o el motivo
+		// (runner equivocado, paquete ausente, import roto). Se mide
+		// corriendo listo_cuando una vez, no adivinando por lenguaje.
+		if hayExamen && o.Task.ListoCuando != "" {
+			if suite := suiteDelExamen(o.Room.Path); juzgaSuite(o.Task, suite) {
+				salida, code := runPrueba(ctx, o.Room.Path, o.Task.ListoCuando, o.PruebaTimeout, o.Env, o.Task.Red)
+				if motivo := suiteSinAlcance(o.Task, salida, code); motivo != "" {
+					liberada = true
+					o.PatronesPrueba = []string{}
+					o.Task.TocarSolo = append(conPruebasPropias(o.Task), suite...)
+					_ = sealed.Burn(o.Root, o.Task.ID)
+					fallaExamen = "the examiner's suite (" + strings.Join(suite, ", ") + ") " + motivo + ". It is yours now: fix or rewrite it from the contract and make it pass.\n" + ultimasLineas(salida, 40, 1500)
+					guardarExamen(o.Root, o.Task.ID, errors.New(fallaExamen))
+				}
+			}
+		}
 	}
 
 	var prevErr string
-	if o.Task.ExamenEsqueleto && len(o.PatronesPrueba) == 0 {
+	if liberada {
+		prevErr = fallaExamen
+	} else if o.Task.ExamenEsqueleto && len(o.PatronesPrueba) == 0 {
 		prevErr = "The blind exam could not be prepared. Write the test in " + o.Task.ExamenVisible + " from Cases: and make it pass. " + fallaExamen
 	}
 	var noCorrio bool
@@ -894,6 +915,62 @@ func pruebasFijas(r room.Room, base string, t task.Task) []string {
 		}
 	}
 	return fijas
+}
+
+// suiteDelExamen lista los archivos que agregó el commit del examinador.
+func suiteDelExamen(roomPath string) []string {
+	out, err := gitRun(roomPath, "log", "--diff-filter=A", "--format=", "--name-only", "--fixed-strings", "--grep=exam: suite visible")
+	if err != nil {
+		return nil
+	}
+	return strings.Fields(out)
+}
+
+// juzgaSuite: solo se juzga una suite que listo_cuando corre. En el
+// esqueleto la visible es la prueba de listo_cuando; fuera de él, solo si
+// listo_cuando la nombra (si no, su rojo es la prueba que falta escribir).
+func juzgaSuite(t task.Task, suite []string) bool {
+	if len(suite) == 0 {
+		return false
+	}
+	if t.ExamenEsqueleto {
+		return true
+	}
+	for _, f := range suite {
+		if strings.Contains(t.ListoCuando, f) {
+			return true
+		}
+	}
+	return false
+}
+
+// suiteSinAlcance dice por qué la suite del examinador no puede guiar al
+// implementador, o "" si sirve. Sin mirar el lenguaje: un rojo que llega al
+// código menciona la marca de los stubs o un símbolo de expone; uno que no
+// los menciona se cayó antes (runner, paquete, import).
+// ponytail: un listo_cuando que corre más pruebas puede mostrar la marca
+// por otra y salvar una suite rota; se ve en el primer intento.
+func suiteSinAlcance(t task.Task, salida string, code *int) string {
+	if code == nil || *code == 124 {
+		return "" // no se puede juzgar: se queda la suite
+	}
+	if *code == 0 {
+		return "passes before anything is implemented"
+	}
+	low := strings.ToLower(salida)
+	if strings.Contains(low, esqueleto.Marca) {
+		return ""
+	}
+	for _, f := range t.Expone {
+		n := task.NombreDeFirma(f)
+		if i := strings.LastIndexAny(n, "./"); i >= 0 {
+			n = n[i+1:]
+		}
+		if len(n) >= 3 && strings.Contains(low, strings.ToLower(n)) {
+			return ""
+		}
+	}
+	return "fails before reaching the code"
 }
 
 func conPruebasPropias(t task.Task) []string {
