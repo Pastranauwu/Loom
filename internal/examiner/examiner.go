@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -173,6 +174,9 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 	}
 
 	prompt := buildPrompt(o.Task, pkg, lenguaje)
+	if lenguaje == "typescript" || lenguaje == "javascript" {
+		prompt += pistaNode(roomPath, o.Task.ExamenVisible)
+	}
 	if contrato != "" {
 		prompt += "\nFIRMAS Y CASOS DEL ESQUELETO (sin cuerpos de implementación):\n" + contrato + "\n"
 	}
@@ -229,6 +233,9 @@ func Run(ctx context.Context, roomPath string, o Options) (bool, error) {
 		// archivo que no existe no pasa nunca y la tarea quema sus intentos
 		if roto := importRelativoRoto(roomPath, visibleRelPath, imports); roto != "" {
 			return false, fmt.Errorf(idioma.T("la suite del examinador importa %s, que no existe desde %s"), roto, visibleRelPath)
+		}
+		if falta := paqueteAusente(roomPath, visibleRelPath, imports); falta != "" {
+			return false, fmt.Errorf(idioma.T("la suite del examinador importa %s, que el proyecto no tiene instalado"), falta)
 		}
 	}
 
@@ -324,6 +331,82 @@ func importRelativoRoto(roomPath, visibleRel string, imports []string) string {
 		if !existe {
 			return ruta
 		}
+	}
+	return ""
+}
+
+// paqueteJSON lee el package.json más cercano subiendo desde el
+// directorio de rel hasta el cuarto.
+func paqueteJSON(roomPath, rel string) (dir string, pj struct {
+	Scripts         map[string]string
+	Dependencies    map[string]string
+	DevDependencies map[string]string
+}) {
+	dir = filepath.Dir(filepath.Join(roomPath, filepath.FromSlash(rel)))
+	for {
+		if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
+			_ = json.Unmarshal(data, &pj)
+			return dir, pj
+		}
+		if dir == roomPath || !strings.HasPrefix(dir, roomPath) {
+			return "", pj
+		}
+		dir = filepath.Dir(dir)
+	}
+}
+
+// pistaNode le dice al examinador con qué corre el proyecto sus pruebas:
+// sin verlo escribió vitest e `import 'three'` en un proyecto de
+// `node --test` que carga three desde un archivo vendido.
+func pistaNode(roomPath, rel string) string {
+	_, pj := paqueteJSON(roomPath, rel)
+	var deps []string
+	for d := range pj.Dependencies {
+		deps = append(deps, d)
+	}
+	for d := range pj.DevDependencies {
+		deps = append(deps, d)
+	}
+	sort.Strings(deps)
+	s := "\nThe project's test script (package.json): " + pj.Scripts["test"] + "\n"
+	s += "Packages you may import: node: builtins and " + strings.Join(deps, ", ") + ". Anything else breaks the suite. Without vitest or jest above, use node:test and node:assert.\n"
+	return s
+}
+
+// paqueteAusente devuelve el primer import de paquete (no relativo, no
+// node:) que no está en el package.json ni en node_modules, o "".
+func paqueteAusente(roomPath, visibleRel string, imports []string) string {
+	dir, pj := paqueteJSON(roomPath, visibleRel)
+	for _, imp := range imports {
+		i := strings.LastIndexAny(imp, "'\"")
+		j := -1
+		if i > 0 {
+			j = strings.LastIndexAny(imp[:i], "'\"")
+		}
+		if j < 0 {
+			continue
+		}
+		ruta := imp[j+1 : i]
+		if ruta == "" || strings.HasPrefix(ruta, ".") || strings.HasPrefix(ruta, "/") || strings.HasPrefix(ruta, "node:") {
+			continue
+		}
+		partes := strings.SplitN(ruta, "/", 3)
+		nombre := partes[0]
+		if strings.HasPrefix(nombre, "@") && len(partes) > 1 {
+			nombre += "/" + partes[1]
+		}
+		if _, ok := pj.Dependencies[nombre]; ok {
+			continue
+		}
+		if _, ok := pj.DevDependencies[nombre]; ok {
+			continue
+		}
+		if dir != "" {
+			if _, err := os.Stat(filepath.Join(dir, "node_modules", nombre)); err == nil {
+				continue
+			}
+		}
+		return nombre
 	}
 	return ""
 }

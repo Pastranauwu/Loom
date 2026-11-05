@@ -508,8 +508,17 @@ func esIdentificador(s string) bool {
 
 var pesoEn = map[string]string{"liviana": "light", "media": "medium", "pesada": "heavy"}
 
-// NormalizarPeso lleva light|medium|heavy al valor canónico liviana|media|pesada.
+// alias de peso que los modelos escriben por su cuenta (tallas de camiseta)
+var pesoAlias = map[string]string{"s": "liviana", "small": "liviana", "m": "media", "l": "pesada", "large": "pesada"}
+
+// NormalizarPeso lleva light|medium|heavy, S|M|L y mayúsculas al valor
+// canónico liviana|media|pesada: el arquitecto escribió "L" y "M" y la
+// tarea quedó inválida.
 func NormalizarPeso(p string) string {
+	p = strings.ToLower(strings.TrimSpace(p))
+	if es, ok := pesoAlias[p]; ok {
+		return es
+	}
 	for es, en := range pesoEn {
 		if p == en {
 			return es

@@ -441,7 +441,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 		s.Tasks = append(s.Tasks, task.Task{
 			Version: task.Version, ID: idsRelleno[i], Titulo: b.Titulo, Porque: b.Porque,
 			ListoCuando: conVerificar(res.Verificar, b.ListoCuando), TocarSolo: alcance, NoTocar: b.NoTocar,
-			DependeDe: append(append([]string(nil), deEsqueleto...), b.DependeDe...), Peso: b.Peso, Agente: b.Agente,
+			DependeDe: append(append([]string(nil), deEsqueleto...), b.DependeDe...), Peso: task.NormalizarPeso(b.Peso), Agente: b.Agente,
 			Skills: b.Skills, Cubre: b.Cubre, Notas: b.Como + "\n\n" + nota,
 			ExamenEsqueleto: examenCiego,
 			ExamenVisible:   pruebaVisible,

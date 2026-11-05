@@ -158,6 +158,9 @@ loom does not store API keys. Each CLI uses its own login, and `loom_doctor` nev
 - Do not edit `.loom/tasks/*.md` by hand while a run is active. Use `loom_task_set`.
 - Do not retry a red task without reading its logs and changing something. A task stopped for "needs a human decision" goes to the human: do not edit and retry it again.
 - Do not widen `only_touch` to make a task pass. Split the task or fix the contract.
+- Do not strip test paths from `only_touch` on your own: `tests_by` in `loom_task_show` says who writes them. Only an examined task bans them.
+- Do not commit a task's tests to the base branch by hand: a test that exists before the task runs becomes a fixed oracle the builder may not touch.
+- Do not edit `.loom/state/*.json` with sed or by hand. Use `loom_run` with retry, `loom_task_rm` or `loom_clean`.
 - Do not launch heavy tools in a loop, and do not poll: wait with `loom_board` `wait: 600`.
 - Do not treat green tests as done for interface work. Look at the screenshots.
 

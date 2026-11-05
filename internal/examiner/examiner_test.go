@@ -161,3 +161,19 @@ func TestPaqueteDeExpone(t *testing.T) {
 		t.Errorf("con firma sin calificar primero = %q, quiero stats", got)
 	}
 }
+
+func TestPaqueteAusente(t *testing.T) {
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"scripts":{"test":"node --test"},"devDependencies":{"@scope/x":"1"}}`), 0o644)
+	os.MkdirAll(filepath.Join(root, "tests"), 0o755)
+	ok := []string{"import test from 'node:test';", "import { f } from '../src/f.js';", "import x from '@scope/x/sub';"}
+	if got := paqueteAusente(root, "tests/a.test.js", ok); got != "" {
+		t.Fatalf("paqueteAusente = %q, want empty", got)
+	}
+	if got := paqueteAusente(root, "tests/a.test.js", append(ok, "import { it } from 'vitest';")); got != "vitest" {
+		t.Fatalf("paqueteAusente = %q, want vitest", got)
+	}
+	if p := pistaNode(root, "tests/a.test.js"); !strings.Contains(p, "node --test") || !strings.Contains(p, "@scope/x") {
+		t.Fatalf("pistaNode sin runner ni deps: %s", p)
+	}
+}

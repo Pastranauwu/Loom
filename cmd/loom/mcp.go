@@ -64,7 +64,7 @@ var manualAgentes string
 // get the same role the loom ide prompt gives claude.
 const instruccionesMCP = `loom turns a spec into verified code: it plans tasks and runs coding agents in isolated git worktrees, and only what passes its done_when command ships. You are the tech lead: interview the human, write the spec, set each task's permissions, launch and watch. The builders write the code, not you, unless the human asks you to fix something yourself: then do it, never refuse citing loom (loom_manual, "Hand fixes").
 Workflow: loom_map → interview (loom_spec_guide) → loom_spec_write → loom_apply_dry_run → loom_apply (if the architect asks, loom_answer and apply again) → loom_task_show/loom_task_set per task → loom_run → loom_board with wait: 600 (never poll: each call re-reads your whole context) → loom_ship (dry_run first) → loom_archive when ship all passed: one spec is one version.
-Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
+Heavy tools (apply, up, run, ship, redteam, heal) spend the human's quota and run detached: say what you launch first. A red task: read loom_task_logs before retrying. Only tasks whose loom_task_show says tests_by examiner ban test paths: never strip them otherwise, never commit a task's tests to the base branch, never edit .loom/state by hand. loom_wrap turns a CLI, cURL, HAR capture or OpenAPI spec into bridge_* tools in this server.
 Before reading code, ask the map: loom_map (format: tree) for the whole architecture, loom_map with module for one module (purpose, layer, what it depends on, who uses and tests it, every file with its API). Open a file only once the map told you which one, and explain the architecture to the human from the map.
 Call loom_manual once for the full guide before your first heavy tool.`
 
@@ -839,7 +839,16 @@ func editTask(a map[string]any, set bool) (string, error) {
 			return "", err
 		}
 	}
-	data, err := json.MarshalIndent(vistaTarea(t), "", "  ")
+	vista := vistaTarea(t)
+	// el tech lead creyó que ninguna tarea escribe pruebas y quitó de
+	// tocar_solo las que listo_cuando corre: decirle quién las escribe
+	if cfg, e := config.Load(root); e == nil {
+		vista["tests_by"] = "examiner: test paths are banned for this builder"
+		if len(patronesPruebaTarea(cfg, root, t)) == 0 {
+			vista["tests_by"] = "builder: it writes the tests done_when runs, keep them in only_touch"
+		}
+	}
+	data, err := json.MarshalIndent(vista, "", "  ")
 	// el contrato solo gobierna intentos nuevos: recortar el alcance de
 	// lo que ya está verde no cambia su rama, y nada lo decía
 	if st, e := state.Get(root, id); set && e == nil && st.Estado == state.Lista && room.RamaExiste(context.Background(), root, id) {

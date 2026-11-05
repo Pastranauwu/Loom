@@ -48,6 +48,7 @@ var internos = map[string]string{
 	"la respuesta del examinador no se pudo leer · %s":                                                 "the examiner's answer could not be read · %s",
 	"el examinador no devolvió ninguna prueba visible":                                                 "the examiner returned no visible test",
 	"la suite del examinador importa %s, que no existe desde %s":                                       "the examiner's suite imports %s, which does not exist from %s",
+	"la suite del examinador importa %s, que el proyecto no tiene instalado":                           "the examiner's suite imports %s, which the project does not have installed",
 	"no se pudieron resolver los imports de la suite visible":                                          "the imports of the visible suite could not be resolved",
 	"la suite visible del examinador no compila · %s":                                                  "the examiner's visible suite does not compile · %s",
 	"no se pudo preparar la suite visible · %s":                                                        "could not prepare the visible suite · %s",

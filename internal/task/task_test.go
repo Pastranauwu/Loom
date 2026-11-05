@@ -415,3 +415,11 @@ func TestParseAceptaLlavesEnEspanolYEnIngles(t *testing.T) {
 		t.Errorf("español:\n%s\ninglés:\n%s", a.Marshal(), b.Marshal())
 	}
 }
+
+func TestNormalizarPesoAlias(t *testing.T) {
+	for in, want := range map[string]string{"L": "pesada", "M": "media", "s": "liviana", "Heavy": "pesada", "media": "media"} {
+		if got := NormalizarPeso(in); got != want {
+			t.Errorf("NormalizarPeso(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
