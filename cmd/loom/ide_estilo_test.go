@@ -47,3 +47,35 @@ func TestEstiloIDEMouse(t *testing.T) {
 		t.Errorf("WheelUpPane no contiene lógica para panel nav:\n%s", out)
 	}
 }
+
+// Claude usa la pantalla alterna. El binding que tmux recibe de la rueda usa
+// página arriba, pues las flechas recorren el historial de mensajes.
+func TestEstiloIDERuedaEnClaudeEnviaPaginaArriba(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("falta tmux")
+	}
+	s := "loom-test-rueda-claude"
+	if err := exec.Command("tmux", "new-session", "-d", "-s", s, "sleep 10").Run(); err != nil {
+		t.Skipf("no se pudo crear sesión tmux: %v", err)
+	}
+	t.Cleanup(func() { _ = exec.Command("tmux", "kill-session", "-t", s).Run() })
+
+	estiloIDE(s, t.TempDir(), "loom")
+	binding, err := exec.Command("tmux", "list-keys", "-T", "root", "WheelUpPane").Output()
+	if err != nil {
+		t.Fatalf("binding de rueda arriba: %v", err)
+	}
+	if strings.Contains(string(binding), "send-keys -t = -N 3 Up") {
+		t.Errorf("la rueda en Claude entrega flechas en vez de abrir modo copia:\n%s", binding)
+	}
+	if !strings.Contains(string(binding), "send-keys -t = -N 3 PPage") {
+		t.Errorf("la rueda en Claude no entrega página arriba:\n%s", binding)
+	}
+	down, err := exec.Command("tmux", "list-keys", "-T", "root", "WheelDownPane").Output()
+	if err != nil {
+		t.Fatalf("binding de rueda abajo: %v", err)
+	}
+	if !strings.Contains(string(down), "send-keys -t = -N 3 NPage") {
+		t.Errorf("la rueda en Claude no entrega página abajo:\n%s", down)
+	}
+}

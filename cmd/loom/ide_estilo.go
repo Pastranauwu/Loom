@@ -168,11 +168,12 @@ func estiloIDE(s, root, exe string) {
 	// - Decorado (fondo, cabecera, barra, separador): ignora.
 	// - Modo copia: scroll-up / scroll-down 3 líneas.
 	// - Navegador (tareas / mapa): select-pane y send-keys -M para que Bubble Tea reciba la rueda.
-	// - Pantalla alterna (claude code, opencode, codex, etc.): select-pane y 3 flechas Up/Down.
-	// - Terminal normal: select-pane y entra a copy-mode -e para desplazarse por el historial.
-	loomWheelUp := fmt.Sprintf(`if-shell -F -t = "%s" { if-shell -F -t = "#{pane_in_mode}" { send-keys -t = -X -N 3 scroll-up } { if-shell -F -t = "%s" { select-pane -t = ; send-keys -M } { if-shell -F -t = "#{alternate_on}" { select-pane -t = ; send-keys -t = -N 3 Up } { select-pane -t = ; copy-mode -e ; send-keys -X -N 3 scroll-up } } } }`, noDecorado, isNav)
+	// - Chat en pantalla alterna: PgUp/PgDn es el desplazamiento propio de
+	//   Claude; las flechas recorren su historial y tmux no tiene búfer ahí.
+	// - Terminal normal: select-pane y entra a copy-mode -e para su historial.
+	loomWheelUp := fmt.Sprintf(`if-shell -F -t = "%s" { if-shell -F -t = "#{pane_in_mode}" { send-keys -t = -X -N 3 scroll-up } { if-shell -F -t = "%s" { select-pane -t = ; send-keys -M } { if-shell -F -t = "#{alternate_on}" { select-pane -t = ; send-keys -t = -N 3 PPage } { select-pane -t = ; copy-mode -e ; send-keys -X -N 3 scroll-up } } } }`, noDecorado, isNav)
 
-	loomWheelDown := fmt.Sprintf(`if-shell -F -t = "%s" { if-shell -F -t = "#{pane_in_mode}" { send-keys -t = -X -N 3 scroll-down } { if-shell -F -t = "%s" { select-pane -t = ; send-keys -M } { if-shell -F -t = "#{alternate_on}" { select-pane -t = ; send-keys -t = -N 3 Down } { select-pane -t = } } } }`, noDecorado, isNav)
+	loomWheelDown := fmt.Sprintf(`if-shell -F -t = "%s" { if-shell -F -t = "#{pane_in_mode}" { send-keys -t = -X -N 3 scroll-down } { if-shell -F -t = "%s" { select-pane -t = ; send-keys -M } { if-shell -F -t = "#{alternate_on}" { select-pane -t = ; send-keys -t = -N 3 NPage } { select-pane -t = } } } }`, noDecorado, isNav)
 
 	defWheelUp := `if-shell -F "#{||:#{alternate_on},#{pane_in_mode},#{mouse_any_flag}}" { send-keys -M } { copy-mode -e }`
 	_ = tmux("bind-key", "-T", "root", "WheelUpPane", "if-shell", "-F", enLoom, loomWheelUp, defWheelUp)

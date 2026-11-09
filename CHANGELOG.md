@@ -2,6 +2,9 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.10.4 (9 nov 2026)
+**Rueda en el chat de `loom ide`:** Claude Code recibe PgUp/PgDn al girar la rueda, que es su desplazamiento propio; antes recibía flechas (abrían el historial de mensajes) y el intento de usar el búfer de tmux mostraba `[0/0]` en la pantalla alterna.
+
 ## v2.10.3 (9 nov 2026)
 **Desplazamiento con rueda del ratón en `loom ide`:** navegación fluida en tareas y mapa (`panel nav`), emulación de flechas Up/Down para la ventana de modelos (Claude Code, OpenCode, Codex) en pantalla alterna, e historial con salida automática al fondo en terminal normal; soporte de rueda en `board` y `mapa`, y clic de selección de pestaña en `nav`.
 **Modelos Google Gemini en opencode:** reconocimiento de `gemini-3.8-flash` (y familia Gemini 3.x/2.5) en los preferidos (`media`, `pesada`, `liviana`), enrutamiento automático a opencode con o sin prefijo `google/`, ventana de contexto de 1M tokens y cómputo de tokens de razonamiento en la salida.
