@@ -2,6 +2,10 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.10.3 (9 nov 2026)
+**Desplazamiento con rueda del ratón en `loom ide`:** navegación fluida en tareas y mapa (`panel nav`), emulación de flechas Up/Down para la ventana de modelos (Claude Code, OpenCode, Codex) en pantalla alterna, e historial con salida automática al fondo en terminal normal; soporte de rueda en `board` y `mapa`, y clic de selección de pestaña en `nav`.
+**Modelos Google Gemini en opencode:** reconocimiento de `gemini-3.8-flash` (y familia Gemini 3.x/2.5) en los preferidos (`media`, `pesada`, `liviana`), enrutamiento automático a opencode con o sin prefijo `google/`, ventana de contexto de 1M tokens y cómputo de tokens de razonamiento en la salida.
+
 ## v2.10.2 (5 nov 2026)
 **El examinador ve lo que ve el implementador:** requisitos, aceptación, arquitectura recortada, notas y las líneas `usa` de quien consume lo que expone, más `listo_cuando` y los manifiestos más cercanos (package.json, go.mod, pyproject, requirements, Cargo.toml) en todo lenguaje. La suite oculta prueba solo comportamiento declarado y puede usar las dependencias del manifiesto; antes probaba en el vacío y chocaba con la integración.
 **Suite que no llega al código, liberada:** `listo_cuando` corre una vez antes del implementador; si pasa sin nada implementado o su rojo no nombra el stub ni lo expuesto (runner equivocado, paquete que falta, import roto), la prueba pasa al implementador y el motivo va al primer prompt. Sin examen, las pruebas se liberan en cualquier lenguaje.
