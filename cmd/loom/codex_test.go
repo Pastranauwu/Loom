@@ -34,6 +34,17 @@ func TestEjecutorParaMandaLosGPTACodex(t *testing.T) {
 	}
 }
 
+func TestEjecutorParaGemini(t *testing.T) {
+	if (executor.OpenCode{}).Available() != nil {
+		t.Skip("opencode no está instalado")
+	}
+	for _, m := range []string{"google/gemini-3.8-flash", "gemini-3.8-flash"} {
+		if e := ejecutorPara(executor.Claude{}, m); e.Name() != "opencode" {
+			t.Errorf("%s corre en %s, quiero opencode", m, e.Name())
+		}
+	}
+}
+
 func TestArquitectosEconomicoSoloSobreArquitecturaExistente(t *testing.T) {
 	cfg := config.Config{Modelos: map[string]string{"liviana": "haiku", "media": "sonnet", "pesada": "opus"}}
 	if m, r := arquitectos(cfg, true); m != "opus" || r != "" {

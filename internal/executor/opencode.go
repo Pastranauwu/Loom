@@ -68,9 +68,13 @@ func (OpenCode) Models(ctx context.Context) ([]string, error) {
 }
 
 func (e OpenCode) Run(ctx context.Context, req Request) (Result, error) {
+	model := req.Model
+	if strings.HasPrefix(model, "gemini-") {
+		model = "google/" + model
+	}
 	args := []string{"run", req.Prompt, "--dir", req.RoomPath, "--format", "json", "--auto", "--agent", agenteOpenCode[req.Rol]}
-	if req.Model != "" {
-		args = append(args, "--model", req.Model)
+	if model != "" {
+		args = append(args, "--model", model)
 	}
 	// Sin --variant deepseek razona con su esfuerzo por defecto en cada
 	// turno: medido con el prompt real del revisor en flash, low tardó
@@ -220,7 +224,7 @@ func collectTokens(m map[string]any, usage *Usage) {
 			leida, escrita = intValue(cache, "read"), intValue(cache, "write")
 		}
 		usage.Input += in
-		usage.Output += intValue(tokens, "output")
+		usage.Output += intValue(tokens, "output") + intValue(tokens, "reasoning")
 		usage.CacheRead += leida
 		usage.CacheWrite += escrita
 		usage.Turns++

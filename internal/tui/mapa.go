@@ -252,7 +252,7 @@ func unicoOrden(s []string) []string {
 
 // Visor shows a long text in a scrollable full-screen view; q or esc closes it.
 func Visor(contenido string) error {
-	_, err := tea.NewProgram(visorModel{lineas: strings.Split(contenido, "\n")}, tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(visorModel{lineas: strings.Split(contenido, "\n")}, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	return err
 }
 
@@ -267,6 +267,13 @@ func (m visorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch k := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.alto = k.Height
+	case tea.MouseMsg:
+		pagina := max(m.alto-2, 1)
+		if k.Button == tea.MouseButtonWheelUp || k.Type == tea.MouseWheelUp {
+			m.offset = max(0, m.offset-3)
+		} else if k.Button == tea.MouseButtonWheelDown || k.Type == tea.MouseWheelDown {
+			m.offset = min(max(len(m.lineas)-pagina, 0), m.offset+3)
+		}
 	case tea.KeyMsg:
 		pagina := max(m.alto-2, 1)
 		switch k.String() {

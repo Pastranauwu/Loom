@@ -98,11 +98,19 @@ func (m panelModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.tecla(k.String()), nil
 	case tea.MouseMsg:
-		switch k.Button {
-		case tea.MouseButtonWheelUp:
+		if k.Button == tea.MouseButtonWheelUp || k.Type == tea.MouseWheelUp {
 			return m.tecla("rueda-arriba"), nil
-		case tea.MouseButtonWheelDown:
+		}
+		if k.Button == tea.MouseButtonWheelDown || k.Type == tea.MouseWheelDown {
 			return m.tecla("rueda-abajo"), nil
+		}
+		if (k.Button == tea.MouseButtonLeft && k.Action == tea.MouseActionPress) || k.Type == tea.MouseLeft {
+			if k.Y == 0 {
+				if k.X < 15 {
+					return m.tecla("1"), nil
+				}
+				return m.tecla("2"), nil
+			}
 		}
 	}
 	return m, nil

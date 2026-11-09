@@ -157,15 +157,36 @@ func estiloIDE(s, root, exe string) {
 	// ctrl+b ctrl+d: soltar ctrl a tiempo no es obvio, y sin esto no pasaba nada
 	_ = tmux("bind-key", "-T", "prefix", "C-d", "detach-client")
 
+	decorado := "#{m:*tail -f /dev/null*,#{pane_start_command}}"
+	for _, n := range []string{"fondo", "cabecera", "barra"} {
+		decorado = "#{||:" + decorado + ",#{m:*panel " + n + "*,#{pane_start_command}}}"
+	}
+	noDecorado := "#{!:" + decorado + "}"
+	isNav := "#{m:*panel nav*,#{pane_start_command}}"
+
+	// Rueda del ratón en loom ide:
+	// - Decorado (fondo, cabecera, barra, separador): ignora.
+	// - Modo copia: scroll-up / scroll-down 3 líneas.
+	// - Navegador (tareas / mapa): select-pane y send-keys -M para que Bubble Tea reciba la rueda.
+	// - Pantalla alterna (claude code, opencode, codex, etc.): select-pane y 3 flechas Up/Down.
+	// - Terminal normal: select-pane y entra a copy-mode -e para desplazarse por el historial.
+	loomWheelUp := fmt.Sprintf(`if-shell -F -t = "%s" { if-shell -F -t = "#{pane_in_mode}" { send-keys -t = -X -N 3 scroll-up } { if-shell -F -t = "%s" { select-pane -t = ; send-keys -M } { if-shell -F -t = "#{alternate_on}" { select-pane -t = ; send-keys -t = -N 3 Up } { select-pane -t = ; copy-mode -e ; send-keys -X -N 3 scroll-up } } } }`, noDecorado, isNav)
+
+	loomWheelDown := fmt.Sprintf(`if-shell -F -t = "%s" { if-shell -F -t = "#{pane_in_mode}" { send-keys -t = -X -N 3 scroll-down } { if-shell -F -t = "%s" { select-pane -t = ; send-keys -M } { if-shell -F -t = "#{alternate_on}" { select-pane -t = ; send-keys -t = -N 3 Down } { select-pane -t = } } } }`, noDecorado, isNav)
+
+	defWheelUp := `if-shell -F "#{||:#{alternate_on},#{pane_in_mode},#{mouse_any_flag}}" { send-keys -M } { copy-mode -e }`
+	_ = tmux("bind-key", "-T", "root", "WheelUpPane", "if-shell", "-F", enLoom, loomWheelUp, defWheelUp)
+	_ = tmux("bind-key", "-T", "root", "WheelDownPane", "if-shell", "-F", enLoom, loomWheelDown, "")
+	_ = tmux("bind-key", "-T", "copy-mode", "WheelUpPane", "select-pane -t = ; send-keys -X -N 3 scroll-up")
+	_ = tmux("bind-key", "-T", "copy-mode", "WheelDownPane", "select-pane -t = ; send-keys -X -N 3 scroll-down")
+	_ = tmux("bind-key", "-T", "copy-mode-vi", "WheelUpPane", "select-pane -t = ; send-keys -X -N 3 scroll-up")
+	_ = tmux("bind-key", "-T", "copy-mode-vi", "WheelDownPane", "select-pane -t = ; send-keys -X -N 3 scroll-down")
+
 	gancho(s, "pane-focus-in", "")
 	// fondo, cabecera, base y márgenes son decorado: un clic en ellos
 	// devuelve el foco a claude, si no se ilumina una caja que no es
 	gancho(s, "after-select-pane", "")
 	if p.claude != "" {
-		decorado := "#{m:*tail -f /dev/null*,#{pane_start_command}}"
-		for _, n := range []string{"fondo", "cabecera", "barra"} {
-			decorado = "#{||:" + decorado + ",#{m:*panel " + n + "*,#{pane_start_command}}}"
-		}
 		gancho(s, "after-select-pane", "if-shell -F '"+decorado+"' 'select-pane -t "+p.claude+"'")
 	}
 	if p.fondo != "" {

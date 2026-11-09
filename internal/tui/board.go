@@ -342,7 +342,7 @@ func CorrerBoard(root string, quieto bool) (Accion, error) {
 	params := DefaultPlasma()
 	params.Quieto = quieto
 	m := boardModel{todas: filas, filas: filas, cursor: cursorInicial(filas), params: params, root: root, presupuesto: lineasPresupuesto(root)}
-	final, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	final, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	if err != nil {
 		return Accion{}, err
 	}
@@ -399,6 +399,23 @@ func (m boardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.refrescar()
 		}
 		return m, tickPlasma()
+	case tea.MouseMsg:
+		if msg.Button == tea.MouseButtonWheelUp || msg.Type == tea.MouseWheelUp {
+			if m.detalleID != "" {
+				m.desplazar(-3)
+			} else if len(m.filas) > 0 {
+				m.cursor = (m.cursor - 1 + len(m.filas)) % len(m.filas)
+				m.aviso = ""
+			}
+		} else if msg.Button == tea.MouseButtonWheelDown || msg.Type == tea.MouseWheelDown {
+			if m.detalleID != "" {
+				m.desplazar(3)
+			} else if len(m.filas) > 0 {
+				m.cursor = (m.cursor + 1) % len(m.filas)
+				m.aviso = ""
+			}
+		}
+		return m, nil
 	case tea.KeyMsg:
 		return m.tecla(msg)
 	}

@@ -982,9 +982,9 @@ var pistasPeso = map[string][]string{
 // sin proveedor ("opencode-go/kimi-k3" casa con "kimi-k3"). Si ninguno
 // está, se cae a las pistas por nombre.
 var preferidos = map[string][]string{
-	"pesada":  {"claude-opus-5-5", "gpt-6-astra", "kimi-k3", "grok-4.7", "grok-4.6"},
-	"media":   {"claude-sonnet-5-5", "claude-sonnet-5", "gpt-6-sol", "gpt-5.6-terra", "deepseek-v4-flash", "deepseek-v4.1-flash"},
-	"liviana": {"claude-haiku-5-5", "claude-haiku-4-5", "gpt-6-luna", "gpt-5.6-luna", "deepseek-flash", "muse-spark-1.3-contributor", "muse-spark-1.3-contributor-free", "muse-spark-1.2-contributor"},
+	"pesada":  {"claude-opus-5-5", "gpt-6-astra", "gemini-3.1-pro-preview", "gemini-2.5-pro", "kimi-k3", "grok-4.7", "grok-4.6"},
+	"media":   {"claude-sonnet-5-5", "claude-sonnet-5", "gpt-6-sol", "gpt-5.6-terra", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "deepseek-v4-flash", "deepseek-v4.1-flash"},
+	"liviana": {"claude-haiku-5-5", "claude-haiku-4-5", "gpt-6-luna", "gpt-5.6-luna", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite", "deepseek-flash", "muse-spark-1.3-contributor", "muse-spark-1.3-contributor-free", "muse-spark-1.2-contributor"},
 }
 
 // pasarelas son los proveedores de opencode que cobran por suscripción

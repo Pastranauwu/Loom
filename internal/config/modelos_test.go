@@ -49,6 +49,17 @@ func TestElegirModelos(t *testing.T) {
 		t.Errorf("preferidos = %+v", og)
 	}
 
+	// google propio gana en opencode si está configurado
+	g := ElegirModelos([]string{
+		"google/gemini-2.5-pro",
+		"google/gemini-3.8-flash",
+		"google/gemini-2.5-flash-lite",
+		"opencode-go/kimi-k3",
+	})
+	if g["pesada"] != "google/gemini-2.5-pro" || g["media"] != "google/gemini-3.8-flash" || g["liviana"] != "google/gemini-2.5-flash-lite" {
+		t.Errorf("google = %+v", g)
+	}
+
 	if ElegirModelos(nil) != nil {
 		t.Error("sin catálogo no se inventa nada")
 	}

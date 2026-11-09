@@ -951,7 +951,7 @@ func resolverAgenteTarea(cfg config.Config, defaultEx executor.Executor, flagMod
 func ejecutorPara(ex executor.Executor, modelo string) executor.Executor {
 	quiere := ""
 	switch {
-	case strings.Contains(modelo, "/"):
+	case strings.Contains(modelo, "/"), strings.HasPrefix(modelo, "gemini-"):
 		quiere = "opencode"
 	case strings.HasPrefix(modelo, "claude-"), modelo == "opus", modelo == "sonnet", modelo == "haiku":
 		quiere = "claude"
