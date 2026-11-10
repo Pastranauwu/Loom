@@ -2,7 +2,8 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
-## v2.11.0 (10 nov 2026)
+## v2.11.1 (10 nov 2026)
+**v2.11.0 no se publicó:** su CI falló en una prueba que dependía de tener `claude` instalado. Esta versión trae lo mismo más el arreglo: el relevo de proveedor salta los modelos cuyo CLI no está instalado, en vez de lanzarlos en otro que no los conoce.
 **opencode continúa su sesión:** las correcciones del arquitecto y los reintentos de una tarea siguen la conversación (`--session`) en vez de releer el repo; una corrida con gemini hacía 71, 42 y 53 turnos en tres vueltas del mismo plano. La ventana de contexto sale del catálogo real de opencode y la sesión del agente se guarda en el estado para `run --retry`. codex no continúa sesión (corre `--ephemeral`).
 **Sin saldo o sin cupo, la tarea sigue con otro proveedor:** el 429 de tope de gasto o cuota del mes corta el intento en el acto, y la tarea continúa sobre el mismo cuarto con el modelo más barato de otro proveedor de `modelos:`; las siguientes de la corrida arrancan ya en el relevo. Antes quedaban detenidas con sus dependientes bloqueadas.
 **La esclusa de salida se adelanta:** el paso `estricto` (Python sin tipos, `any`, `unsafe`) corre en cada intento verde y sobre el esqueleto, con todos los hallazgos juntos; las migraciones quedan exentas. Antes se descubría al entregar, una falta por vez.
