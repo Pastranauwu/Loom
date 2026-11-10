@@ -952,15 +952,7 @@ func resolverAgenteTarea(cfg config.Config, defaultEx executor.Executor, flagMod
 // claude; los de OpenAI ("gpt-…") solo codex. Así `modelos:` mezcla
 // CLIs: livianas gratis en opencode y el resto en claude o codex. Si el CLI que hace falta no está, queda ex.
 func ejecutorPara(ex executor.Executor, modelo string) executor.Executor {
-	quiere := ""
-	switch {
-	case strings.Contains(modelo, "/"), strings.HasPrefix(modelo, "gemini-"):
-		quiere = "opencode"
-	case strings.HasPrefix(modelo, "claude-"), modelo == "opus", modelo == "sonnet", modelo == "haiku":
-		quiere = "claude"
-	case strings.HasPrefix(modelo, "gpt-"), strings.HasPrefix(modelo, "codex-"):
-		quiere = "codex"
-	}
+	quiere := cliDe(modelo)
 	if quiere == "" || (ex != nil && ex.Name() == quiere) {
 		return ex
 	}
@@ -968,6 +960,19 @@ func ejecutorPara(ex executor.Executor, modelo string) executor.Executor {
 		return e
 	}
 	return ex
+}
+
+// cliDe es el CLI que corre un modelo por su id; "" si el id no lo dice.
+func cliDe(modelo string) string {
+	switch {
+	case strings.Contains(modelo, "/"), strings.HasPrefix(modelo, "gemini-"):
+		return "opencode"
+	case strings.HasPrefix(modelo, "claude-"), modelo == "opus", modelo == "sonnet", modelo == "haiku":
+		return "claude"
+	case strings.HasPrefix(modelo, "gpt-"), strings.HasPrefix(modelo, "codex-"):
+		return "codex"
+	}
+	return ""
 }
 
 // gratis reconoce los modelos sin costo por su id: opencode los nombra
@@ -1297,7 +1302,13 @@ func relevo(cfg config.Config, ex executor.Executor) string {
 		if m == "" {
 			continue
 		}
-		if _, sin := agotados.Load(proveedorDe(ejecutorPara(ex, m), m)); !sin {
+		// sin su CLI instalado, ejecutorPara devuelve ex y el modelo se
+		// lanzaría en un CLI que no lo conoce
+		e := ejecutorPara(ex, m)
+		if q := cliDe(m); q != "" && e.Name() != q {
+			continue
+		}
+		if _, sin := agotados.Load(proveedorDe(e, m)); !sin {
 			return m
 		}
 	}

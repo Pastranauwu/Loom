@@ -19,6 +19,7 @@ import (
 // 402 y queda pendiente, sin escalar de modelo; la que depende de ella
 // no se lanza ni queda bloqueada, y `up` las retoma al recargar.
 func TestSinSaldoDejaTodoPendienteSinEscalar(t *testing.T) {
+	limpiarAgotados(t)
 	out = ui.New(io.Discard, false)
 	root := t.TempDir()
 	for _, args := range [][]string{
@@ -73,8 +74,30 @@ func TestSinSaldoDejaTodoPendienteSinEscalar(t *testing.T) {
 	}
 }
 
+// limpiarAgotados vacía los proveedores sin saldo: son estado de proceso y
+// un 402 simulado en una prueba contaminaba a las siguientes.
+func limpiarAgotados(t *testing.T) {
+	t.Helper()
+	vaciar := func() { agotados.Range(func(k, _ any) bool { agotados.Delete(k); return true }) }
+	vaciar()
+	t.Cleanup(vaciar)
+}
+
+// binarioFalso deja en PATH, y solo él, los CLIs dados.
+func binarioFalso(t *testing.T, nombres ...string) {
+	t.Helper()
+	dir := t.TempDir()
+	for _, n := range nombres {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("#!/bin/sh\necho 1.0.0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+}
+
 func TestRelevoEligeElMasBaratoDeOtroProveedor(t *testing.T) {
-	t.Cleanup(func() { agotados.Range(func(k, _ any) bool { agotados.Delete(k); return true }) })
+	limpiarAgotados(t)
+	binarioFalso(t, "claude")
 	cfg := config.Config{Modelos: map[string]string{"liviana": "google/gemini-flash", "media": "claude-haiku-5-5", "pesada": "claude-sonnet-5-5"}}
 	oc := executor.OpenCode{}
 	if p := proveedorDe(oc, "google/gemini-flash"); p != "google" {
@@ -87,5 +110,17 @@ func TestRelevoEligeElMasBaratoDeOtroProveedor(t *testing.T) {
 	agotados.Store("claude", true)
 	if m := relevo(cfg, oc); m != "" {
 		t.Errorf("sin proveedores con saldo y dio %q", m)
+	}
+}
+
+// Sin el CLI del relevo instalado no hay relevo: lanzar un modelo de claude
+// en opencode fallaría sin gastar nada y sin decir por qué.
+func TestRelevoSaltaLosModelosCuyoCLINoEstaInstalado(t *testing.T) {
+	limpiarAgotados(t)
+	binarioFalso(t) // ni claude ni nada
+	cfg := config.Config{Modelos: map[string]string{"liviana": "google/gemini-flash", "media": "claude-haiku-5-5"}}
+	agotados.Store("google", true)
+	if m := relevo(cfg, executor.OpenCode{}); m != "" {
+		t.Errorf("relevo = %q sin claude instalado, quiero ninguno", m)
 	}
 }
