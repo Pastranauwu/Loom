@@ -39,7 +39,7 @@ What code enforces, so you do not need to ask for it in prompts:
    `loom_apply` again: the architect continues the same session, so nothing it read is paid twice.
 5. For each task, `loom_task_show` and then `loom_task_set`. Keep `only_touch` as narrow as the task allows. Put secrets,
    config and other modules in `dont_touch`. Set `weight` and `max_retries` by risk, and `depends_on` and `exposes` where one task feeds another.
-6. Say what you are about to launch, then `loom_run`. Follow it with `loom_board` `wait: 600`: it blocks until a task changes.
+6. Say what you are about to launch, then `loom_run`. Follow it with `loom_board` `wait: 600` in a loop until the run ends: it sleeps through progress and returns only on an ALERT (a task finished, a task stopped and needs you, the run ended). A stopped task comes with its reason; read `loom_task_logs` and fix the contract, do not relaunch blind.
    Do not poll: each call re-reads your whole context, and a run polled every minute costs more than its agents. `loom_log` only when a task goes red.
 7. Red task: read `loom_task_logs <id>` before anything else. Fix the contract (`loom_task_set`), then `loom_run` with `retry`.
    Rerunning the same contract unchanged burns attempts: the cap is per task and resets only when the contract changes.
@@ -78,7 +78,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_spec_write` | Write the spec you drafted. `force` overwrites. |
 | `loom_apply_dry_run` | Validate a spec without planning. It does not show tasks. |
 | `loom_apply`* | Turn the spec into contracts without running them. |
-| `loom_board` | See the task board. The first call lists everything; later calls return only changes. `full` lists everything again. `wait` (seconds, max 600) blocks until something changes. |
+| `loom_board` | See the task board. The first call lists everything; later calls return only changes. `full` lists everything again. `wait` (seconds, max 600) sleeps until an ALERT: a task finished, a task stopped, or the run ended; attempts and phases do not wake you. |
 | `loom_ps` | List active tasks with agent and branch. |
 | `loom_answer` | Answer the architect's questions, one per question in order (empty = its default), then `loom_apply` again. |
 | `loom_task_show` | Read one contract. |

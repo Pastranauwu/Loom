@@ -132,8 +132,8 @@ func soloCaveman(settings string) string {
 		Plugins map[string]bool `json:"enabledPlugins"`
 	}
 	data, err := os.ReadFile(settings)
-	if err != nil || json.Unmarshal(data, &cfg) != nil {
-		return ""
+	if err == nil {
+		_ = json.Unmarshal(data, &cfg)
 	}
 	apagar := map[string]bool{}
 	for p, on := range cfg.Plugins {
@@ -141,10 +141,13 @@ func soloCaveman(settings string) string {
 			apagar[p] = false
 		}
 	}
-	if len(apagar) == 0 {
-		return ""
+	// los conectores de claude.ai (Drive, Docs...) van siempre fuera, tenga
+	// o no plugins el usuario: sus herramientas pesan en cada turno
+	ajustes := map[string]any{"disableClaudeAiConnectors": true}
+	if len(apagar) > 0 {
+		ajustes["enabledPlugins"] = apagar
 	}
-	out, _ := json.Marshal(map[string]any{"enabledPlugins": apagar})
+	out, _ := json.Marshal(ajustes)
 	return " --settings " + comillas(string(out))
 }
 

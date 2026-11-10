@@ -208,7 +208,7 @@ func mcpTools(exe string) []mcp.Tool {
 				}
 				return args, nil
 			}),
-		{Name: "loom_board", Description: "Task board, compact. The first call lists every task; later calls return only what changed since the last one (or 'no changes'). Pass full to list everything again. Pass wait (seconds, up to 600) to block until something changes instead of polling: every poll costs you a full turn.",
+		{Name: "loom_board", Description: "Task board, compact. The first call lists every task; later calls return only what changed since the last one (or 'no changes'). Pass full to list everything again. Pass wait (seconds, up to 600) to sleep until an ALERT: a task finished, a task stopped and needs you, or the run ended. Progress inside a task (attempts, phases) does not wake you. Loop on it until the run ends: every other poll costs you a full turn.",
 			Schema: schema(map[string]string{"full": "boolean:list every task again", "wait": "number:seconds to block until a task changes (max 600)"}),
 			Call: func(a map[string]any) (string, error) {
 				dir, err := projectDir(a)
@@ -216,7 +216,9 @@ func mcpTools(exe string) []mcp.Tool {
 					return "", err
 				}
 				// esperar aquí es gratis; cada sondeo del modelo relee su contexto entero
-				hasta := time.Now().Add(time.Duration(min(max(num(a, "wait"), 0), 600)) * time.Second)
+				espera := min(max(num(a, "wait"), 0), 600)
+				hasta := time.Now().Add(time.Duration(espera) * time.Second)
+				var avance string // el último cambio que no era alerta, por si vence la espera
 				for {
 					raw, err := runQuick(exe, dir, []string{"board", "--json"})
 					if err != nil {
@@ -227,8 +229,25 @@ func mcpTools(exe string) []mcp.Tool {
 					// planea no hay tareas, y volver al instante hacía que
 					// el conductor sondeara durante toda la planeación
 					fin := terminoVuelo(dir)
-					if err != nil || fin != "" || (!strings.HasPrefix(d, "no changes") && d != "no tasks") || time.Now().After(hasta) {
+					quieto := strings.HasPrefix(d, "no changes") || d == "no tasks"
+					// con wait solo despierta una alerta: cada cambio de
+					// intento o de fase era un turno del conductor
+					alerta := !quieto && (espera == 0 || on(a, "full") || alertasBoard(d) != "")
+					if err != nil || fin != "" || alerta || time.Now().After(hasta) {
+						if espera > 0 && !on(a, "full") && err == nil {
+							if al := alertasBoard(d); al != "" {
+								d = "ALERT · " + al
+							} else if !quieto {
+								avance = d
+							}
+							if !alerta && avance != "" {
+								d = "no alerts · still running:\n" + avance
+							}
+						}
 						return d + fin, err
+					}
+					if !quieto {
+						avance = d
 					}
 					time.Sleep(esperaBoard)
 				}
@@ -710,6 +729,32 @@ func boardDelta(dir, raw string, full bool) (string, error) {
 		return fmt.Sprintf("no changes · %d tasks", len(ahora)), nil
 	}
 	return strings.TrimRight(b.String(), "\n"), nil
+}
+
+// alertasBoard deja de un delta del tablero solo lo que pide al conductor
+// hacer algo: una tarea que terminó (listo), una que se detuvo, una que
+// apareció o se quitó. Lo que queda en en_curso (otro intento, otra fase,
+// o recién arrancada) es avance y no despierta.
+func alertasBoard(delta string) string {
+	var out []string
+	for _, l := range strings.Split(delta, "\n") {
+		campos := strings.Fields(l)
+		if len(campos) < 2 {
+			continue
+		}
+		estado := campos[1]
+		if _, a, ok := strings.Cut(estado, "→"); ok {
+			estado = a
+		}
+		switch estado {
+		case "en_curso":
+			continue
+		case "detenido":
+			l += " · needs you: loom_task_logs " + campos[0]
+		}
+		out = append(out, l)
+	}
+	return strings.Join(out, "\n")
 }
 
 func tailLog(dir, name string, n int, full bool) (string, error) {

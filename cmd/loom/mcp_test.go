@@ -198,7 +198,7 @@ func TestBoardWaitBloqueaHastaQueAlgoCambie(t *testing.T) {
 	exe := filepath.Join(t.TempDir(), "loom")
 	script := `#!/bin/sh
 n=$(cat cuenta 2>/dev/null || echo 0); n=$((n+1)); echo $n > cuenta
-if [ $n -ge 3 ]; then echo '{"lista":[{"id":"T-001","titulo":"a"}]}'; else echo '{"en_curso":[{"id":"T-001","titulo":"a"}]}'; fi
+if [ $n -ge 3 ]; then echo '{"listo":[{"id":"T-001","titulo":"a"}]}'; else echo '{"en_curso":[{"id":"T-001","titulo":"a"}]}'; fi
 `
 	if err := os.WriteFile(exe, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -216,11 +216,56 @@ if [ $n -ge 3 ]; then echo '{"lista":[{"id":"T-001","titulo":"a"}]}'; else echo 
 		t.Fatal(err)
 	}
 	out, err := board.Call(map[string]any{"dir": dir, "wait": float64(5)})
-	if err != nil || !strings.Contains(out, "en_curso→lista") {
+	if err != nil || !strings.Contains(out, "en_curso→listo") {
 		t.Fatalf("wait debe volver con el cambio, no con 'no changes': %q %v", out, err)
 	}
 	if out, _ := board.Call(map[string]any{"dir": dir}); !strings.HasPrefix(out, "no changes") {
 		t.Fatalf("sin wait responde al momento: %q", out)
+	}
+}
+
+func TestAlertasBoardCallaElAvance(t *testing.T) {
+	delta := "T-001 en_curso · intento 2 · verificando\nT-002 pendiente→en_curso\nT-003 en_curso→listo\nT-004 en_curso→detenido · agotó 3 intentos\nT-005 removed"
+	al := alertasBoard(delta)
+	if strings.Contains(al, "T-001") || strings.Contains(al, "T-002") {
+		t.Errorf("el avance no es alerta:\n%s", al)
+	}
+	for _, quiere := range []string{"T-003 en_curso→listo", "T-004 en_curso→detenido", "loom_task_logs T-004", "T-005 removed"} {
+		if !strings.Contains(al, quiere) {
+			t.Errorf("falta %q en:\n%s", quiere, al)
+		}
+	}
+}
+
+// Un cambio de intento no despierta al conductor: cada despertar es un turno.
+func TestBoardWaitNoDespiertaPorAvance(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("binario falso en shell")
+	}
+	dir := t.TempDir()
+	exe := filepath.Join(t.TempDir(), "loom")
+	script := `#!/bin/sh
+n=$(cat cuenta 2>/dev/null || echo 0); n=$((n+1)); echo $n > cuenta
+if [ $n -ge 6 ]; then echo '{"detenido":[{"id":"T-001","titulo":"a","detalle":"agotó 3 intentos"}]}'; else echo "{\"en_curso\":[{\"id\":\"T-001\",\"titulo\":\"a\",\"detalle\":\"intento $n\"}]}"; fi
+`
+	if err := os.WriteFile(exe, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	viejo := esperaBoard
+	esperaBoard = 10 * time.Millisecond
+	defer func() { esperaBoard = viejo }()
+	var board mcp.Tool
+	for _, tl := range mcpTools(exe) {
+		if tl.Name == "loom_board" {
+			board = tl
+		}
+	}
+	if _, err := board.Call(map[string]any{"dir": dir}); err != nil {
+		t.Fatal(err)
+	}
+	out, err := board.Call(map[string]any{"dir": dir, "wait": float64(5)})
+	if err != nil || !strings.HasPrefix(out, "ALERT") || !strings.Contains(out, "en_curso→detenido") || strings.Contains(out, "intento 2") {
+		t.Fatalf("wait debe saltarse los intentos y volver con la alerta: %q %v", out, err)
 	}
 }
 
