@@ -60,3 +60,17 @@ func TestSinPruebas(t *testing.T) {
 		}
 	}
 }
+
+func TestCargoSumaTodosLosBinariosYCazaElVerdeVacio(t *testing.T) {
+	vacio := "running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n   Doc-tests x\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n"
+	if !SinPruebas(vacio) {
+		t.Error("cargo con filtro que no encuentra nada salió verde")
+	}
+	mixto := "running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored\n\nrunning 2 tests\ntest a ... ok\n\ntest result: ok. 2 passed; 0 failed; 0 ignored\n"
+	if SinPruebas(mixto) {
+		t.Error("corrieron 2 pruebas en el segundo binario y se leyó como vacío")
+	}
+	if p, f := ParseTestCounts(mixto); p == nil || *p != 2 || *f != 0 {
+		t.Errorf("conteo = %v %v, quiero 2 0", p, f)
+	}
+}

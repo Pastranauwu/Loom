@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -67,6 +68,89 @@ func (OpenCode) Models(ctx context.Context) ([]string, error) {
 	return modelosDeCLI(ctx, "opencode", "models")
 }
 
+// Ventanas lee la ventana de contexto real de cada modelo desde
+// `opencode models --verbose`. La salida es la id "provider/model" en una
+// línea y, debajo, un objeto JSON con "limit": {"context": N}. Sin esto
+// loom medía todos los modelos contra la tabla de 200k y sobreestimaba
+// los chicos (32k–128k), así que puedeReanudar continuaba sesiones que el
+// proveedor ya no sostiene.
+//
+// Degrada en abierto: si el CLI no responde o cambia el formato, el mapa
+// queda vacío y SubVentana cae a la tabla. Es información para decidir,
+// no un oráculo que deba frenar la corrida.
+func (OpenCode) Ventanas(ctx context.Context) map[string]int {
+	bin, err := findBinary("opencode")
+	if err != nil {
+		return nil
+	}
+	out, err := exec.CommandContext(ctx, bin, "models", "--verbose").Output()
+	if err != nil {
+		return nil
+	}
+	return parseOpenCodeVentanas(string(out))
+}
+
+// parseOpenCodeVentanas recorre la salida de `models --verbose`: una id
+// "provider/model" seguida de un objeto JSON. Se queda con limit.context
+// de cada modelo, indexado por su id completo.
+//
+// El bloque se delimita contando llaves, no buscando una línea "{" o "}":
+// los objetos anidados (limit, cost, capabilities) abren con su propia
+// llave en la misma línea ("limit": {), y cortar en la primera "}" daba
+// un JSON truncado y sin ventana.
+func parseOpenCodeVentanas(salida string) map[string]int {
+	ventanas := map[string]int{}
+	var id string
+	var buf strings.Builder
+	profundidad := 0
+	for _, linea := range strings.Split(salida, "\n") {
+		t := strings.TrimSpace(linea)
+		if profundidad == 0 {
+			if t == "" {
+				continue
+			}
+			if strings.HasPrefix(t, "{") {
+				// abre el bloque del modelo
+				buf.Reset()
+				buf.WriteString(linea + "\n")
+				profundidad += strings.Count(linea, "{") - strings.Count(linea, "}")
+				if profundidad == 0 && id != "" { // JSON compacto en una línea
+					if n := ventanaDelJSON(buf.String()); n > 0 {
+						ventanas[id] = n
+					}
+					id = ""
+				}
+				continue
+			}
+			id = t // la id del modelo, antes de su JSON
+			continue
+		}
+		buf.WriteString(linea + "\n")
+		profundidad += strings.Count(linea, "{") - strings.Count(linea, "}")
+		if profundidad == 0 && id != "" {
+			if n := ventanaDelJSON(buf.String()); n > 0 {
+				ventanas[id] = n
+			}
+			id = ""
+			buf.Reset()
+		}
+	}
+	return ventanas
+}
+
+// ventanaDelJSON saca limit.context de un bloque JSON de modelo.
+func ventanaDelJSON(bloque string) int {
+	var m struct {
+		Limit struct {
+			Context int `json:"context"`
+		} `json:"limit"`
+	}
+	if json.Unmarshal([]byte(bloque), &m) != nil {
+		return 0
+	}
+	return m.Limit.Context
+}
+
 func (e OpenCode) Run(ctx context.Context, req Request) (Result, error) {
 	model := req.Model
 	if strings.HasPrefix(model, "gemini-") {
@@ -83,11 +167,15 @@ func (e OpenCode) Run(ctx context.Context, req Request) (Result, error) {
 	if req.Effort != "" {
 		args = append(args, "--variant", req.Effort)
 	}
+	if req.Sesion != "" {
+		args = append(args, "--session", req.Sesion)
+	}
 	req.Env = append(append([]string(nil), req.Env...), entornoOpenCode...)
 	req.avanceDe = avanceOpenCode(req.RoomPath)
 	stdout, stderr, code, err := run(ctx, req, "opencode", args...)
 	res := Result{Stdout: stdout, Stderr: stderr, ExitCode: code}
 	res.FilesChanged, res.Text, res.Tokens = parseOpenCodeEvents(stdout)
+	res.Sesion = sesionOpenCode(stdout)
 	if msg := errorDeOpenCode(stdout); msg != "" {
 		res.Stderr += msg + "\n"
 		if err != nil {
@@ -95,6 +183,19 @@ func (e OpenCode) Run(ctx context.Context, req Request) (Result, error) {
 		}
 	}
 	return res, err
+}
+
+// sesionOpenCode es el id de la conversación, que opencode repite en cada
+// evento: con él una corrección o un reintento continúa (--session) en vez
+// de releer el repo (un arquitecto sin sesión: 71, 42 y 53 turnos en tres
+// vueltas del mismo plano).
+var reSesionOpenCode = regexp.MustCompile(`"sessionID":"(ses_[A-Za-z0-9]+)"`)
+
+func sesionOpenCode(stdout string) string {
+	if m := reSesionOpenCode.FindStringSubmatch(stdout); m != nil {
+		return m[1]
+	}
+	return ""
 }
 
 // errorDeOpenCode saca el error del proveedor que opencode reporta como
@@ -217,6 +318,13 @@ func parseOpenCodeEvents(stdout string) ([]string, string, Usage) {
 // invocación que nunca llegó al modelo de una que sí trabajó.
 //
 // Cada step_finish es un turno: el primero da el contexto base.
+//
+// LastTurn es el tamaño del contexto del último turno, que opencode
+// informa en tokens.total. Antes se calculaba como input+caché, pero en
+// opencode input es solo el delta del turno: subestimaba el contexto y
+// puedeReanudar creía que había espacio cuando la sesión ya estaba llena,
+// así que --session recargaba una sesión al límite. Se prefiere total y,
+// si no viene, se cae a la suma (que es lo que hacía el código antes).
 func collectTokens(m map[string]any, usage *Usage) {
 	if tokens, ok := m["tokens"].(map[string]any); ok {
 		in, leida, escrita := intValue(tokens, "input"), 0, 0
@@ -231,9 +339,14 @@ func collectTokens(m map[string]any, usage *Usage) {
 		if c, ok := m["cost"].(float64); ok {
 			usage.CostUSD += c
 		}
-		if usage.Turns == 1 {
-			usage.FirstTurn, usage.FirstTurnWrite = in+leida+escrita, escrita
+		turno := in + leida + escrita
+		if total := intValue(tokens, "total"); total > 0 {
+			turno = total
 		}
+		if usage.Turns == 1 {
+			usage.FirstTurn, usage.FirstTurnWrite = turno, escrita
+		}
+		usage.LastTurn = turno
 		return
 	}
 	if part, ok := m["part"].(map[string]any); ok {

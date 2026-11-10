@@ -193,7 +193,7 @@ const Minimo = `Least code that works: build only what the request needs, nothin
 
 const Base = `How to work:
 - Implement what the contract asks, nothing outside your scope.
-- Run the tests of what you touch often, and done_when at the end.
+- Run only the tests of what you touch, and done_when at the end. Never the whole project suite: loom runs it on the integrated set, and everything a command prints stays in your context and is paid again on every later turn. Cut long output (| tail -n 40) and do not print whole diffs or logs.
 - Commit your work on the current branch.
 - Do not narrate what you do: act. Keep the final reply short.
 

@@ -63,6 +63,19 @@ type Revision struct {
 	Cambios  string `json:"cambios,omitempty"` // qué corregir, si no está aprobada
 	// Visual es la crítica de la revisión con capturas, si la devolvió.
 	Visual string `json:"visual,omitempty"`
+	// Tokens y Segundos son lo que costó juzgar (revisor y revisión
+	// visual): sin ellos el revisor era invisible en el consumo.
+	Tokens   *Tokens `json:"tokens,omitempty"`
+	Segundos int     `json:"segundos,omitempty"`
+}
+
+// Gasto es lo que costó el intento entero: el agente y quien lo juzgó.
+func (a Attempt) Gasto() int {
+	n := a.Tokens.Gasto()
+	if a.Revision != nil && a.Revision.Tokens != nil {
+		n += a.Revision.Tokens.Gasto()
+	}
+	return n
 }
 
 // Tokens is the token spend of one attempt.

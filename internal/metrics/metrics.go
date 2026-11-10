@@ -86,7 +86,7 @@ func Calcular(d Datos) Metricas {
 	// costo en tokens: el gasto (con caché ponderada) de todos los intentos
 	for _, attempts := range d.Attempts {
 		for _, a := range attempts {
-			m.Tokens += a.Tokens.Gasto()
+			m.Tokens += a.Gasto()
 		}
 	}
 

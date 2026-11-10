@@ -1,6 +1,7 @@
 package loop
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -62,6 +63,45 @@ func TestLatidoSinVistoSeDaPorMuerto(t *testing.T) {
 	}
 	if _, muerta := Interrumpida(root, "T-001"); !muerta {
 		t.Error("sin Visto se retoma, no se abandona")
+	}
+}
+
+// Lo que el agente va haciendo dentro del intento tiene que llegar al
+// que mira: al callback OnAvance en vivo y, por la cola, al latido que
+// pinta el tablero. Sin esto una fase "agente" de veinte minutos se veía
+// igual que una invocación colgada.
+func TestAvanceDelAgenteLlegaAlLatidoYAlCallback(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "falso"}
+	var vistoLatido []string
+	ag.hacer = func(veces int, req Request) (string, int, error) {
+		if req.Avance != nil {
+			req.Avance("$ go test ./...")
+			req.Avance("lee src/a.go")
+			// el latido en disco lo refresca el latidor cada 15s; aquí se
+			// mira la memoria del bucle a través del archivo tras un aviso
+		}
+		if l, ok := LeerLatidoCrudo(root, "T-001"); ok {
+			vistoLatido = append(vistoLatido, l.Actividad)
+		}
+		if veces == 1 {
+			escribir(t, req.RoomPath, "src/done.txt", "x\n")
+		}
+		return "", 0, nil
+	}
+	var onAvance []string
+	opts := optsDePrueba(t, root, ag, tareaDePrueba())
+	opts.OnAvance = func(msg string) { onAvance = append(onAvance, msg) }
+
+	if _, err := Run(context.Background(), opts); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{"$ go test ./...", "lee src/a.go"}
+	if len(onAvance) != len(want) || onAvance[0] != want[0] || onAvance[1] != want[1] {
+		t.Errorf("OnAvance = %v, quiero %v", onAvance, want)
+	}
+	if len(vistoLatido) == 0 {
+		t.Fatal("el latido no registró actividad")
 	}
 }
 

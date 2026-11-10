@@ -55,8 +55,9 @@ type Request struct {
 	// implementador.
 	Rol Rol
 	// Sesion continúa una conversación anterior del mismo CLI en este
-	// cuarto (Result.Sesion): el agente conserva lo que ya leyó. Solo
-	// claude; los demás la ignoran y quien llama manda el prompt completo.
+	// cuarto (Result.Sesion): el agente conserva lo que ya leyó. Solo los
+	// CLIs de ContinuaSesion; los demás la ignoran y quien llama manda el
+	// prompt completo.
 	Sesion string
 	// TopeUSD corta la invocación al pasar ese gasto, a precio de lista.
 	// 0 = sin tope. Solo claude.
@@ -97,6 +98,11 @@ type Result struct {
 	// Request.Sesion; "" si el CLI no la da.
 	Sesion string `json:"sesion,omitempty"`
 }
+
+// ContinuaSesion dice si el CLI retoma una conversación con
+// Request.Sesion. Quien manda un prompt recortado por continuar pregunta
+// aquí antes. codex no: corre con --ephemeral y no guarda sesión.
+func ContinuaSesion(cli string) bool { return cli == "claude" || cli == "opencode" }
 
 // ErrTope es una invocación cortada por Request.TopeUSD: no se arregla
 // reintentando con el mismo tope.
@@ -182,7 +188,9 @@ func run(ctx context.Context, req Request, name string, args ...string) (string,
 // colgado de ellas.
 func SinSaldo(msg string) bool {
 	m := strings.ToLower(msg)
-	for _, s := range []string{"insufficient account funds", "insufficient funds", "insufficient balance", "credit balance is too low", "payment required"} {
+	for _, s := range []string{"insufficient account funds", "insufficient funds", "insufficient balance", "credit balance is too low", "payment required",
+		// el tope de gasto o la cuota del mes agotados llegan como 429, no 402
+		"spending cap", "exceeded your current quota", "insufficient_quota"} {
 		if strings.Contains(m, s) {
 			return true
 		}

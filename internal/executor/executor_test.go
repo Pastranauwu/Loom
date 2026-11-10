@@ -222,8 +222,20 @@ func TestUsoConCache(t *testing.T) {
 
 	_, _, oc := parseOpenCodeEvents(`{"type":"step_finish","part":{"cost":0.5,"tokens":{"input":34,"output":67,"cache":{"read":900,"write":50}}}}` + "\n" +
 		`{"type":"step_finish","part":{"cost":0.25,"tokens":{"input":6,"output":3,"cache":{"read":100,"write":0}}}}`)
-	if oc != (Usage{Input: 40, Output: 70, CacheRead: 1000, CacheWrite: 50, Turns: 2, FirstTurn: 984, FirstTurnWrite: 50, CostUSD: 0.75}) {
+	if oc != (Usage{Input: 40, Output: 70, CacheRead: 1000, CacheWrite: 50, Turns: 2, FirstTurn: 984, FirstTurnWrite: 50, LastTurn: 106, CostUSD: 0.75}) {
 		t.Errorf("opencode: %+v", oc)
+	}
+
+	// tokens.total es el contexto real del turno; input es solo su delta.
+	// Sin preferir total, LastTurn subestima y puedeReanudar reanuda una
+	// sesión llena. Deltas reales del fixture opencode-planificador.
+	_, _, conTotal := parseOpenCodeEvents(`{"type":"step_finish","part":{"tokens":{"total":4128,"input":2238,"output":98,"cache":{"read":1792,"write":0}}}}` + "\n" +
+		`{"type":"step_finish","part":{"tokens":{"total":5619,"input":1175,"output":92,"cache":{"read":4352,"write":0}}}}`)
+	if conTotal.LastTurn != 5619 {
+		t.Errorf("LastTurn debe ser tokens.total (5619), no la suma de deltas: %d", conTotal.LastTurn)
+	}
+	if conTotal.FirstTurn != 4128 {
+		t.Errorf("FirstTurn debe ser tokens.total del primer turno (4128): %d", conTotal.FirstTurn)
 	}
 }
 
@@ -398,5 +410,61 @@ func TestParseClaudeStreamReanudadoNoCuentaLaSesionEntera(t *testing.T) {
 	}
 	if _, nuevo := parseClaudeStream(stream, false); nuevo.CacheRead != 1300000 {
 		t.Errorf("sin reanudar se usa modelUsage: %+v", nuevo)
+	}
+}
+
+// `opencode models --verbose` intercala la id del modelo y su JSON. El
+// parser tiene que quedarse con limit.context de cada uno: sin esto la
+// ventana real no llega y puedeReanudar mide contra la tabla de 200k.
+func TestVentanasDeOpenCodeDesdeVerbose(t *testing.T) {
+	salida := `opencode-go/beam-free
+{
+  "id": "beam-free",
+  "providerID": "opencode-go",
+  "limit": {
+    "context": 1048576,
+    "output": 131072
+  }
+}
+opencode-go/deepseek-v4.1-flash
+{
+  "id": "deepseek-v4.1-flash",
+  "limit": {
+    "context": 128000,
+    "output": 32000
+  }
+}
+`
+	got := parseOpenCodeVentanas(salida)
+	if got["opencode-go/beam-free"] != 1048576 || got["opencode-go/deepseek-v4.1-flash"] != 128000 {
+		t.Errorf("ventanas = %v", got)
+	}
+	// el catálogo manda sobre la tabla, también por el id pelado
+	if n := VentanaDe("opencode-go/deepseek-v4.1-flash", got); n != 128000 {
+		t.Errorf("VentanaDe = %d, quiero el límite real (128000)", n)
+	}
+	if n := VentanaDe("deepseek-v4.1-flash", got); n != 128000 {
+		t.Errorf("VentanaDe por id pelado = %d", n)
+	}
+	// sin catálogo, cae a la tabla: gemini 1M, resto 200k
+	if n := VentanaDe("deepseek-v4.1-flash", nil); n != 200_000 {
+		t.Errorf("sin catálogo debe usar la tabla: %d", n)
+	}
+}
+
+// Con opencode instalado, el parser tiene que sacar ventanas reales del
+// CLI. Se salta si no está: es la única prueba que depende del binario.
+func TestVentanasRealesDeOpenCode(t *testing.T) {
+	if (OpenCode{}).Available() != nil {
+		t.Skip("opencode no está instalado")
+	}
+	v := (OpenCode{}).Ventanas(context.Background())
+	if len(v) == 0 {
+		t.Fatal("el CLI reporta modelos con limit.context pero el parser no sacó ninguno")
+	}
+	for id, n := range v {
+		if n <= 0 {
+			t.Errorf("%s: ventana inválida %d", id, n)
+		}
 	}
 }

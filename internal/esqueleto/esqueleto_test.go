@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/room"
 )
 
 func escribir(t *testing.T, dir, rel, contenido string) {
@@ -224,5 +225,65 @@ func TestProblemasExigeEncabezadoEnModulosNuevos(t *testing.T) {
 	todo := strings.Join(Problemas(context.Background(), Verificacion{Dir: dir, Timeout: time.Minute}, r), "\n")
 	if !strings.Contains(todo, "without a purpose header: conv;") {
 		t.Errorf("conv es nuevo y no dice para qué es; calc sí y migrations es andamio:\n%s", todo)
+	}
+}
+
+func TestProblemasNoExigeStubEnZonaVedada(t *testing.T) {
+	dir := planoPython(t)
+	r := Resultado{
+		Verificar:   "python3 -m compileall -q calc",
+		Integracion: "python3 -m unittest tests/test_e2e.py",
+		Tareas: []plan.Borrador{
+			tarea("suma", "python3 -m unittest tests/test_suma.py", "calc/suma.py", "tests/test_suma.py", "vendor/lib.py"),
+			tarea("punta a punta", "python3 -m unittest tests/test_e2e.py", "tests/test_e2e.py"),
+		},
+	}
+	ps := Problemas(context.Background(), Verificacion{Dir: dir, Timeout: time.Minute, Zonas: []string{"vendor/**"}}, r)
+	todo := strings.Join(ps, "\n")
+	if len(ps) != 1 || !strings.Contains(todo, "forbidden zone") || strings.Contains(todo, "you create the stub") {
+		t.Fatalf("quiero solo el aviso de zona vedada: %v", ps)
+	}
+}
+
+func TestUnaMigracionNoEsStub(t *testing.T) {
+	if EsCodigo("core/migrations/0003_catalogo.py") || !EsCodigo("core/models.py") {
+		t.Error("una migración no admite stub; un módulo sí")
+	}
+}
+
+func TestDemasiadasSoloPasadoElTope(t *testing.T) {
+	if p := Demasiadas(Resultado{Tareas: make([]plan.Borrador, TopeTareas)}); p != "" {
+		t.Errorf("en el tope no es problema: %s", p)
+	}
+	if Demasiadas(Resultado{Tareas: make([]plan.Borrador, TopeTareas+1)}) == "" {
+		t.Error("un plano pasado del tope no pidió fusionar")
+	}
+}
+
+// Con cargo real: los stubs de un crate disparan unused_variables y
+// dead_code, y el verify estricto no pasaba nunca.
+func TestProblemasAceptaUnPlanoRustConCargoReal(t *testing.T) {
+	if _, err := exec.LookPath("cargo"); err != nil {
+		t.Skip("sin cargo")
+	}
+	dir := t.TempDir()
+	escribir(t, dir, "ARCHITECTURE.md", "# calc\n")
+	escribir(t, dir, "Cargo.toml", "[package]\nname = \"calc\"\nversion = \"0.1.0\"\nedition = \"2021\"\n")
+	escribir(t, dir, "src/lib.rs", "// Crate calc: aritmética de ejemplo.\npub mod suma;\n")
+	escribir(t, dir, "src/suma.rs", "// Suma con desborde controlado.\n// Idea: checked_add.\n// Cases: (1, 2) -> Ok(3)\n#[derive(Debug, PartialEq)]\npub struct Desborde;\n\npub fn suma(a: i32, b: i32) -> Result<i32, Desborde> {\n    unimplemented!(\""+Marca+"\")\n}\n\nfn ayuda(x: i32) -> i32 {\n    unimplemented!(\""+Marca+"\")\n}\n")
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %s", out)
+	}
+	r := Resultado{
+		Verificar:   "cargo check && cargo clippy -- -D warnings",
+		Integracion: "cargo test --test e2e",
+		Tareas: []plan.Borrador{
+			tarea("suma", "cargo test --test suma", "src/suma.rs", "tests/suma.rs"),
+			tarea("punta a punta", "cargo test --test e2e", "tests/e2e.rs"),
+		},
+	}
+	ps := Problemas(context.Background(), Verificacion{Dir: dir, Timeout: 5 * time.Minute, Env: room.Entorno(dir)}, r)
+	if len(ps) > 0 {
+		t.Fatalf("plano Rust bueno rechazado: %v", ps)
 	}
 }

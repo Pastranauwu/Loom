@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Pastranauwu/loom/internal/idioma"
+	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -683,6 +685,7 @@ func (a agenteExecutor) Run(ctx context.Context, req loop.Request) (loop.Result,
 		Timeout:      req.Timeout,
 		Env:          req.Env,
 		Sesion:       req.Sesion,
+		Avance:       req.Avance,
 	})
 	return loop.Result{
 		Sesion:   res.Sesion,
@@ -1070,17 +1073,38 @@ func medioPorDefecto(ex executor.Executor) string {
 // su cuarto y su trabajo parcial — el modelo barato es el default, y
 // subir de escalón no cuesta tokens extra más allá del intento repetido.
 func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.Executor, modelo, base, constitucion string, presupuesto *budget.Contador, ventanasReg *ventanas.Registro, t task.Task) runResult {
+	// ¿el cuarto ya existía? Ensure lo recrea si la carpeta o el worktree
+	// desaparecieron, y entonces la sesión guardada apunta a un directorio
+	// que ya no está: reanudarla fallaría. Solo se retoma cuando el cuarto
+	// se reusa.
+	_, errCuarto := os.Stat(filepath.Join(room.Dir(root), t.ID))
+	reusaCuarto := errCuarto == nil
+
 	r, err := room.Ensure(ctx, root, t.ID, base)
 	if err != nil {
 		return runResult{ID: t.ID, Titulo: t.Titulo, Estado: "detenida", Motivo: err.Error()}
 	}
 
-	if err := state.Save(root, state.State{ID: t.ID, Estado: state.EnCurso, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit}); err != nil {
+	// sesión previa de la tarea: si una corrida anterior (stop, SIGKILL) dejó
+	// una conversación a medias, el primer intento la retoma en vez de
+	// reenviar el prompt entero y releer el repo.
+	previo, _ := state.Get(root, t.ID)
+	if !reusaCuarto {
+		previo.Sesion, previo.UltimoTurno = "", 0
+	}
+
+	if err := state.Save(root, state.State{ID: t.ID, Estado: state.EnCurso, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit, Sesion: previo.Sesion, UltimoTurno: previo.UltimoTurno}); err != nil {
 		_ = room.Destroy(ctx, root, t.ID)
 		return runResult{ID: t.ID, Titulo: t.Titulo, Estado: "detenida", Motivo: err.Error()}
 	}
 
 	exTarea, modeloTarea, skillsTarea, skillPkgsTarea := resolverAgenteTarea(cfg, ex, modelo, t)
+	// otra tarea de esta corrida ya agotó ese proveedor: arranca en el relevo
+	if _, sin := agotados.Load(proveedorDe(exTarea, modeloTarea)); sin {
+		if m := relevo(cfg, exTarea); m != "" {
+			exTarea, modeloTarea = ejecutorPara(exTarea, m), m
+		}
+	}
 	for _, err := range skills.Asegurar(ctx, root, skillPkgsTarea) {
 		out.Line("⚠ %s · %s", t.ID, err)
 	}
@@ -1140,24 +1164,27 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 	}
 
 	opts := loop.Options{
-		Agent:           agente,
-		OnIntento:       progresoIntento(t.ID, modeloTarea),
-		Root:            root,
-		Room:            r,
-		Task:            t,
-		Model:           modeloTarea,
-		Base:            base,
-		PatronesPrueba:  patronesPruebaTarea(cfg, root, t),
-		AgentTimeout:    agentTimeout,
-		PruebaTimeout:   pruebaTimeout,
-		Env:             []string{fmt.Sprintf("PORT=%d", r.Puerto)},
-		Interfaces:      t.Usa,
-		Constitucion:    constitucion,
-		Skills:          skillsTarea,
-		SkillsContenido: skillsContenido,
-		Examinador:      exam,
-		Ventana:         executor.ContextWindow(modeloTarea),
-		ResumeBelowPct:  cfg.ResumeBelow(),
+		Agent:              agente,
+		OnIntento:          progresoIntento(t.ID, modeloTarea),
+		OnAvance:           progresoAvance(t.ID),
+		Root:               root,
+		Room:               r,
+		Task:               t,
+		Model:              modeloTarea,
+		Base:               base,
+		PatronesPrueba:     patronesPruebaTarea(cfg, root, t),
+		AgentTimeout:       agentTimeout,
+		PruebaTimeout:      pruebaTimeout,
+		Env:                []string{fmt.Sprintf("PORT=%d", r.Puerto)},
+		Interfaces:         t.Usa,
+		Constitucion:       constitucion,
+		Skills:             skillsTarea,
+		SkillsContenido:    skillsContenido,
+		Examinador:         exam,
+		Ventana:            executor.VentanaDe(modeloTarea, executor.CatalogoVentanas(ctx, exTarea)),
+		ResumeBelowPct:     cfg.ResumeBelow(),
+		SesionInicial:      previo.Sesion,
+		UltimoTurnoInicial: previo.UltimoTurno,
 	}
 	if !recursiva {
 		opts.Presupuesto = presupuesto
@@ -1173,6 +1200,10 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 		}
 	}
 	opts.Proveedor = exTarea.Name()
+	opts.SinSaldo = executor.SinSaldo
+	if !recursiva {
+		opts.Estricto = ship.Estricto
+	}
 
 	// ahorro: el modelo barato tiene pocos intentos y, si no sale, el
 	// escalado se queda con los del contrato
@@ -1185,10 +1216,26 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 	}
 
 	outcome, err := loop.Run(ctx, opts)
+	// el proveedor se quedó sin saldo o sin cupo: si config.yml tiene un
+	// modelo de otro proveedor, la tarea sigue con él sobre el mismo cuarto
+	for !outcome.Verde && err == nil && !recursiva && executor.SinSaldo(outcome.UltimoError) {
+		agotados.Store(proveedorDe(exTarea, modeloTarea), true)
+		m := relevo(cfg, exTarea)
+		if m == "" {
+			break
+		}
+		out.Line(idioma.T("· %s · %s sin saldo · sigue con %s"), t.ID, proveedorDe(exTarea, modeloTarea), m)
+		exTarea, modeloTarea = ejecutorPara(exTarea, m), m
+		opts.Model, opts.Agent, opts.Proveedor = m, agenteExecutor{exTarea}, exTarea.Name()
+		opts.Examinador = nil
+		opts.OnIntento = progresoIntento(t.ID, m)
+		opts.SesionInicial, opts.UltimoTurnoInicial = "", 0
+		outcome, err = loop.Run(ctx, opts)
+	}
 	if !outcome.Verde && err == nil && executor.SinSaldo(outcome.UltimoError) {
 		// sin escalar y sin detener: la tarea no falló, la cuenta no
 		// tiene fondos. Pendiente, `up` la retoma al recargar.
-		_ = state.Save(root, state.State{ID: t.ID, Estado: state.Pendiente, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit, UltimoError: outcome.UltimoError})
+		_ = state.Save(root, state.State{ID: t.ID, Estado: state.Pendiente, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit, UltimoError: outcome.UltimoError, Sesion: outcome.Sesion, UltimoTurno: outcome.UltimoTurno})
 		return runResult{ID: t.ID, Titulo: t.Titulo, Estado: estadoSinSaldo, Motivo: motivoSinSaldo(exTarea.Name(), outcome.UltimoError), Tokens: tokensDeTarea(root, t.ID)}
 	}
 	if !outcome.Verde && err == nil && !recursiva {
@@ -1203,6 +1250,7 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 			escalado.Proveedor = exEscalado.Name()
 			escalado.Examinador = nil
 			escalado.OnIntento = progresoIntento(t.ID, m)
+			escalado.OnAvance = progresoAvance(t.ID)
 			outcome, err = loop.Run(ctx, escalado)
 			if err == nil && outcome.Verde {
 				modeloTarea = m
@@ -1212,20 +1260,48 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 
 	tokens := tokensDeTarea(root, t.ID)
 	if err != nil {
-		_ = state.Save(root, state.State{ID: t.ID, Estado: state.Detenida, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit, UltimoError: err.Error()})
+		_ = state.Save(root, state.State{ID: t.ID, Estado: state.Detenida, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit, UltimoError: err.Error(), Sesion: outcome.Sesion, UltimoTurno: outcome.UltimoTurno})
 		return runResult{ID: t.ID, Titulo: t.Titulo, Estado: "detenida", Motivo: err.Error(), Tokens: tokens}
 	}
 
 	if outcome.Verde {
-		_ = state.Save(root, state.State{ID: t.ID, Estado: state.Lista, Intentos: outcome.Intentos, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit})
+		_ = state.Save(root, state.State{ID: t.ID, Estado: state.Lista, Intentos: outcome.Intentos, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit, Sesion: outcome.Sesion, UltimoTurno: outcome.UltimoTurno})
 		return runResult{ID: t.ID, Titulo: t.Titulo, Estado: "lista", Intentos: outcome.Intentos, Tokens: tokens}
 	}
 	_ = state.Save(root, state.State{
 		ID: t.ID, Estado: state.Detenida, Intentos: outcome.Intentos,
 		Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit,
 		UltimoError: outcome.UltimoError, Pregunta: outcome.Pregunta,
+		Sesion: outcome.Sesion, UltimoTurno: outcome.UltimoTurno,
 	})
 	return runResult{ID: t.ID, Titulo: t.Titulo, Estado: "detenida", Intentos: outcome.Intentos, Motivo: outcome.Pregunta, Tokens: tokens}
+}
+
+// agotados son los proveedores que en esta corrida contestaron sin saldo.
+var agotados sync.Map
+
+// proveedorDe es la cuenta que paga un modelo: en opencode, lo que va
+// antes de la barra ("google/gemini-…"); en claude y codex, el CLI.
+func proveedorDe(ex executor.Executor, modelo string) string {
+	if p, _, ok := strings.Cut(modelo, "/"); ok && ex.Name() == "opencode" {
+		return p
+	}
+	return ex.Name()
+}
+
+// relevo es el modelo más barato de config.yml cuyo proveedor todavía
+// tiene saldo; "" si no queda ninguno.
+func relevo(cfg config.Config, ex executor.Executor) string {
+	for _, p := range config.Pesos {
+		m := cfg.ModeloPeso(p)
+		if m == "" {
+			continue
+		}
+		if _, sin := agotados.Load(proveedorDe(ejecutorPara(ex, m), m)); !sin {
+			return m
+		}
+	}
+	return ""
 }
 
 // estadoSinSaldo marca una tarea que no corrió o no terminó porque la
@@ -1261,7 +1337,7 @@ func tokensDeTarea(root, id string) int {
 	}
 	total := 0
 	for _, a := range as {
-		total += a.Tokens.Gasto()
+		total += a.Gasto()
 	}
 	return total
 }
@@ -1356,6 +1432,18 @@ func progresoIntento(id, modelo string) func(int, string) {
 	}
 }
 
+// progresoAvance imprime en modo plano lo que el agente va haciendo
+// dentro del intento (un comando, un archivo leído, un turno). En TUI lo
+// pinta el tablero desde el latido, así que aquí es nil.
+func progresoAvance(id string) func(string) {
+	if esTUI() {
+		return nil
+	}
+	return func(msg string) {
+		out.Line("  %s  · %s", id, msg)
+	}
+}
+
 // fasesVivas traduce los latidos de disco a lo que el tablero pinta. Es
 // la única fuente que sabe qué pasa DENTRO de un intento: attempts.jsonl
 // no se escribe hasta que el intento termina.
@@ -1364,14 +1452,16 @@ func fasesVivas(root string, ids []string) map[string]tui.FaseRun {
 	fases := make(map[string]tui.FaseRun, len(latidos))
 	for id, l := range latidos {
 		fases[id] = tui.FaseRun{
-			Intento:   l.Intento,
-			Limite:    l.Limite,
-			Fase:      l.Fase,
-			Modelo:    l.Modelo,
-			DesdeFase: l.DesdeFase,
-			Entrada:   l.Tokens.Entrada,
-			Salida:    l.Tokens.Salida,
-			Atascada:  l.EnFaseDesde() >= standup.UmbralAtasco,
+			Intento:     l.Intento,
+			Limite:      l.Limite,
+			Fase:        l.Fase,
+			Modelo:      l.Modelo,
+			DesdeFase:   l.DesdeFase,
+			Entrada:     l.Tokens.Entrada,
+			Salida:      l.Tokens.Salida,
+			Atascada:    l.EnFaseDesde() >= standup.UmbralAtasco,
+			Actividad:   l.Actividad,
+			Actividades: l.Actividades,
 		}
 	}
 	return fases

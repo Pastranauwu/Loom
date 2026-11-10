@@ -60,3 +60,20 @@ func TestClaudeCortadoPorTopeEsErrTope(t *testing.T) {
 		t.Errorf("err = %v, quiero ErrTope", err)
 	}
 }
+
+func TestOpenCodeContinuaLaSesionYMideElUltimoTurno(t *testing.T) {
+	fakeBin(t, "opencode", `echo "$*" >&2
+echo '{"type":"step_finish","sessionID":"ses_abc123","part":{"type":"step-finish","tokens":{"input":100,"output":5,"cache":{"read":900,"write":0}}}}'
+echo '{"type":"step_finish","sessionID":"ses_abc123","part":{"type":"step-finish","tokens":{"input":50,"output":5,"cache":{"read":1950,"write":0}}}}'
+`)
+	res, err := OpenCode{}.Run(context.Background(), Request{RoomPath: t.TempDir(), Prompt: "corrige", Sesion: "ses_previa", Timeout: 10 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Sesion != "ses_abc123" || res.Tokens.LastTurn != 2000 {
+		t.Errorf("Sesion = %q, LastTurn = %d", res.Sesion, res.Tokens.LastTurn)
+	}
+	if !strings.Contains(res.Stderr, "--session ses_previa") {
+		t.Errorf("no pasó --session · %s", res.Stderr)
+	}
+}

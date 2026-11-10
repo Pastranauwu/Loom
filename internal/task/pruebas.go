@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -64,7 +65,9 @@ func EsArchivoDePrueba(p string) bool {
 	case ".go":
 		return strings.HasSuffix(b, "_test.go")
 	case ".rs":
-		return strings.Contains(b, "_test.rs")
+		// las de integración de cargo viven en tests/ con cualquier nombre
+		return strings.Contains(b, "_test.rs") || strings.HasPrefix(b, "test_") ||
+			slices.Contains(strings.Split(filepath.ToSlash(filepath.Dir(p)), "/"), "tests")
 	}
 	return strings.HasPrefix(b, "test_")
 }

@@ -37,6 +37,14 @@ type State struct {
 	// segunda pasada de la esclusa medía el cuarto entero contra la rama
 	// base y el presupuesto salía inflado.
 	Commit string `json:"commit,omitempty"`
+	// Sesion y UltimoTurno son la conversación del agente en el cuarto y
+	// el contexto de su último turno. Sobreviven a que el proceso muera
+	// (stop, SIGKILL, laptop suspendida) para que `run --retry` continúe
+	// esa conversación en vez de reenviar el prompt entero y releer el
+	// repo. UltimoTurno importa porque `puedeReanudar` lo necesita para
+	// no continuar una sesión que el proveedor ya no puede sostener.
+	Sesion      string `json:"sesion,omitempty"`
+	UltimoTurno int    `json:"ultimo_turno,omitempty"`
 }
 
 // Dir returns the state directory of the repository at root.

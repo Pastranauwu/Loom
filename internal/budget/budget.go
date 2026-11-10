@@ -114,7 +114,7 @@ func GastoEnDisco(root string) int {
 			continue
 		}
 		for _, a := range as {
-			total += a.Tokens.Gasto()
+			total += a.Gasto()
 		}
 		if usos, err := examiner.LeerUso(root, e.Name()); err == nil {
 			for _, u := range usos {
@@ -131,7 +131,7 @@ func GastoDeTarea(root, id string) int {
 	total := 0
 	if as, err := loop.ReadAttempts(root, id); err == nil {
 		for _, a := range as {
-			total += a.Tokens.Gasto()
+			total += a.Gasto()
 		}
 	}
 	if usos, err := examiner.LeerUso(root, id); err == nil {

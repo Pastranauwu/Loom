@@ -43,6 +43,11 @@ type FaseRun struct {
 	Entrada   int
 	Salida    int
 	Atascada  bool
+	// Actividad es lo último que el agente hizo y Actividades la cola de
+	// lo último. Sin esto, "agente" durante veinte minutos no distingue
+	// trabajar de estar colgado.
+	Actividad   string
+	Actividades []string
 }
 
 // ticksPorLatido: tickCmd late cada 80 ms, así que doce ticks es ~1 s.
@@ -206,7 +211,8 @@ func (m runModel) renderFilas(compacto bool) string {
 }
 
 // renderFase pinta la línea de detalle: intento, fase, modelo, tiempo en
-// esa fase y tokens gastados. Es lo que responde "¿sigue viva?".
+// esa fase y tokens gastados. Es lo que responde "¿sigue viva?"; debajo,
+// la actividad responde "¿qué está haciendo?".
 func renderFase(f FaseRun) string {
 	txt := fmt.Sprintf(idioma.T("intento %d"), f.Intento)
 	if f.Limite > 0 {
@@ -220,10 +226,24 @@ func renderFase(f FaseRun) string {
 	if f.Entrada+f.Salida > 0 {
 		txt += fmt.Sprintf(" · %d↑/%d↓ tokens", f.Entrada, f.Salida)
 	}
+	var b strings.Builder
 	if f.Atascada {
-		return "      " + estiloAlerta.Render(idioma.T("ATASCO · ")+txt+idioma.T(" sin señal")) + "\n"
+		b.WriteString("      " + estiloAlerta.Render(idioma.T("ATASCO · ")+txt+idioma.T(" sin señal")) + "\n")
+	} else {
+		b.WriteString("      " + estiloApagado.Render(txt) + "\n")
 	}
-	return "      " + estiloApagado.Render(txt) + "\n"
+	// la actividad más reciente, visible, y la anterior en gris tenue.
+	// Es lo que convierte "agente" en "lee src/x.go" o "$ go test" sin
+	// llenar el tablero: la cola entera vive en el latido y el intento-N.log.
+	if f.Actividad != "" {
+		b.WriteString("      " + estiloTinta.Render("› "+f.Actividad) + "\n")
+	}
+	if n := len(f.Actividades); n >= 2 {
+		if previa := f.Actividades[n-2]; previa != f.Actividad {
+			b.WriteString("      " + estiloApagado.Render("· "+previa) + "\n")
+		}
+	}
+	return b.String()
 }
 
 func renderFilaRun(f FilaRun, v *tareaViva, inicio time.Time, tick int) string {

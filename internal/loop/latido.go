@@ -32,6 +32,11 @@ const (
 	LatidoRancioTras = 90 * time.Second
 )
 
+// avanceCola es cuántas de las últimas actividades del agente guarda el
+// latido. Son para mirar el detalle en vivo, no un log: el volcado
+// completo vive en el intento-N.log.
+const avanceCola = 8
+
 // Latido es el estado vivo de una tarea: en qué fase está ahora mismo,
 // desde cuándo, y cuándo fue la última señal de vida de su corrida.
 //
@@ -54,6 +59,11 @@ type Latido struct {
 	Modelo    string    `json:"modelo"`
 	DesdeFase time.Time `json:"desde_fase"`
 	Tokens    Tokens    `json:"tokens"` // acumulado de la tarea hasta ahora
+	// Actividad es lo último que el agente hizo (un comando, un archivo
+	// leído, un turno terminado), y Actividades la cola corta de lo último:
+	// con solo la fase, una invocación larga se veía igual que una colgada.
+	Actividad   string   `json:"actividad,omitempty"`
+	Actividades []string `json:"actividades,omitempty"`
 	// Visto es la última señal de vida. Cero en un latido viejo escrito
 	// por un binario anterior: se trata como rancio, que es lo seguro.
 	Visto time.Time `json:"visto"`

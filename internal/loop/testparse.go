@@ -13,12 +13,24 @@ var (
 	passedFailedRE = regexp.MustCompile(`(\d+)\s+passed[,;]?\s+(\d+)\s+failed`)
 	passingRE      = regexp.MustCompile(`(\d+)\s+passing`)
 	failingRE      = regexp.MustCompile(`(\d+)\s+failing`)
+	// cargo imprime un "test result:" por binario (lib, cada tests/*.rs,
+	// doc-tests): el primero puede ser 0 aunque los demás corran.
+	cargoRE = regexp.MustCompile(`test result: \w+\. (\d+) passed; (\d+) failed`)
 )
 
 // ParseTestCounts parses test pass/fail counts from test runner output.
 // Returns (nil, nil) when the format is not recognized — callers must
 // not invent numbers.
 func ParseTestCounts(salida string) (pasaron, fallaron *int) {
+	if ms := cargoRE.FindAllStringSubmatch(salida, -1); ms != nil {
+		p, f := 0, 0
+		for _, m := range ms {
+			a, _ := strconv.Atoi(m[1])
+			b, _ := strconv.Atoi(m[2])
+			p, f = p+a, f+b
+		}
+		return &p, &f
+	}
 	// pytest y jest: "5 passed, 4 failed" / "Tests: 5 passed, 4 failed"
 	if m := passedFailedRE.FindStringSubmatch(salida); m != nil {
 		p, _ := strconv.Atoi(m[1])
@@ -71,6 +83,12 @@ var (
 // prueba ejecutada: una corrida multi-paquete donde otros paquetes sí
 // corrieron pruebas es verde legítimo.
 func SinPruebas(salida string) bool {
+	// cargo: un filtro que no encuentra nada sale con 0 y "running 0 tests"
+	// en cada binario; no hay otro aviso
+	if cargoRE.MatchString(salida) {
+		p, f := ParseTestCounts(salida)
+		return *p+*f == 0
+	}
 	if !vacuoRE.MatchString(salida) {
 		return false
 	}

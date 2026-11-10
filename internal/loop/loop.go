@@ -106,8 +106,12 @@ type Request struct {
 	// Texto pide un agente sin herramientas que solo responde (el
 	// examinador); el implementador las necesita.
 	Texto bool
-	// Sesion continues a previous agent session (claude only).
+	// Sesion continues a previous agent session (empty if the CLI gives none).
 	Sesion string
+	// Avance recibe, mientras el agente trabaja, lo importante que va
+	// haciendo (un comando, un archivo leído, un turno terminado). Nil no
+	// reporta nada.
+	Avance func(string)
 }
 
 // Result es lo que devolvió una invocación.
@@ -136,6 +140,13 @@ type Options struct {
 	// el cual el siguiente intento continúa la sesión en vez de reenviar el prompt.
 	Ventana        int
 	ResumeBelowPct int
+	// SesionInicial y UltimoTurnoInicial retoman la conversación de una
+	// corrida anterior que murió a media tarea (stop, SIGKILL). Sin esto,
+	// `run --retry` arrancaba con sesión vacía y volvía a mandar el prompt
+	// entero, releyendo el repo: el gasto de contexto que el resume dentro
+	// de una misma corrida ya evitaba, se repetía entre corridas.
+	SesionInicial      string
+	UltimoTurnoInicial int
 
 	// Interfaces son las firmas congeladas de las tareas hermanas que
 	// esta consume, ya resueltas por el que llama. Sin esto el
@@ -161,6 +172,11 @@ type Options struct {
 	// de agente puede tardar veinte minutos y hasta ahora no imprimía
 	// nada hasta el final de la corrida entera.
 	OnIntento func(intento int, fase string)
+
+	// OnAvance, si no es nil, recibe lo que el agente va haciendo dentro
+	// del intento (un comando, un archivo leído, un turno). OnIntento dice
+	// en qué fase está; OnAvance dice qué está haciendo ahí dentro.
+	OnAvance func(string)
 
 	// Examinador, si no es nil, se invoca una vez antes del bucle del
 	// implementador para escribir la suite visible y sellar la oculta
@@ -193,6 +209,14 @@ type Options struct {
 	// cuando ese gasto pasaría un tope configurado para el proveedor: el
 	// bucle se detiene con el motivo. Solo los bucles hoja lo reciben.
 	Ventanas interface{ Registrar(string, int) bool }
+
+	// SinSaldo, si no es nil, reconoce en el error del agente una cuenta
+	// sin fondos o sin cupo: el intento siguiente daría lo mismo.
+	SinSaldo func(msg string) bool
+	// Estricto, si no es nil, devuelve lo que la esclusa de salida va a
+	// rechazar del diff de la tarea ("" = nada). Se mira en cada intento
+	// verde: lo arregla el agente ahora y no el humano al entregar.
+	Estricto func(diff string, t task.Task) string
 }
 
 // Outcome es el resultado de correr el bucle sobre una tarea.
@@ -207,12 +231,32 @@ type Outcome struct {
 	// escalera a qwen-max pagó el 95% de la corrida contra una prueba
 	// que no existía.
 	NoEscalar bool `json:"no_escalar,omitempty"`
+	// Sesion y UltimoTurno son la conversación que dejó el bucle y el
+	// contexto de su último turno, para que quien llama la persista y una
+	// corrida posterior la retome. Vacíos si el CLI no da sesión.
+	Sesion      string `json:"sesion,omitempty"`
+	UltimoTurno int    `json:"ultimo_turno,omitempty"`
 }
 
 // Run dirige el bucle de intentos e instrumenta cada uno en attempts.jsonl.
 // Devuelve el Outcome; solo error si el mecanismo falla (no si la tarea
 // se agotó: detenerse es un resultado válido, no un fallo).
-func Run(ctx context.Context, o Options) (Outcome, error) {
+func Run(ctx context.Context, o Options) (out Outcome, err error) {
+	// sesion y ultimoTurno viven aquí para estamparse en cualquier salida:
+	// quien llama persiste la conversación y una corrida posterior la retoma
+	// sin reenviar el prompt entero. El defer corre también en los retornos
+	// por agotamiento o presupuesto, que es justo cuando hay trabajo previo.
+	var sesion string
+	var ultimoTurno int
+	defer func() {
+		if out.Sesion == "" {
+			out.Sesion = sesion
+		}
+		if out.UltimoTurno == 0 {
+			out.UltimoTurno = ultimoTurno
+		}
+	}()
+
 	if o.Agent == nil {
 		return Outcome{}, errors.New(idioma.T("bucle sin ejecutor · elige uno con loom doctor"))
 	}
@@ -315,6 +359,25 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 			o.OnIntento(intento, fase)
 		}
 	}
+	// anotar guarda lo que el agente va haciendo dentro de la fase. No
+	// escribe a disco por cada línea (serían miles): el latidor lo
+	// persiste en cada LatidoIntervalo. En modo plano OnAvance lo imprime
+	// al instante. La cola es corta a propósito: es para mirar, no un log.
+	anotar := func(msg string) {
+		if msg == "" {
+			return
+		}
+		latMu.Lock()
+		latActual.Actividad = msg
+		latActual.Actividades = append(latActual.Actividades, msg)
+		if len(latActual.Actividades) > avanceCola {
+			latActual.Actividades = latActual.Actividades[len(latActual.Actividades)-avanceCola:]
+		}
+		latMu.Unlock()
+		if o.OnAvance != nil {
+			o.OnAvance(msg)
+		}
+	}
 	defer BorrarLatido(o.Root, o.Task.ID)
 
 	// Latir dentro de la fase, no solo al cambiarla. Una fase `agente`
@@ -408,8 +471,10 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		prevErr = "The blind exam could not be prepared. Write the tests yourself from the contract and make done_when pass. " + fallaExamen
 	}
 	var noCorrio bool
-	var sesion string
-	var ultimoTurno int
+	// retomar la conversación de una corrida anterior: el agente ya leyó el
+	// repo y tiene el contrato. Solo se retoma si el CLI la continúa y la
+	// sesión no está por encima del umbral de contexto.
+	sesion, ultimoTurno = o.SesionInicial, o.UltimoTurnoInicial
 	for intento := 1; intento <= limite; intento++ {
 		inicio := time.Now().UTC()
 		avisar(intento, FaseAgente)
@@ -431,6 +496,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 			Model:        o.Model,
 			Timeout:      o.AgentTimeout,
 			Env:          o.Env,
+			Avance:       anotar,
 		}
 		reanudado := puedeReanudar(o, sesion, ultimoTurno)
 		if reanudado {
@@ -507,6 +573,10 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 					uno := 1
 					code = &uno
 					salida = "done_when passed without this task's test: " + f + " does not exist. Write it with the contract cases; the command's other tests already passed before your change."
+				} else if h := estrictoDe(o, base); h != "" {
+					uno := 1
+					code = &uno
+					salida = "done_when passed, but loom's delivery gate rejects this code. Fix every item and keep done_when green:\n" + h
 				} else if len(o.PatronesPrueba) == 0 && pruebaComplaciente(ctx, o, base) {
 					uno := 1
 					code = &uno
@@ -586,6 +656,13 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 			return Outcome{Verde: false, Intentos: intento, UltimoError: motivo, Pregunta: motivo}, nil
 		}
 
+		// la cuenta se quedó sin fondos a media tarea: el trabajo parcial
+		// ya está commiteado y otro intento choca con lo mismo
+		if agentErr != nil && o.SinSaldo != nil && o.SinSaldo(a.ErrorAgente) && (code == nil || *code != 0) {
+			_ = s.Append(a)
+			return Outcome{Intentos: intento, UltimoError: a.ErrorAgente, Pregunta: a.ErrorAgente, Sesion: sesion, UltimoTurno: ultimoTurno}, nil
+		}
+
 		// la recursión dijo "no hay más camino": detenerse es el
 		// resultado, no un fallo del mecanismo (mismo criterio que
 		// agotar intentos), pero con el motivo exacto de la hoja roja
@@ -619,7 +696,19 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 		visual := o.RevisorVisual != nil && skills.TocaUI(o.Task.TocarSolo) && rechazosVisuales < TopeVisual
 		if code != nil && *code == 0 && (o.Revisor != nil || visual) {
 			avisar(intento, FaseRevision)
+			inicioRev := time.Now()
+			var rev Tokens
+			// cerrar deja en el intento lo que costó juzgarlo, antes de guardarlo
+			cerrar := func() {
+				a.Revision.Tokens, a.Revision.Segundos = &rev, int(time.Since(inicioRev).Seconds())
+			}
 			gastar := func(tk Tokens) {
+				rev.Entrada += tk.Entrada
+				rev.Salida += tk.Salida
+				rev.CacheLeida += tk.CacheLeida
+				rev.CacheEscrita += tk.CacheEscrita
+				rev.Turnos += tk.Turnos
+				rev.CostoUSD += tk.CostoUSD
 				acumulado.Entrada += tk.Entrada
 				acumulado.Salida += tk.Salida
 				acumulado.CacheLeida += tk.CacheLeida
@@ -649,6 +738,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 				// agente y el contrato, no falta de intentos ni de modelo:
 				// repetir solo paga otra vuelta para el mismo veredicto
 				if ancla := anclaRevision(cambios); !aprobada && ancla != "" && ancla == anclaPrevia {
+					cerrar()
 					if err := s.Append(a); err != nil {
 						return Outcome{}, err
 					}
@@ -670,6 +760,7 @@ func Run(ctx context.Context, o Options) (Outcome, error) {
 					motivo = "the visual review (phone-size screenshots of your screen) asks for changes:\n" + cambiosV
 				}
 			}
+			cerrar()
 			if err := s.Append(a); err != nil {
 				return Outcome{}, err
 			}
@@ -1163,12 +1254,24 @@ func valorSalida(code *int) string {
 	return fmt.Sprint(*code)
 }
 
-// puedeReanudar decide si el intento continúa la sesión previa: solo
-// claude, con sesión viva y contexto por debajo del umbral. Por encima, la
+// estrictoDe corre el chequeo estricto sobre el diff de la tarea.
+func estrictoDe(o Options, base string) string {
+	if o.Estricto == nil {
+		return ""
+	}
+	d, err := gitRun(o.Room.Path, "diff", base+"...HEAD")
+	if err != nil {
+		return ""
+	}
+	return o.Estricto(d, o.Task)
+}
+
+// puedeReanudar decide si el intento continúa la sesión previa: el CLI
+// la devolvió (claude y opencode; codex no da ninguna), sigue viva y contexto por debajo del umbral. Por encima, la
 // sesión ya está llena y un intento nuevo con el prompt entero sale más sano.
 func puedeReanudar(o Options, sesion string, ultimoTurno int) bool {
 	return sesion != "" && o.ResumeBelowPct > 0 && o.Ventana > 0 &&
-		ultimoTurno*100 < o.ResumeBelowPct*o.Ventana && o.Agent.Name() == "claude"
+		ultimoTurno*100 < o.ResumeBelowPct*o.Ventana
 }
 
 // promptContinuar es el mensaje corto con que se continúa una sesión: el

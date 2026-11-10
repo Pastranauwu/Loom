@@ -37,7 +37,10 @@ func TestSinSaldoDejaTodoPendienteSinEscalar(t *testing.T) {
 	}
 	bin := t.TempDir()
 	llamadas := filepath.Join(bin, "llamadas")
-	script := "#!/bin/sh\necho x >> '" + llamadas + "'\ncat '" + fixture + "'\nexit 1\n"
+	// el fake cuenta solo las invocaciones del agente (`opencode run …`),
+	// no las de catálogo (`opencode models --verbose`): lo que la prueba
+	// mide es que un 402 no reintente ni escale.
+	script := "#!/bin/sh\nif [ \"$1\" = run ]; then echo x >> '" + llamadas + "'; fi\ncat '" + fixture + "'\nexit 1\n"
 	if err := os.WriteFile(filepath.Join(bin, "opencode"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -67,5 +70,22 @@ func TestSinSaldoDejaTodoPendienteSinEscalar(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(llamadas); len(b) != 2 {
 		t.Errorf("invocaciones de opencode = %d, quiero 1 (sin reintentos ni escalera)", len(b)/2)
+	}
+}
+
+func TestRelevoEligeElMasBaratoDeOtroProveedor(t *testing.T) {
+	t.Cleanup(func() { agotados.Range(func(k, _ any) bool { agotados.Delete(k); return true }) })
+	cfg := config.Config{Modelos: map[string]string{"liviana": "google/gemini-flash", "media": "claude-haiku-5-5", "pesada": "claude-sonnet-5-5"}}
+	oc := executor.OpenCode{}
+	if p := proveedorDe(oc, "google/gemini-flash"); p != "google" {
+		t.Fatalf("proveedor = %q", p)
+	}
+	agotados.Store("google", true)
+	if m := relevo(cfg, oc); m != "claude-haiku-5-5" {
+		t.Errorf("relevo = %q, quiero el medio de claude", m)
+	}
+	agotados.Store("claude", true)
+	if m := relevo(cfg, oc); m != "" {
+		t.Errorf("sin proveedores con saldo y dio %q", m)
 	}
 }

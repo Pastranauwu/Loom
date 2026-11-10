@@ -21,6 +21,7 @@ import (
 	"github.com/Pastranauwu/loom/internal/loop"
 	"github.com/Pastranauwu/loom/internal/plan"
 	"github.com/Pastranauwu/loom/internal/room"
+	"github.com/Pastranauwu/loom/internal/ship"
 	"github.com/Pastranauwu/loom/internal/skills"
 	"github.com/Pastranauwu/loom/internal/spec"
 	"github.com/Pastranauwu/loom/internal/state"
@@ -149,7 +150,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	// cómo se ve hoy, si ya se sabe levantar: el arquitecto planea un
 	// cambio visual contra la pantalla, no contra el código
 	antes, sinSesion := capturas.SinRepetir(tomarCapturas(ctx, r.Path, cfg.Pantallas, r.Puerto, filepath.Join(loop.RunsDir(root), id, "antes")))
-	pd := esqueleto.Pedido{Texto: pedido, Previo: previo, PrimerID: ids[1], SinDocker: sinDocker, Capturas: antes, SinSesion: sinSesion}
+	pd := esqueleto.Pedido{Texto: pedido, Previo: previo, PrimerID: ids[1], Zonas: zonas, SinDocker: sinDocker, Capturas: antes, SinSesion: sinSesion}
 	// la respuesta guardada se busca por el pedido sin el estado de la
 	// suite: su salida cambia por tiempos y tiraría un plan ya pagado
 	clave := esqueleto.Prompt(pd, pctx)
@@ -169,7 +170,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	var res esqueleto.Resultado
 	// sesion es la conversación del arquitecto: una corrección la continúa
 	// en vez de releer el repo desde cero, que cuesta decenas de turnos
-	// para un cambio de pocas líneas. Solo claude la da; con otro CLI queda vacía.
+	// para un cambio de pocas líneas. La dan claude y opencode; con codex queda vacía.
 	guardada, sesion := respuestaEsqueleto(root, id, clave)
 	// con código y sin plan pagado: ¿la suite ya falla en la base? Se
 	// mira en el cuarto recién creado; uno retomado ya trae cambios
@@ -183,7 +184,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	}
 	original := esqueleto.Prompt(pd, pctx)
 	prompt := original
-	if ex.Name() != "claude" {
+	if !executor.ContinuaSesion(ex.Name()) {
 		sesion = ""
 	}
 	// paso 1: qué hará y si tiene dudas, en la misma sesión que luego
@@ -278,7 +279,7 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 			problemas = append(problemas, err.Error())
 		} else {
 			problemas = append(problemas, esqueleto.Problemas(ctx, esqueleto.Verificacion{
-				Dir: r.Path, Base: r.Commit, Docker: !sinDocker, Timeout: pruebaTimeout, Env: room.Entorno(r.Path),
+				Dir: r.Path, Base: r.Commit, Docker: !sinDocker, Zonas: zonas, Timeout: pruebaTimeout, Env: room.Entorno(r.Path),
 			}, res)...)
 			// sin script, la revisión visual solo ve cada ruta recién
 			// abierta: en una corrida real, el formulario que se cambiaba solo aparece
@@ -307,6 +308,20 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 				} else if err != nil {
 					problemas = append(problemas, "\"pantallas.script\" no funciona contra la app levantada (revisa rutas, selectores y que el navegador que usa esté instalado): "+err.Error())
 				}
+			}
+			// lo que la entrega va a frenar del código que el arquitecto
+			// escribió (firmas sin tipos, any): ninguna tarea lo arregla
+			if _, err := gitEn(r.Path, "add", "-A"); err == nil {
+				if d, err := gitEn(r.Path, "diff", "--cached", r.Commit); err == nil {
+					if h := ship.Estricto(d, task.Task{}); h != "" {
+						problemas = append(problemas, "loom's delivery gate rejects this code you wrote; fix every item:\n"+h)
+					}
+				}
+			}
+			// una sola vez y solo sobre un plano recién pagado: si el
+			// arquitecto mantiene su reparto, se acepta
+			if p := esqueleto.Demasiadas(res); p != "" && vuelta == 0 && guardada == "" {
+				problemas = append(problemas, p)
 			}
 			if c := cicloDelPlan(root, res.Tareas); c != nil {
 				problemas = append(problemas, "dependencia circular en depende_de: "+strings.Join(c, " → ")+" · quita una de esas dependencias")

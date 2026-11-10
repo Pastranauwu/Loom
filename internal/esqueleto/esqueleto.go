@@ -29,8 +29,10 @@ import (
 
 	"github.com/Pastranauwu/loom/internal/capturas"
 	"github.com/Pastranauwu/loom/internal/config"
+	"github.com/Pastranauwu/loom/internal/gate"
 	"github.com/Pastranauwu/loom/internal/graph"
 	"github.com/Pastranauwu/loom/internal/plan"
+	"github.com/Pastranauwu/loom/internal/room"
 	"github.com/Pastranauwu/loom/internal/skills"
 	"github.com/Pastranauwu/loom/internal/task"
 	"github.com/Pastranauwu/loom/internal/topo"
@@ -38,7 +40,7 @@ import (
 
 // Marca es el texto con que lanza todo stub. La verificación no depende
 // de él, pero le dice al agente que rellena qué reemplazar.
-const Marca = "loom: sin implementar"
+const Marca = room.MarcaStub
 
 // Documento es el archivo de arquitectura que el esqueleto deja en la
 // raíz y que cada cambio siguiente evoluciona.
@@ -70,6 +72,8 @@ type Pedido struct {
 	Previo string
 	// PrimerID es el id de la primera tarea de relleno.
 	PrimerID string
+	// Zonas son las zonas vedadas del proyecto: ninguna tarea las toca.
+	Zonas []string
 	// SinDocker apaga la exigencia de compose: el humano lo pidió en sus
 	// reglas (una librería o un CLI no se despliegan).
 	SinDocker bool
@@ -183,6 +187,9 @@ ANSWER AT THE END WITH ONLY THIS JSON
 	if p.SuiteRota != "" {
 		b.WriteString("\nSTATE OF THE BASE\nThe project suite already fails today, before your change. Its output ends like this:\n" + p.SuiteRota + "\nIf that failure prevents your tasks' tests from running (the test database does not build, a broken import, a missing dependency), fix it yourself in the skeleton: it is base state, not new logic, and without it no task can go green. If it does not affect them, do not touch it and do not use it in any \"done_when\".\n")
 	}
+	if len(p.Zonas) > 0 {
+		b.WriteString("\nFORBIDDEN ZONES\nNo task may touch these paths, loom strips them from every \"only_touch\": " + strings.Join(p.Zonas, ", ") + "\nIf the change needs a file there (a migration, a lockfile), you write it yourself, complete, in the skeleton: it is not a stub and it goes in no task.\n")
+	}
 	if p.PrimerID != "" {
 		fmt.Fprintf(&b, "Your tasks get consecutive ids starting at %s in array order: in \"depends_on\" write those full ids (\"%s\"), not bare numbers.\n", p.PrimerID, p.PrimerID)
 	}
@@ -288,8 +295,11 @@ type Verificacion struct {
 	// Base es el commit con que arrancó el cuarto. Lo que ya existía ahí
 	// es código que funciona: se cambia, no se convierte en stub. Vacío
 	// = todo es nuevo.
-	Base    string
-	Docker  bool // exigir compose.yaml y .dockerignore
+	Base   string
+	Docker bool // exigir compose.yaml y .dockerignore
+	// Zonas vedadas: lo que cae ahí sale de tocar_solo al repartir, así
+	// que no puede ser stub de ninguna tarea.
+	Zonas   []string
 	Timeout time.Duration
 	Env     []string
 }
@@ -329,6 +339,19 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 			out = append(out, nombre+": empty only_touch")
 			continue
 		}
+		// un stub en zona vedada no lo rellena nadie: loom lo quita del
+		// alcance y queda lanzando la marca (una migración así tumba la app)
+		var libre []string
+		for _, f := range t.TocarSolo {
+			if z, mal := gate.AlcanceProhibido(f, v.Zonas, []string{}); mal {
+				out = append(out, fmt.Sprintf("%s: %s is in a forbidden zone (%s): no task may touch it. If the change needs that file, write it yourself, complete, in the skeleton (no stub); either way remove it from only_touch", nombre, f, z))
+				continue
+			}
+			libre = append(libre, f)
+		}
+		if t.TocarSolo = libre; len(libre) == 0 {
+			continue
+		}
 		for _, f := range t.TocarSolo {
 			if !strings.ContainsAny(f, "*?[") && !task.EsArchivoDePrueba(f) && EsCodigo(f) && !algunoCoincide([]string{f}, archivos) {
 				out = append(out, fmt.Sprintf("%s: %s does not exist; you create the stub", nombre, f))
@@ -355,6 +378,21 @@ func Problemas(ctx context.Context, v Verificacion, r Resultado) []string {
 		}
 	}
 	return out
+}
+
+// TopeTareas es cuántas tareas de relleno caben en un plano sin pedirle al
+// arquitecto que fusione: cada una paga su contexto base, su examen, su
+// revisión y sus reintentos (un plano de 21 tareas: 30 intentos).
+const TopeTareas = 8
+
+// Demasiadas devuelve el problema de un plano con más tareas que el tope,
+// o "". Quien llama lo pide una sola vez: si el arquitecto insiste en su
+// reparto, vale.
+func Demasiadas(r Resultado) string {
+	if len(r.Tareas) <= TopeTareas {
+		return ""
+	}
+	return fmt.Sprintf("the blueprint has %d tasks: each one pays its own setup, exam, review and retries. Merge the ones that serve the same feature or the same module into one task (aim for at most %d; \"only_touch\" and \"how\" of the merged task carry everything). If some truly cannot be merged, keep them and answer again", len(r.Tareas), TopeTareas)
 }
 
 // sinProposito exige que cada carpeta de código nueva declare para qué es en
@@ -458,6 +496,11 @@ func contrato(dir, nombre string, t plan.Borrador, archivos []string, previos ma
 // EsCodigo dice si el archivo admite un stub que lance la marca. Una
 // plantilla, una hoja de estilos o un JSON no: su contrato va en "como".
 func EsCodigo(f string) bool {
+	// una migración que lanza la marca tumba la base de pruebas de todas
+	// las tareas: la escribe entera quien la necesita, no es stub
+	if path.Base(path.Dir(filepath.ToSlash(f))) == "migrations" {
+		return false
+	}
 	switch strings.ToLower(filepath.Ext(f)) {
 	case ".go", ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs", ".java", ".kt", ".rb", ".php", ".cs", ".swift", ".c", ".cc", ".cpp", ".h", ".vue", ".svelte":
 		return true

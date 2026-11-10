@@ -176,6 +176,24 @@ func mostrarGastoPorTarea(root string) error {
 		for _, m := range modelos {
 			filas = append(filas, *por[m])
 		}
+		// quien juzga cada intento verde: fase aparte, como el arquitecto
+		rev := gastoTarea{Tarea: d.Name() + "/rev", Modelo: "revisor"}
+		for _, a := range as {
+			if a.Revision == nil || a.Revision.Tokens == nil {
+				continue
+			}
+			t := a.Revision.Tokens
+			rev.Intentos++
+			rev.Turnos += t.Turnos
+			rev.Entrada += t.Entrada
+			rev.Salida += t.Salida
+			rev.CacheLeida += t.CacheLeida
+			rev.CacheEscrita += t.CacheEscrita
+			rev.CostoUSD += t.CostoUSD
+		}
+		if rev.Intentos > 0 {
+			filas = append(filas, rev)
+		}
 		// El arquitecto corre antes de los intentos de implementación y su
 		// gasto no aparece en attempts.jsonl. Sus logs conservan el resultado
 		// del CLI; los contamos una sola vez como fase separada.

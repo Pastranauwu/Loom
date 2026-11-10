@@ -91,6 +91,10 @@ func (e Claude) Run(ctx context.Context, req Request) (Result, error) {
 	if req.TopeUSD > 0 {
 		args = append(args, "--max-budget-usd", strconv.Itoa(req.TopeUSD))
 	}
+	// lo que imprime un comando se relee en cada turno siguiente: una
+	// suite entera eran 40k tokens arrastrados el resto del intento. El
+	// default de claude son 30000 caracteres por comando.
+	req.Env = append(append([]string(nil), req.Env...), "BASH_MAX_OUTPUT_LENGTH=12000")
 	var res Result
 	espera := esperaSinReset
 	req.avanceDe = avanceClaude(req.RoomPath)

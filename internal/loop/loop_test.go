@@ -2,6 +2,7 @@ package loop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -314,6 +315,9 @@ func TestRevisorVetaVerdeYElSiguienteArregla(t *testing.T) {
 	attempts, err := ReadAttempts(root, "T-001")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if r := attempts[0].Revision; r == nil || r.Tokens == nil {
+		t.Errorf("el intento vetado no guardó lo que costó el revisor: %+v", r)
 	}
 	if len(attempts) != 2 {
 		t.Fatalf("attempts = %d, quiero 2", len(attempts))
@@ -862,6 +866,63 @@ func TestSesionMuertaVuelveAlPromptCompleto(t *testing.T) {
 	}
 }
 
+// Una corrida que murió a media tarea deja su sesión; `run --retry` la
+// pasa como SesionInicial y el primer intento continúa la conversación en
+// vez de reenviar el prompt entero y releer el repo. Y el bucle devuelve
+// la sesión que dejó, para que quien llama la persista.
+func TestRetomaLaSesionDeUnaCorridaAnterior(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "claude", sesion: "s-1", tokens: Tokens{Turnos: 1, UltimoTurno: 1000}}
+	var primero Request
+	ag.hacer = func(veces int, req Request) (string, int, error) {
+		if veces == 1 {
+			primero = req
+			escribir(t, req.RoomPath, "src/done.txt", "x\n")
+		}
+		return "", 0, nil
+	}
+	o := optsDePrueba(t, root, ag, tareaDePrueba())
+	o.Ventana, o.ResumeBelowPct = 200_000, 70
+	o.SesionInicial, o.UltimoTurnoInicial = "s-0", 1000
+
+	out, err := Run(context.Background(), o)
+	if err != nil || !out.Verde {
+		t.Fatalf("out=%+v err=%v", out, err)
+	}
+	if primero.Sesion != "s-0" || !strings.HasPrefix(primero.Prompt, "Continue the task") {
+		t.Errorf("el primer intento no retomó la sesión previa: sesion=%q prompt=%.40q", primero.Sesion, primero.Prompt)
+	}
+	if out.Sesion != "s-1" || out.UltimoTurno != 1000 {
+		t.Errorf("Outcome debe devolver la sesión que dejó: %q %d", out.Sesion, out.UltimoTurno)
+	}
+}
+
+// Una sesión previa por encima del umbral no se retoma: continuarla
+// recargaría una conversación que el proveedor ya no sostiene, y el
+// prompt entero en una sesión nueva sale más sano.
+func TestSesionPreviaSobreElUmbralNoSeRetoma(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "claude", sesion: "s-1", tokens: Tokens{Turnos: 1, UltimoTurno: 1000}}
+	var primero Request
+	ag.hacer = func(veces int, req Request) (string, int, error) {
+		if veces == 1 {
+			primero = req
+			escribir(t, req.RoomPath, "src/done.txt", "x\n")
+		}
+		return "", 0, nil
+	}
+	o := optsDePrueba(t, root, ag, tareaDePrueba())
+	o.Ventana, o.ResumeBelowPct = 200_000, 70
+	o.SesionInicial, o.UltimoTurnoInicial = "s-0", 150_000
+
+	if out, err := Run(context.Background(), o); err != nil || !out.Verde {
+		t.Fatalf("out=%+v err=%v", out, err)
+	}
+	if primero.Sesion != "" || strings.HasPrefix(primero.Prompt, "Continue the task") {
+		t.Errorf("no debía retomar sobre el umbral: sesion=%q", primero.Sesion)
+	}
+}
+
 // revisorTerco rechaza siempre lo mismo, como cuando el agente y el
 // contrato chocan sobre una prueba que existía
 type revisorTerco struct{}
@@ -916,5 +977,49 @@ func TestSuiteSinAlcance(t *testing.T) {
 	}
 	if juzgaSuite(task.Task{ListoCuando: "pytest tests/test_b.py"}, []string{"tests/test_a.py"}) {
 		t.Error("juzga una suite que listo_cuando no corre")
+	}
+}
+
+func TestSinSaldoAMediaTareaNoGastaOtroIntento(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "falso", tokens: Tokens{Entrada: 10, Salida: 5}}
+	ag.hacer = func(_ int, req Request) (string, int, error) {
+		escribir(t, req.RoomPath, "src/a-medias.txt", "x\n")
+		return "429 Your project has exceeded its monthly spending cap", 1, errors.New("exit status 1")
+	}
+	opts := optsDePrueba(t, root, ag, tareaDePrueba())
+	opts.SinSaldo = func(m string) bool { return strings.Contains(m, "spending cap") }
+	outcome, err := Run(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ag.veces != 1 || outcome.Verde || !strings.Contains(outcome.UltimoError, "spending cap") {
+		t.Fatalf("llamadas = %d, outcome = %+v; quiero un intento y el motivo del proveedor", ag.veces, outcome)
+	}
+}
+
+func TestLoQueLaEsclusaRechazaraEsRojoEnElIntento(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "falso", tokens: Tokens{Entrada: 10, Salida: 5}}
+	var prompts []string
+	ag.hacer = func(_ int, req Request) (string, int, error) {
+		prompts = append(prompts, req.Prompt)
+		escribir(t, req.RoomPath, "src/done.txt", strings.Repeat("x\n", len(prompts)))
+		return "", 0, nil
+	}
+	opts := optsDePrueba(t, root, ag, tareaDePrueba())
+	vistas := 0
+	opts.Estricto = func(string, task.Task) string {
+		if vistas++; vistas == 1 {
+			return "- Python sin tipos en src/a.py\n"
+		}
+		return ""
+	}
+	outcome, err := Run(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !outcome.Verde || outcome.Intentos != 2 || !strings.Contains(prompts[1], "Python sin tipos en src/a.py") {
+		t.Fatalf("outcome = %+v; quiero rojo con el hallazgo en el segundo prompt y verde después", outcome)
 	}
 }

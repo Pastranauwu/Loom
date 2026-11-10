@@ -46,10 +46,21 @@ func lenguajeEstricto(archivo string) string {
 		return "ts"
 	case ext == ".rs":
 		return "rust"
-	case ext == ".py" && !task.EsArchivoDePrueba(archivo):
+	// una migración lleva las firmas que dicta el framework
+	case ext == ".py" && !task.EsArchivoDePrueba(archivo) && path.Base(path.Dir(archivo)) != "migrations":
 		return "python"
 	}
 	return ""
+}
+
+// Estricto es el paso `estricto` para quien no entrega todavía (el bucle
+// y la verificación del esqueleto): un hallazgo por línea, "" si no hay.
+func Estricto(diff string, t task.Task) string {
+	var b strings.Builder
+	for _, h := range escanearEstricto(diff, t) {
+		b.WriteString("- " + resumenHallazgos([]Hallazgo{h}) + "\n")
+	}
+	return b.String()
 }
 
 // escanearEstricto looks in the added lines for what lets code through the
@@ -120,8 +131,10 @@ func sinTipos(linea string) string {
 	if cierre < 0 {
 		return ""
 	}
+	// las dos faltas juntas: de a una, cada entrega frenaba por la otra
+	var faltas []string
 	if !strings.Contains(resto[cierre+1:], "->") && nombre != "__init__" {
-		return idioma.T("sin tipo de retorno")
+		faltas = append(faltas, idioma.T("sin tipo de retorno"))
 	}
 	for _, arg := range argsDePrimerNivel(resto[:cierre]) {
 		arg = strings.TrimLeft(strings.TrimSpace(arg), "*")
@@ -130,10 +143,11 @@ func sinTipos(linea string) string {
 		}
 		nombreArg, _, _ := strings.Cut(arg, "=")
 		if !strings.Contains(nombreArg, ":") {
-			return idioma.T("argumento sin tipo")
+			faltas = append(faltas, idioma.T("argumento sin tipo"))
+			break
 		}
 	}
-	return ""
+	return strings.Join(faltas, ", ")
 }
 
 func argsDePrimerNivel(s string) []string {

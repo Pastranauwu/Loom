@@ -500,10 +500,32 @@ func Entorno(path string) []string {
 			bins = append(bins, bin)
 		}
 	}
-	if len(bins) == 0 {
-		return nil
+	var env []string
+	if len(bins) > 0 {
+		env = append(env, "PATH="+strings.Join(append(bins, os.Getenv("PATH")), string(os.PathListSeparator)))
 	}
-	return []string{"PATH=" + strings.Join(append(bins, os.Getenv("PATH")), string(os.PathListSeparator))}
+	if stubsRust(path) {
+		env = append(env, strings.TrimSpace("RUSTFLAGS="+os.Getenv("RUSTFLAGS")+" "+FlagsStubRust))
+	}
+	return env
+}
+
+// MarcaStub es el texto que lanza el cuerpo de un stub del esqueleto.
+const MarcaStub = "loom: sin implementar"
+
+// FlagsStubRust apaga los lints que un stub dispara por serlo (parámetros
+// sin usar, funciones que nadie llama todavía, imports del cuerpo que
+// falta): con ellos `cargo clippy -- -D warnings` no pasa nunca mientras
+// quede un stub, ni en el esqueleto ni en el cuarto de una tarea que ve
+// los stubs de las demás.
+const FlagsStubRust = "-A unused_variables -A dead_code -A unused_imports"
+
+// stubsRust dice si el cuarto todavía tiene un .rs con la marca. Sin
+// stubs (lo integrado, la aceptación) cargo corre estricto.
+func stubsRust(path string) bool {
+	c := exec.Command("git", "grep", "-q", "-F", "--untracked", MarcaStub, "--", "*.rs")
+	c.Dir = path
+	return c.Run() == nil
 }
 
 // venv crea dir/.venv con acceso a los paquetes del sistema (pytest
