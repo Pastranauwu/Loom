@@ -2,6 +2,15 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.11.0 (10 nov 2026)
+**opencode continúa su sesión:** las correcciones del arquitecto y los reintentos de una tarea siguen la conversación (`--session`) en vez de releer el repo; una corrida con gemini hacía 71, 42 y 53 turnos en tres vueltas del mismo plano. La ventana de contexto sale del catálogo real de opencode y la sesión del agente se guarda en el estado para `run --retry`. codex no continúa sesión (corre `--ephemeral`).
+**Sin saldo o sin cupo, la tarea sigue con otro proveedor:** el 429 de tope de gasto o cuota del mes corta el intento en el acto, y la tarea continúa sobre el mismo cuarto con el modelo más barato de otro proveedor de `modelos:`; las siguientes de la corrida arrancan ya en el relevo. Antes quedaban detenidas con sus dependientes bloqueadas.
+**La esclusa de salida se adelanta:** el paso `estricto` (Python sin tipos, `any`, `unsafe`) corre en cada intento verde y sobre el esqueleto, con todos los hallazgos juntos; las migraciones quedan exentas. Antes se descubría al entregar, una falta por vez.
+**Esqueleto más barato:** una migración nunca es stub, un `only_touch` en zona vedada vuelve al arquitecto (que ahora recibe las zonas) y un plano de más de 8 tareas se devuelve una vez para fusionar.
+**Rust:** los cuartos con stubs corren cargo con los lints de stub permitidos (`cargo clippy -- -D warnings` no podía pasar), `cargo test` con un filtro vacío ya no es verde y `tests/*.rs` cuenta como prueba. Validado con cargo real.
+**Intentos más baratos:** claude topa la salida de cada comando a 12000 caracteres y el prompt base prohíbe correr la suite entera (una salida de 40k tokens se releía en cada turno). El gasto y el tiempo del revisor quedan en cada intento, cuentan en presupuestos y métricas y salen en `loom usage` como filas `T-00N/rev`.
+**El conductor duerme hasta una alerta:** `loom_board wait` ya no despierta por cada intento o fase; vuelve cuando una tarea termina o se detiene (con la pista de sus logs), aparece o se quita una, o acaba la corrida. `loom ide` apaga siempre los conectores de claude.ai. El latido guarda lo último que hizo el agente.
+
 ## v2.10.4 (9 nov 2026)
 **Rueda en el chat de `loom ide`:** Claude Code recibe PgUp/PgDn al girar la rueda, que es su desplazamiento propio; antes recibía flechas (abrían el historial de mensajes) y el intento de usar el búfer de tmux mostraba `[0/0]` en la pantalla alterna.
 
