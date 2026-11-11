@@ -2,6 +2,14 @@
 
 Qué trajo cada versión, en una línea. Lo anterior a v1.2.0 está contado en `docs/HISTORIA.md`.
 
+## v2.12.0 (11 nov 2026)
+**Skills por necesidad:** ningún rol recibe ya `ponytail` completa (la regla de tres líneas va en el prompt base; eran 3,5 KB por intento en cada tarea del esqueleto) y `codebase-design` solo entra a la tarea backend o refactor que expone una interfaz. El conductor de `loom ide` se queda con la entrevista (`grill-with-docs`) y las herramientas MCP: `caveman` y `find-skills` salen del diccionario y todos los plugins del usuario se apagan en esa sesión.
+**Un proveedor caído no gasta intentos:** un 401 de credencial, un 429 de un momento o la red caída (el agente no llegó al modelo) se repiten tras 5 s y 20 s sin contar como intento; si el proveedor no vuelve, la tarea sigue con el modelo de otro proveedor o queda pendiente para `loom up`, no detenida. En una corrida de 26 tareas, 4 intentos se perdían así.
+**`loom_patch`, la vía rápida:** el modelo conectado al MCP hace él mismo un cambio chico (hasta 5 ediciones y 6 KB) en una sola llamada: reemplazos exactos, corre el `check` y hace commit con trailer `Agent: conductor` solo si sale verde; en rojo deshace todo y devuelve la salida. Sin planificador, cuartos ni constructores. Se niega mientras haya tareas verdes sin entregar.
+**La suite oculta omitida deja rastro:** si el examinador no selló el examen oculto, el paso `suite_oculta` de la esclusa sale como omitido con el motivo, en vez de desaparecer.
+
+- **El arquitecto ya no agota sus correcciones por un login que no existe:** capturas idénticas se tomaban como redirección al login y el problema se repetía en cada ronda. Ahora se pide una vez; si el arquitecto no pone sesión, se avisa y se sigue.
+
 ## v2.11.1 (10 nov 2026)
 **v2.11.0 no se publicó:** su CI falló en una prueba que dependía de tener `claude` instalado. Esta versión trae lo mismo más el arreglo: el relevo de proveedor salta los modelos cuyo CLI no está instalado, en vez de lanzarlos en otro que no los conoce.
 **opencode continúa su sesión:** las correcciones del arquitecto y los reintentos de una tarea siguen la conversación (`--session`) en vez de releer el repo; una corrida con gemini hacía 71, 42 y 53 turnos en tres vueltas del mismo plano. La ventana de contexto sale del catálogo real de opencode y la sesión del agente se guarda en el estado para `run --retry`. codex no continúa sesión (corre `--ephemeral`).
