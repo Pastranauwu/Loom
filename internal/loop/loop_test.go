@@ -998,6 +998,38 @@ func TestSinSaldoAMediaTareaNoGastaOtroIntento(t *testing.T) {
 	}
 }
 
+func TestFalloDeInfraSeRepiteSinGastarIntento(t *testing.T) {
+	root := repoConCommit(t)
+	ag := &agenteFalso{nombre: "falso"}
+	caidas := 2
+	ag.hacer = func(veces int, req Request) (string, int, error) {
+		if veces <= caidas {
+			return "401 Upstream request failed: Invalid credential", 1, errors.New("exit status 1")
+		}
+		ag.tokens = Tokens{Entrada: 10, Salida: 5}
+		escribir(t, req.RoomPath, "src/done.txt", "x\n")
+		return "", 0, nil
+	}
+	outcome, err := Run(context.Background(), optsDePrueba(t, root, ag, tareaDePrueba()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !outcome.Verde || outcome.Intentos != 1 || ag.veces != 3 {
+		t.Fatalf("llamadas = %d, outcome = %+v; quiero verde en el intento 1 tras dos caídas", ag.veces, outcome)
+	}
+
+	// el proveedor no vuelve: se marca Infra para que quien llama releve
+	root = repoConCommit(t)
+	ag, caidas = &agenteFalso{nombre: "falso", hacer: ag.hacer}, 99
+	outcome, err = Run(context.Background(), optsDePrueba(t, root, ag, tareaDePrueba()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.Verde || !outcome.Infra || outcome.Intentos != 1 || ag.veces != 3 {
+		t.Fatalf("llamadas = %d, outcome = %+v; quiero Infra tras tres llamadas y un intento", ag.veces, outcome)
+	}
+}
+
 func TestLoQueLaEsclusaRechazaraEsRojoEnElIntento(t *testing.T) {
 	root := repoConCommit(t)
 	ag := &agenteFalso{nombre: "falso", tokens: Tokens{Entrada: 10, Salida: 5}}

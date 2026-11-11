@@ -231,12 +231,20 @@ type Outcome struct {
 	// escalera a qwen-max pagó el 95% de la corrida contra una prueba
 	// que no existía.
 	NoEscalar bool `json:"no_escalar,omitempty"`
+	// Infra marca que el agente nunca llegó al modelo (credencial, cuota
+	// de un momento, red): no es un rojo de la tarea. Quien llama releva
+	// a otro proveedor o la deja pendiente.
+	Infra bool `json:"infra,omitempty"`
 	// Sesion y UltimoTurno son la conversación que dejó el bucle y el
 	// contexto de su último turno, para que quien llama la persista y una
 	// corrida posterior la retome. Vacíos si el CLI no da sesión.
 	Sesion      string `json:"sesion,omitempty"`
 	UltimoTurno int    `json:"ultimo_turno,omitempty"`
 }
+
+// esperasInfra son las pausas antes de repetir una invocación que no
+// llegó al modelo. Variable para que las pruebas no esperen.
+var esperasInfra = []time.Duration{5 * time.Second, 20 * time.Second}
 
 // Run dirige el bucle de intentos e instrumenta cada uno en attempts.jsonl.
 // Devuelve el Outcome; solo error si el mecanismo falla (no si la tarea
@@ -431,6 +439,9 @@ func Run(ctx context.Context, o Options) (out Outcome, err error) {
 		if err != nil {
 			fallaExamen = err.Error()
 			guardarExamen(o.Root, o.Task.ID, err)
+		} else {
+			// un motivo viejo haría que ship diga "omitida" de una suite sellada y ya consumida
+			_ = os.Remove(filepath.Join(RunsDir(o.Root), o.Task.ID, "examinador.log"))
 		}
 		if !hayExamen {
 			// Una suite que no se pudo generar no debe dejar a la tarea
@@ -475,6 +486,7 @@ func Run(ctx context.Context, o Options) (out Outcome, err error) {
 	// repo y tiene el contrato. Solo se retoma si el CLI la continúa y la
 	// sesión no está por encima del umbral de contexto.
 	sesion, ultimoTurno = o.SesionInicial, o.UltimoTurnoInicial
+	infra := 0 // repeticiones por fallo del proveedor, que no gastan intento
 	for intento := 1; intento <= limite; intento++ {
 		inicio := time.Now().UTC()
 		avisar(intento, FaseAgente)
@@ -512,7 +524,7 @@ func Run(ctx context.Context, o Options) (out Outcome, err error) {
 			sesion = res.Sesion
 		}
 		ultimoTurno = res.Tokens.UltimoTurno
-		numero := len(previos) + intento
+		numero := len(previos) + intento + infra
 		logRel := guardarLog(o.Root, o.Task.ID, numero, req.Prompt, res, agentErr)
 
 		// la recursión agotó sus caminos: no hay que correr listo_cuando
@@ -779,14 +791,24 @@ func Run(ctx context.Context, o Options) (out Outcome, err error) {
 			return Outcome{Verde: true, Intentos: intento}, nil
 		}
 
-		// el agente no llegó al modelo: reintentar no cambia nada, y
-		// gastar los intentos restantes solo retrasa el diagnóstico
+		// el agente no llegó al modelo. Un 401 o un 429 del proveedor suelen
+		// ser de un momento: se espera y se repite sin gastar el intento.
+		// Si insiste, reintentar más solo retrasa el diagnóstico.
 		if falloDeInfra(res, agentErr, archivos) {
+			if infra < len(esperasInfra) && ctx.Err() == nil {
+				select {
+				case <-time.After(esperasInfra[infra]):
+				case <-ctx.Done():
+				}
+				infra++
+				intento--
+				continue
+			}
 			motivo := fmt.Sprintf(idioma.T("el agente no pudo ejecutarse (%s) · revisa el modelo y la key con loom doctor"), a.ErrorAgente)
 			if logRel != "" {
 				motivo += " · detalle en " + logRel
 			}
-			return Outcome{Verde: false, Intentos: intento, UltimoError: a.ErrorAgente, Pregunta: motivo}, nil
+			return Outcome{Verde: false, Intentos: intento, UltimoError: a.ErrorAgente, Pregunta: motivo, Infra: true}, nil
 		}
 
 		// un intento que no dejó nada dentro del alcance deja el código

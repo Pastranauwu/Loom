@@ -330,7 +330,7 @@ func ejecutarOlas(ctx context.Context, root string, cfg config.Config, ex execut
 	pendientesSinSaldo := func() {
 		for _, t := range aprobadas {
 			if !procesadas[t.ID] {
-				results = append(results, runResult{ID: t.ID, Titulo: t.Titulo, Estado: estadoSinSaldo, Motivo: "no se lanzó · el proveedor no tiene saldo"})
+				results = append(results, runResult{ID: t.ID, Titulo: t.Titulo, Estado: estadoSinSaldo, Motivo: "no se lanzó · el proveedor no responde o no tiene saldo"})
 				procesadas[t.ID] = true
 			}
 		}
@@ -761,7 +761,7 @@ func correr(ctx context.Context, root string, cfg config.Config, ex executor.Exe
 			for t := range jobs {
 				if sinSaldo.Load() {
 					mu.Lock()
-					results = append(results, runResult{ID: t.ID, Titulo: t.Titulo, Estado: estadoSinSaldo, Motivo: "no se lanzó · el proveedor no tiene saldo"})
+					results = append(results, runResult{ID: t.ID, Titulo: t.Titulo, Estado: estadoSinSaldo, Motivo: "no se lanzó · el proveedor no responde o no tiene saldo"})
 					mu.Unlock()
 					continue
 				}
@@ -936,6 +936,10 @@ func resolverAgenteTarea(cfg config.Config, defaultEx executor.Executor, flagMod
 	// el rol no
 	if t.Skills != nil {
 		paquetes = t.Skills
+	} else if len(t.Expone) == 0 {
+		// la de diseño de módulos solo sirve a quien publica una interfaz:
+		// rellenar un stub o una hoja no la usa y son 6 KB por intento
+		paquetes = slices.DeleteFunc(slices.Clone(paquetes), func(n string) bool { return n == "codebase-design" })
 	}
 	// la de diseño entra en toda tarea que dibuja, aunque el contrato diga
 	// [] o la omita: el planificador la ahorraba y la interfaz salía genérica
@@ -1223,13 +1227,17 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 	outcome, err := loop.Run(ctx, opts)
 	// el proveedor se quedó sin saldo o sin cupo: si config.yml tiene un
 	// modelo de otro proveedor, la tarea sigue con él sobre el mismo cuarto
-	for !outcome.Verde && err == nil && !recursiva && executor.SinSaldo(outcome.UltimoError) {
+	// o no responde (credencial, cuota de un momento, red)
+	caido := func() bool {
+		return !outcome.Verde && err == nil && (outcome.Infra || executor.SinSaldo(outcome.UltimoError))
+	}
+	for caido() && !recursiva {
 		agotados.Store(proveedorDe(exTarea, modeloTarea), true)
 		m := relevo(cfg, exTarea)
 		if m == "" {
 			break
 		}
-		out.Line(idioma.T("· %s · %s sin saldo · sigue con %s"), t.ID, proveedorDe(exTarea, modeloTarea), m)
+		out.Line(idioma.T("· %s · %s caído o sin saldo · sigue con %s"), t.ID, proveedorDe(exTarea, modeloTarea), m)
 		exTarea, modeloTarea = ejecutorPara(exTarea, m), m
 		opts.Model, opts.Agent, opts.Proveedor = m, agenteExecutor{exTarea}, exTarea.Name()
 		opts.Examinador = nil
@@ -1237,11 +1245,15 @@ func correrUno(ctx context.Context, root string, cfg config.Config, ex executor.
 		opts.SesionInicial, opts.UltimoTurnoInicial = "", 0
 		outcome, err = loop.Run(ctx, opts)
 	}
-	if !outcome.Verde && err == nil && executor.SinSaldo(outcome.UltimoError) {
+	if caido() {
 		// sin escalar y sin detener: la tarea no falló, la cuenta no
-		// tiene fondos. Pendiente, `up` la retoma al recargar.
+		// tiene fondos o el proveedor no contesta. Pendiente, `up` la retoma.
+		motivo := motivoSinSaldo(exTarea.Name(), outcome.UltimoError)
+		if outcome.Infra {
+			motivo = outcome.Pregunta + idioma.T(" · queda pendiente · loom up retoma donde quedó")
+		}
 		_ = state.Save(root, state.State{ID: t.ID, Estado: state.Pendiente, Rama: r.Rama, Puerto: r.Puerto, Commit: r.Commit, UltimoError: outcome.UltimoError, Sesion: outcome.Sesion, UltimoTurno: outcome.UltimoTurno})
-		return runResult{ID: t.ID, Titulo: t.Titulo, Estado: estadoSinSaldo, Motivo: motivoSinSaldo(exTarea.Name(), outcome.UltimoError), Tokens: tokensDeTarea(root, t.ID)}
+		return runResult{ID: t.ID, Titulo: t.Titulo, Estado: estadoSinSaldo, Motivo: motivo, Tokens: tokensDeTarea(root, t.ID)}
 	}
 	if !outcome.Verde && err == nil && !recursiva {
 		// escalera: el modelo barato dejó trabajo y las pruebas siguen

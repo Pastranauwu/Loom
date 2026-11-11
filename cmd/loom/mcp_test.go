@@ -288,3 +288,51 @@ func TestTerminoVueloAvisaUnaVez(t *testing.T) {
 		t.Error("el aviso sale una sola vez")
 	}
 }
+
+func TestParcheVerdeHaceCommitYRojoDeshace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("check en sh")
+	}
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("uno\ndos\n"), 0o644)
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "t@t"}, {"config", "user.name", "t"}, {"add", "-A"}, {"commit", "-qm", "init"}} {
+		if s, err := gitEn(dir, args...); err != nil {
+			t.Fatal(s)
+		}
+	}
+	ed := func(old, nuevo string) []any {
+		return []any{map[string]any{"path": "a.txt", "old": old, "new": nuevo}}
+	}
+	// rojo: el archivo vuelve a como estaba y no hay commit
+	if _, err := parchear(dir, map[string]any{"edits": ed("dos", "tres"), "check": "grep -q cuatro a.txt", "message": "fix: x"}); err == nil {
+		t.Fatal("check rojo debió fallar")
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "a.txt")); string(b) != "uno\ndos\n" {
+		t.Fatalf("rojo no deshizo: %q", b)
+	}
+	// verde: commit con el trailer y archivo nuevo incluido
+	eds := append(ed("dos", "tres"), map[string]any{"path": "sub/b.txt", "new": "hola\n"})
+	out, err := parchear(dir, map[string]any{"edits": eds, "check": "grep -q tres a.txt && test -f sub/b.txt", "message": "fix: x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	log, _ := gitEn(dir, "log", "-1", "--format=%B", "--name-only")
+	if !strings.Contains(log, "Agent: conductor") || !strings.Contains(log, "sub/b.txt") || !strings.Contains(out, "commit") {
+		t.Fatalf("commit mal: %s · %s", log, out)
+	}
+	// fuera del repo, ambiguo o demasiado grande: se rechaza sin tocar nada
+	for _, a := range []map[string]any{
+		{"edits": []any{map[string]any{"path": "../x", "new": "y"}}, "check": "true", "message": "m"},
+		{"edits": []any{map[string]any{"path": ".loom/state.json", "new": "y"}}, "check": "true", "message": "m"},
+		{"edits": ed("\n", " "), "check": "true", "message": "m"},
+		{"edits": ed("uno", strings.Repeat("x", topeParche)), "check": "true", "message": "m"},
+		{"edits": ed("uno", "1"), "message": "m"},
+	} {
+		if _, err := parchear(dir, a); err == nil {
+			t.Errorf("debió rechazar %v", a["edits"])
+		}
+	}
+	if s, _ := gitEn(dir, "status", "--porcelain"); strings.TrimSpace(s) != "" {
+		t.Fatalf("quedó sucio: %s", s)
+	}
+}

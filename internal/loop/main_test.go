@@ -3,6 +3,7 @@ package loop
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 // Los cuartos viven fuera del repo (room.Dir): en pruebas van a una
@@ -14,6 +15,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv("LOOM_ROOMS", dir)
 	os.Setenv("LOOM_LANGUAGE", "es") // los tests fijan el texto en español
+	esperasInfra = []time.Duration{0, 0}
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

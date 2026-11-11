@@ -264,7 +264,7 @@ func TestResolverAgenteTarea(t *testing.T) {
 	// el arquetipo NO fija modelo, así que sin `modelos:` en config queda
 	// vacío y el CLI usa el suyo. Inventar un id aquí era lo que mataba
 	// cada corrida antes de gastar un token.
-	tBack := task.Task{ID: "T-004", Agente: "backend"}
+	tBack := task.Task{ID: "T-004", Agente: "backend", Expone: []string{"func Sumar(a, b int) int"}}
 	_, modeloBack, skillsBack, skillPkgsBack := resolverAgenteTarea(config.Config{}, nil, "", tBack)
 	if modeloBack != "" {
 		t.Errorf("modeloBack = %q, quiero \"\" · el arquetipo no debe inventar un id de modelo", modeloBack)
@@ -280,7 +280,7 @@ func TestResolverAgenteTarea(t *testing.T) {
 		t.Error("skillsBack no debe estar vacío")
 	}
 	if len(skillPkgsBack) == 0 {
-		t.Error("skillPkgsBack no debe estar vacío · el arquetipo backend trae ponytail + codebase-design")
+		t.Error("skillPkgsBack no debe estar vacío · el arquetipo backend con expone trae codebase-design")
 	}
 
 	// 6. Una tarea que dibuja recibe la skill de diseño aunque el contrato diga []
@@ -374,12 +374,16 @@ func TestSkillsDelContratoMandanSobreElRol(t *testing.T) {
 		skills []string
 		quiero []string
 	}{
-		{nil, []string{"ponytail", "codebase-design"}},
+		{nil, []string{"codebase-design"}},
 		{[]string{}, nil},
 		{[]string{"clean-code"}, []string{"clean-code"}},
 	}
+	// sin expone, la skill de diseño de módulos del rol no entra
+	if _, _, _, got := resolverAgenteTarea(cfg, nil, "", task.Task{ID: "T-001", Agente: "backend"}); len(got) != 0 {
+		t.Errorf("backend sin expone → %v, quiero ninguna", got)
+	}
 	for _, c := range casos {
-		_, _, _, got := resolverAgenteTarea(cfg, nil, "", task.Task{ID: "T-001", Agente: "backend", Skills: c.skills})
+		_, _, _, got := resolverAgenteTarea(cfg, nil, "", task.Task{ID: "T-001", Agente: "backend", Expone: []string{"func Sumar(a, b int) int"}, Skills: c.skills})
 		if strings.Join(got, ",") != strings.Join(c.quiero, ",") {
 			t.Errorf("skills %v → %v, quiero %v", c.skills, got, c.quiero)
 		}

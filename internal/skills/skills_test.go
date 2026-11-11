@@ -116,8 +116,15 @@ func TestContentQuitaSetupYComandosYTraeElPiso(t *testing.T) {
 }
 
 func TestDiccionarioUnaSkillPorNecesidad(t *testing.T) {
-	if got := strings.Join(DeRol("backend"), ","); got != "ponytail,codebase-design" {
+	if got := strings.Join(DeRol("backend"), ","); got != "codebase-design" {
 		t.Errorf("backend = %s", got)
+	}
+	// Minimo ya va en la Base: la skill completa no entra por rol
+	if got := DeRol("ejecutor"); len(got) != 0 {
+		t.Errorf("ejecutor = %v, quiero ninguna", got)
+	}
+	if got := len(DelOrquestador()); got != 3 {
+		t.Errorf("orquestador = %d skills, quiero solo las de entrevistar", got)
 	}
 	if got := strings.Join(DeRol("tester"), ","); got != "tdd" {
 		t.Errorf("tester = %s", got)

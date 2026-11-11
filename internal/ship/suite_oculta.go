@@ -18,12 +18,18 @@ import (
 // verificarSuiteOculta runs the hidden test suite against the task's worktree.
 // Returns:
 //   - (nil, "", true) when there is no sealed suite — step skipped gracefully
+//   - (nil, "omitida · motivo", true) when the examiner logged why it sealed none
 //   - (&brecha, detalle, true) when hidden suite passed
 //   - (&brecha, detalle, false) when hidden suite failed — block PR
 func verificarSuiteOculta(ctx context.Context, root, roomPath string, t task.Task, pruebas string, timeout time.Duration) (brecha *float64, detalle string, ok bool) {
 	s, err := sealed.Read(root, t.ID)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, "", true // no suite sealed, skip
+		// sin suite sellada el paso se omite, pero no callado: si el
+		// examinador dejó dicho por qué no selló, el motivo sale en la esclusa
+		if m, e := os.ReadFile(filepath.Join(loop.RunsDir(root), t.ID, "examinador.log")); e == nil && strings.TrimSpace(string(m)) != "" {
+			return nil, idioma.T("omitida") + " · " + strings.TrimSpace(string(m)), true
+		}
+		return nil, "", true
 	}
 	if err != nil {
 		return nil, "error leyendo suite sellada · " + err.Error(), false

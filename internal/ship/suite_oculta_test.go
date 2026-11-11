@@ -2,10 +2,15 @@ package ship
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/Pastranauwu/loom/internal/loop"
 	"github.com/Pastranauwu/loom/internal/sealed"
+	"github.com/Pastranauwu/loom/internal/task"
 )
 
 // Quemar la suite al fallar dejaba el paso saltado en el siguiente ship
@@ -66,5 +71,20 @@ func TestSuiteOcultaQueNoCompilaLoDice(t *testing.T) {
 	// un fallo de aserción normal no es lo mismo
 	if noCompila("--- FAIL: TestX\nFAIL\tcalc/cmd/calc\t0.01s\n", s.Archivo) {
 		t.Error("una prueba que falla no es una suite que no compila")
+	}
+}
+
+func TestSuiteOcultaOmitidaDiceElMotivo(t *testing.T) {
+	root := t.TempDir()
+	tk := task.Task{ID: "T-001"}
+	if _, d, ok := verificarSuiteOculta(context.Background(), root, root, tk, "true", time.Second); d != "" || !ok {
+		t.Fatalf("sin suite ni motivo no hay paso: %q %v", d, ok)
+	}
+	dir := filepath.Join(loop.RunsDir(root), tk.ID)
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "examinador.log"), []byte("el examinador no devolvió suite oculta\n"), 0o644)
+	_, d, ok := verificarSuiteOculta(context.Background(), root, root, tk, "true", time.Second)
+	if !ok || !strings.Contains(d, "no devolvió suite oculta") {
+		t.Fatalf("la omisión debe pasar y decir por qué: %q %v", d, ok)
 	}
 }

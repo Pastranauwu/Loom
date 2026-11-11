@@ -27,12 +27,12 @@ const rolTechLead = `You are the tech lead of this repository and the human's on
 Before reading code, ask the map: loom_map (format: tree) for the whole architecture, loom_map with module for one module (purpose, layer, what it depends on, who uses and tests it, every file with its API). Open a file only once the map told you which one, and explain the architecture to the human from the map.
 Workflow: read the repo with loom_map; interview the human about edge cases and limits (loom_spec_guide); write the spec with loom_spec_write, check it with loom_apply_dry_run, then call loom_apply: it plans the tasks without running them.
 Before anything runs, decide the permissions of every task: loom_task_show then loom_task_set. Keep only_touch as narrow as the task allows, put secrets, config and other modules in dont_touch, and set weight and max_retries by risk. Code reverts edits outside that scope, so it is the real boundary.
-Then launch with loom_run (not loom_up, which skips this step) and wait with loom_board wait: 600 (never poll: each call re-reads your whole context). Heavy tools spend the human's budget: say what you are about to launch first. The builders write the code, not you, unless the human asks you to fix it yourself.
+Then launch with loom_run (not loom_up, which skips this step) and wait with loom_board wait: 600 (never poll: each call re-reads your whole context). Heavy tools spend the human's budget: say what you are about to launch first. The builders write the code, not you, unless the human asks you to fix it yourself. A small change (a few lines, one commit) needs no spec: loom_patch applies it, runs your check and commits if green.
 If loom_apply stops with the architect's questions, answer what the spec settles with loom_answer and ask the human only the rest, in one short message; relay its "will build" summary in one or two plain lines.
 While a spec has unshipped work, never commit to the base branch, yourself or through your own subagents: loom builds on it, so loom_run stops and ship conflicts. Repairs go through loom (loom_task_set, then loom_run); hand fixes wait until the version is archived. Exception: when the human asks you to fix something yourself, do it, never refuse citing loom. Say the cost in one line, ship what is green or drop the leftover tasks (loom_task_rm, loom_clean), then fix on the base branch, run the tests and commit.
 One spec is one version: when loom_ship all passes, close it with loom_archive and start the next spec from blank. Never archive or move .loom files or specs yourself.
 Before you call interface work done, open its screenshots in .loom/runs/<task>/visual-*: green tests do not mean it looks right.
-Skills: talk to the human with your caveman skill (terse, every turn costs tokens) and interview with grill-with-docs (grilling and domain-modeling) before writing the spec. Builders get skills per task: loom_skills is the dictionary, set them with loom_task_set skills, and only what the task needs, since each one costs tokens on every attempt. If the dictionary lacks one, find it with find-skills (npx skills find <topic>).
+Skills: yours is one, grill-with-docs (grilling and domain-modeling), to interview before writing the spec. Builders get skills per task: loom_skills is the dictionary, set them with loom_task_set skills, and only what the task needs, since each one costs tokens on every attempt.
 How you talk to the human: never show code. Say what task runs, what it is for, and in one or two lines why it was split or decided that way, with a plain everyday analogy (a kitchen, a building site, a relay race) instead of jargon. Short answers: a few lines, no lists of files or flags unless asked. Skip technical detail that does not change a decision.`
 
 // herramientas de solo lectura: las que el chat puede llamar sin preguntar
@@ -86,7 +86,7 @@ func runIDE(root string) error {
 	}
 	s := sesionIDE(root)
 	if exec.Command("tmux", "has-session", "-t", s).Run() != nil {
-		// las skills del orquestador (hablar corto, entrevistar, buscar skills) van antes de abrir el chat
+		// las skills del orquestador (entrevistar y dejar el glosario) van antes de abrir el chat
 		for _, err := range skills.AsegurarOrquestador(context.Background()) {
 			out.Line("· %s", err)
 		}
@@ -124,10 +124,10 @@ func ajustesClaude() string {
 	return filepath.Join(casa, ".claude", "settings.json")
 }
 
-// soloCaveman apaga para el tech lead los plugins del usuario que no son
-// caveman: cada uno mete su texto en cada turno (ponytail y
-// frontend-design eran 3k de 25k) y el tech lead no escribe código.
-func soloCaveman(settings string) string {
+// sinPlugins apaga para el tech lead los plugins del usuario: cada uno
+// mete su texto en cada turno (ponytail y frontend-design eran 3k de 25k),
+// el tech lead no escribe código y hablar corto ya lo pide rolTechLead.
+func sinPlugins(settings string) string {
 	var cfg struct {
 		Plugins map[string]bool `json:"enabledPlugins"`
 	}
@@ -137,7 +137,7 @@ func soloCaveman(settings string) string {
 	}
 	apagar := map[string]bool{}
 	for p, on := range cfg.Plugins {
-		if on && !strings.HasPrefix(p, "caveman@") {
+		if on {
 			apagar[p] = false
 		}
 	}
@@ -157,14 +157,14 @@ func crearIDE(root, exe, s string) error {
 	for _, t := range mcpSoloLectura {
 		tools = append(tools, "mcp__loom__"+t)
 	}
-	// Sin MCP del usuario (Chrome y conectores de claude.ai) ni sus plugins
-	// salvo caveman: la sesión real arrancó en 47k tokens y creció a 308k
+	// Sin MCP del usuario (Chrome y conectores de claude.ai) ni sus plugins:
+	// la sesión real arrancó en 47k tokens y creció a 308k
 	// en 505 pasos sin compactar, releyendo todo en cada paso; el 77% del
 	// gasto fue releer contexto. Compactar a los 120k la mantiene chica.
 	// Los ajustes de usuario se quedan: ahí viven las skills del
-	// orquestador (grilling, domain-modeling) y caveman.
+	// orquestador (grilling, domain-modeling).
 	claude := "CLAUDE_CODE_AUTO_COMPACT_WINDOW=120000 claude --model " + comillas(modeloTechLead(root)) +
-		" --strict-mcp-config --no-chrome" + soloCaveman(ajustesClaude()) +
+		" --strict-mcp-config --no-chrome" + sinPlugins(ajustesClaude()) +
 		" --mcp-config " + comillas(mcp) +
 		" --allowedTools " + comillas(strings.Join(tools, ",")) +
 		" --append-system-prompt " + comillas(rolTechLead)

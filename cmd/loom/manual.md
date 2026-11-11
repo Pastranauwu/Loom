@@ -55,7 +55,7 @@ One spec is one version. The cycle is: write spec → apply → run → `ship al
 - Without a remote, `loom_archive` first fast-forwards the base to `loom/_entrega`: never merge the delivery branch by hand.
 - With `release: main` in `.loom/config.yml` (and `base: dev`), `loom_archive` also leaves one commit per version on `main`: the base's tree, a `vX.Y.Z` tag (minor if any `feat`, patch if only `fix`) and a summary of improvements and fixes from the Conventional Commits. The base keeps every commit; `main` only versions. It pushes nothing: tell the human the push command it prints.
 - While a spec has unshipped work, never commit to the base branch, by hand or through your own subagents: loom's branches are built on it, so `loom_run` stops and `ship` conflicts. Repairs go through loom (`loom_task_set`, then `loom_run`); hand fixes wait until `ship all` and `loom_archive`. `loom_status` reports the clash.
-- Hand fixes: when the human asks you to fix something yourself, do it: never refuse citing loom. Say the cost in one line, then clear the way: `loom_ship` what is green, or drop the leftover tasks with `loom_task_rm` and `loom_clean`. Then fix on the base branch, run the tests and commit.
+- Hand fixes: when the human asks you to fix something yourself, do it: never refuse citing loom. If it is small, `loom_patch` does it in one call (apply, check, commit) with no planner or builders. Say the cost in one line, then clear the way: `loom_ship` what is green, or drop the leftover tasks with `loom_task_rm` and `loom_clean`. Then fix on the base branch, run the tests and commit.
 - `loom_archive` refuses if the last `ship all` failed or the spec changed after it: fix and ship again, do not force it.
 - It files the spec and its result in `.loom/historial/NNNN-<feature>/` (versioned), moves the shipped tasks with their
   states and runs to `.loom/archivo/NNNN-<feature>/` and frees their rooms. The next spec starts with a clean board.
@@ -83,6 +83,7 @@ follow them with `loom_board` and `loom_log`. They spend the human's quota, so a
 | `loom_answer` | Answer the architect's questions, one per question in order (empty = its default), then `loom_apply` again. |
 | `loom_task_show` | Read one contract. |
 | `loom_task_set` | Change one contract before it runs: only_touch, dont_touch, exposes, weight (light\|medium\|heavy), max_retries, depends_on, network, skills. Omitted fields stay as they are. |
+| `loom_patch` | Fast path for a small change you make yourself: `edits` (path, old, new: exact replacement, `old` must appear once; empty `old` creates the file), `check` (the command that proves it) and `message` (Conventional Commit). Green commits on the current branch with trailer `Agent: conductor`; red undoes everything and returns the output. At most 5 edits and 6 KB: bigger is a task, write it in the spec. Refuses while green tasks are unshipped (ship first) and on files with uncommitted changes. The human approves each call. |
 | `loom_skills` | The skill dictionary: what each skill is for, which roles get it by default, which are yours and which are installed. |
 | `loom_check` | Run one task's done_when and report. |
 | `loom_task_logs` | See every attempt of a task: what the agent did and why it failed. |
@@ -132,11 +133,12 @@ replaced by `{name}` before the model sees them. `loom_wrap_rm` removes a bridge
 
 Skills are text injected into a builder's prompt, so each one is paid on every attempt. One per need, never all at once.
 
-- Roles get theirs by default: implementers `ponytail`; backend `ponytail` + `codebase-design`; frontend and every task that draws a screen `impeccable`; tester `tdd`.
+- Every builder already gets the minimal-code rule in three lines. By default: backend and refactor tasks that expose an interface get `codebase-design`;
+  frontend and every task that draws a screen `impeccable`; tester `tdd`. Everything else gets none. The full `ponytail` only when you or the planner set it.
 - The planner picks extra ones per task from the dictionary; you can override with `loom_task_set` `skills` (`[]` removes them all).
   `agent-browser` drives a real browser (QA a running app, read live docs): it needs `network: true` and the `agent-browser` CLI.
-- Yours, not the builders': `caveman` to answer the human tersely, `grill-with-docs` (`grilling` + `domain-modeling`) to interview before the spec,
-  `find-skills` to search skills.sh when the dictionary lacks one. `loom ide` installs them for Claude Code.
+- Yours, not the builders': `grill-with-docs` (`grilling` + `domain-modeling`) to interview before the spec. `loom ide` installs it for Claude Code
+  and turns the user's plugins off for the session.
 - A skill not in the dictionary: `npx skills find <topic>`, then set its name on the task; it is fetched the first time it runs.
 
 ## Models and providers

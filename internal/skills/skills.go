@@ -56,10 +56,13 @@ const mattpocock = "https://github.com/mattpocock/skills"
 // DefaultSources es el diccionario de skills de loom. Una por necesidad:
 // cada una entra solo al rol o a la tarea que la usa, y se instala la
 // primera vez que hace falta (Asegurar). Cada KB se paga en cada intento.
+// ponytail no va por rol: Minimo ya está en la Base y la skill completa
+// (3,5 KB) se pagaba en cada intento de cada tarea del esqueleto. El
+// orquestador solo entrevista: hablar corto ya lo pide su prompt.
 func DefaultSources() []Source {
 	return []Source{
-		{Nombre: "ponytail", Repo: "https://github.com/DietrichGebert/ponytail", Roles: []string{"ejecutor", "backend", "refactor"},
-			Para: "write the least code that works: reuse what exists, stdlib before dependencies, no speculative layers. Any implementation task."},
+		{Nombre: "ponytail", Repo: "https://github.com/DietrichGebert/ponytail",
+			Para: "the full version of the minimal-code rule every builder already gets in three lines. Only for tasks at real risk of over-building: large refactors, new subsystems."},
 		{Nombre: "codebase-design", Repo: mattpocock, Roles: []string{"backend", "refactor"},
 			Para: "deep modules, seams and interfaces that are easy to call and test: backend services, APIs, data access, any module other tasks depend on."},
 		{Nombre: "impeccable", Repo: "https://github.com/pbakaus/impeccable", Roles: []string{"frontend"},
@@ -70,16 +73,12 @@ func DefaultSources() []Source {
 			Para: "drive a real browser from the shell: QA a running web app, fill forms, read live docs or sites. Needs the agent-browser CLI (npm i -g agent-browser) and network: true on the task."},
 		{Nombre: "clean-code", Repo: "https://github.com/sickn33/agentic-awesome-skills",
 			Para: "naming, function size and readability rules. Refactors of hard-to-read code."},
-		{Nombre: "caveman", Repo: "https://github.com/JuliusBrussee/caveman", Orquestador: true,
-			Para: "terse replies to the human: fewer output tokens in every chat turn."},
 		{Nombre: "grilling", Repo: mattpocock, Orquestador: true,
 			Para: "interview the human one question at a time down the decision tree before writing the spec."},
 		{Nombre: "domain-modeling", Repo: mattpocock, Orquestador: true,
 			Para: "record the terms and decisions of the interview as a glossary and ADRs in the repo."},
 		{Nombre: "grill-with-docs", Repo: mattpocock, Orquestador: true,
 			Para: "grilling plus domain-modeling: the interview that leaves docs behind. Use it for specs over an existing codebase."},
-		{Nombre: "find-skills", Repo: "https://github.com/vercel-labs/skills", Orquestador: true,
-			Para: "search skills.sh for a skill a task needs that the dictionary lacks; set it on the task with loom_task_set skills."},
 	}
 }
 
@@ -365,10 +364,10 @@ func Content(root string, nombres []string) string {
 // Catalogo es lo que el planificador puede poner en una tarea: el
 // diccionario de constructores (instalado o no: se trae al correr) y las
 // skills extra instaladas en .agents/skills. implement y caveman quedan
-// fuera: la Base las reemplaza.
+// fuera: la Base las reemplaza; find-skills es de un chat, no de un cuarto.
 func Catalogo(root string) []Skill {
 	var out []Skill
-	visto := map[string]bool{"implement": true, "caveman": true}
+	visto := map[string]bool{"implement": true, "caveman": true, "find-skills": true}
 	for _, s := range DefaultSources() {
 		visto[s.Nombre] = true
 		if !s.Orquestador {

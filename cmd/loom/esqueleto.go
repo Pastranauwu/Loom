@@ -205,7 +205,8 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 	// correcciones cuenta las del modelo actual: al subir al planificador
 	// arranca de cero, con lo que el modelo medio dejó en el cuarto
 	correcciones := 0
-	jsonPrevio := "" // el JSON de la vuelta anterior, por si la corrección dice "unchanged"
+	sesionPedida := false // el aviso de capturas sin sesión ya se mandó una vez
+	jsonPrevio := ""      // el JSON de la vuelta anterior, por si la corrección dice "unchanged"
 	for vuelta := 0; ; vuelta++ {
 		titulo := fmt.Sprintf("el arquitecto escribe el esqueleto · %s · %s", id, modelo)
 		if vuelta > 0 {
@@ -292,8 +293,15 @@ func planearEsqueleto(root string, s *spec.Spec, pedido string) error {
 			// solo si alguna tarea toca la interfaz: un arreglo de backend
 			// gastaba sus dos correcciones reparando el script de capturas
 			ui := tocaUI(res.Tareas)
+			// capturas iguales no prueban un login (un canvas en blanco sale
+			// igual): se exige una vez; si el arquitecto lo descarta, se sigue
 			if p, _ := cfg.Pantallas.Completar(res.Pantallas); ui && len(sinSesion) > 0 && p.Script != "" && !capturas.UsaSesion(r.Path, p.Script) {
-				problemas = append(problemas, "las rutas "+strings.Join(sinSesion, ", ")+" redirigen al login y \"pantallas.script\" no inicia sesión: la semilla debe crear el usuario $SCREENS_USER / $SCREENS_PASSWORD y el script entrar con él antes de capturar")
+				if sesionPedida {
+					out.Line(idioma.T("· %d capturas salieron iguales y el arquitecto no puso sesión en el script · se sigue sin exigirla"), len(sinSesion))
+				} else {
+					sesionPedida = true
+					problemas = append(problemas, "las rutas "+strings.Join(sinSesion, ", ")+" redirigen al login y \"pantallas.script\" no inicia sesión: la semilla debe crear el usuario $SCREENS_USER / $SCREENS_PASSWORD y el script entrar con él antes de capturar")
+				}
 			}
 			// un script roto le muestra al revisor una página de error y le
 			// hace rechazar tareas que no lo son; se prueba antes de repartir
