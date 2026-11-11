@@ -2,6 +2,5 @@
 /dist/
 /README-LLM.md
 
-# agent context files (kept locally, not versioned)
-CLAUDE.md
 /devclean
+.commandcode/

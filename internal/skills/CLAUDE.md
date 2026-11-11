@@ -1,0 +1,12 @@
+# internal/skills: advertencias
+
+- **`DefaultSources` es el diccionario (`Para`, `Roles`, `Orquestador`):** los roles de `config.DefaultAgentes` toman sus skills con `DeRol`; el planificador ve el diccionario entero aunque no esté instalado (`Catalogo`) y `Asegurar` trae al correr lo que falte. Una skill nueva va ahí con su `Para`, o el planificador no sabe cuándo ponerla (`TestDiccionarioUnaSkillPorNecesidad`).
+- **Las del orquestador nunca llegan a un constructor:** `loom ide` las instala para Claude Code a nivel usuario (`AsegurarOrquestador`, fuera del repo). Son solo las de entrevistar (`grilling`, `domain-modeling`, `grill-with-docs`): caveman y find-skills salieron del diccionario, hablar corto lo pide `rolTechLead` y cada skill de más se relee en cada turno del chat.
+- **`Minimo` (ponytail en tres líneas) va en `Base`, en el prompt del planificador y en el del arquitecto:** la skill completa no entra por rol (3,5 KB por intento en cada tarea del esqueleto, que no trae `agente`), solo si el planificador o el conductor la ponen en `skills:`.
+- **`codebase-design` solo entra por rol a la tarea con `expone` (`resolverAgenteTarea`):** rellenar un stub no diseña módulos y eran 6 KB por intento. Declarada en `skills:` entra siempre.
+- **`skills:` en el contrato elige qué texto entra:** nil = las del rol, `[]` = ninguna.
+- **La guía de UI entra por archivo, no por rol (`UI`, `TocaUI`):** toda tarea con un archivo de interfaz en `tocar_solo` recibe ~1 KB de reglas neutrales al stack. Las tareas del esqueleto no traen `agente`.
+- **`frontend-design` está fuera del catálogo por defecto:** eran 9.4 KB por intento pidiendo huir de lo estándar.
+- **Toda tarea con UI recibe `UISkillName` (impeccable), aunque el contrato diga `[]` (`resolverAgenteTarea`):** sin ella el rediseño salía verde y con cara de plantilla. `Asegurar` la trae al correr si falta; serializado porque npx no tolera installs paralelos.
+- **`Content` imprime la ruta de cada skill:** el cuarto no ve `.agents/skills` (no está versionado) y las skills citan archivos de referencia.
+- **`Content` quita `## Setup`, `## Commands`, `## Installation` y las secciones de modo de chat (`Persistence`, `Intensity`, `Levels`, `Boundaries`) (`sinSecciones`) y mete en línea `reference/craft-floor.md`:** medido, 0 de 67 sesiones de implementador abrieron un archivo de la skill o corrieron su lanzador; el piso de calidad que exige leer antes de editar nunca llegaba.

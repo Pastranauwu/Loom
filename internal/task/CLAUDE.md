@@ -1,0 +1,7 @@
+# internal/task: advertencias
+
+- **Las llaves en inglés son las que se escriben (`Marshal`), el español se sigue leyendo:** `title/why/done_when/only_touch/dont_touch/depends_on/exposes/uses/risks/agent/max_retries/max_lines/weight/covers`. `weight: light|medium|heavy` se normaliza a `liviana|media|pesada` al leer (`NormalizarPeso`) y `Task.Peso` guarda siempre el valor en español; el parser del spec (`internal/spec/yaml.go`) acepta los mismos alias.
+- **Todo comando de verificación pasa por `Shell`/`Argv` (`sandbox.go`):** `listo_cuando`, `pruebas`, aceptación y ataques del red team. Con bwrap usable (sonda una vez por proceso) corren con la raíz en solo lectura, `/tmp` limpio, el cuarto y el `.git` común en escritura, cachés del usuario montadas y `--unshare-net` salvo `network: true` en la tarea. Sin bwrap o con la sonda fallida corren nativos y `Aviso` lo dice una vez. `sandbox: off` en config lo apaga (lo fija `cmd/loom` en `configurarSandbox`).
+- **Lo que vive en `/tmp` fuera del cuarto no existe dentro del sandbox:** por eso el cuarto se monta después del tmpfs y el PATH bajo `/tmp` entra en solo lectura. Un `CARGO_TARGET_DIR` u otro directorio de escritura va dentro del cuarto.
+- **Esqueleto (`verify`, integración) y la entrega conjunta corren con red:** instalan y compilan el proyecto entero; el aislamiento ahí es solo de archivos.
+- **`NextID` cuenta también los contratos apartados en `.loom/archivo/*/tasks`:** con el id repetido, ramas y cuartos viejos chocaban en la corrida nueva.
